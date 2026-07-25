@@ -1667,15 +1667,11 @@ def dashboard_view(request):
 
     # ── Team Manager: route to Ligi dashboard if ward TM, else MKJ dashboard ──
     if user.role == 'team_manager':
-        from teams.models import CountyDiscipline, WardLonglist
-        is_ward_tm = CountyDiscipline.objects.filter(
-            sub_county=user.sub_county,
-            ward=user.ward,
-            level='ward',
-        ).filter(
-            ward_longlist__isnull=False,
-        ).exists()
-        if is_ward_tm and user.ward:
+        # A ward TM has ward, sub_county, and assigned_discipline set on their account.
+        # Check that directly rather than looking for a WardLonglist, which may not
+        # exist yet for newly selected ward TMs.
+        is_ward_tm = bool(user.ward and user.sub_county and user.assigned_discipline)
+        if is_ward_tm:
             return redirect('ward_tm_dashboard')
         return redirect('team_manager_dashboard')
 
@@ -12677,12 +12673,17 @@ def ward_tm_dashboard_view(request):
             # Show admin overview of all ward disciplines
             return redirect('ligi_admin_overview')
     else:
-        # Fetch the ward-level discipline for this user
-        discipline = CountyDiscipline.objects.filter(
+        # Fetch the ward-level discipline for this user, scoped to their assigned discipline
+        discipline_qs = CountyDiscipline.objects.filter(
             sub_county=user.sub_county,
             ward=user.ward,
             level='ward',
-        ).select_related('registration', 'ward_longlist').first()
+        ).select_related('registration', 'ward_longlist')
+        # Prefer the discipline matching assigned_discipline; fall back to first
+        if user.assigned_discipline:
+            discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
+        else:
+            discipline = discipline_qs.first()
 
     # Guard: no ward discipline
     if discipline is None:
