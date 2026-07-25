@@ -126,16 +126,20 @@
 
         <div class="tm-options">
             {% for reg in item.registrations %}
-            <label class="tm-option {% if item.current_manager and reg.account and reg.account.pk == item.current_manager.pk %}selected{% endif %}">
+            <label class="tm-option {% if item.current_manager and reg.portal_user and reg.portal_user.pk == item.current_manager.pk %}selected{% endif %}">
                 <input type="radio" name="selected_user_pk"
-                    value="{{ reg.account.pk }}"
-                    {% if item.current_manager and reg.account and reg.account.pk == item.current_manager.pk %}checked{% endif %}
+                    value="{{ reg.portal_user.pk|default:'' }}"
+                    {% if item.current_manager and reg.portal_user and reg.portal_user.pk == item.current_manager.pk %}checked{% endif %}
+                    {% if not reg.portal_user %}disabled title="No portal account yet"{% endif %}
                     required>
                 <div class="tm-option-info">
                     <div class="tm-option-name">
                         {{ reg.manager_first_name }} {{ reg.manager_last_name }}
-                        {% if item.current_manager and reg.account and reg.account.pk == item.current_manager.pk %}
+                        {% if item.current_manager and reg.portal_user and reg.portal_user.pk == item.current_manager.pk %}
                         <span style="font-size:.68rem;background:#d1fae5;color:#065f46;padding:.1rem .4rem;border-radius:4px;margin-left:.4rem;font-weight:700">CURRENT</span>
+                        {% endif %}
+                        {% if not reg.portal_user %}
+                        <span style="font-size:.68rem;background:#fee2e2;color:#b91c1c;padding:.1rem .4rem;border-radius:4px;margin-left:.4rem;font-weight:700">NO ACCOUNT</span>
                         {% endif %}
                     </div>
                     <div class="tm-option-team">🏟 {{ reg.team_name }}</div>

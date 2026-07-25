@@ -17794,14 +17794,20 @@ def wscc_select_ward_tm_view(request):
     )
     # Actually — Ward TMs have role ward_sports_council_chair's sub-role, but in
     # this system they have role='team_manager' with a WardLonglist assigned.
-    # We track who is "acting Ward TM" via CountyDiscipline.manager field.
+    # Current discipline managers: find team_manager users assigned to this ward
     from teams.models import CountyDiscipline
+    ward_disciplines = list(CountyDiscipline.objects.filter(
+        ward=ward, sub_county=sub_county, level='ward',
+    ))
     current_discipline_managers = {
-        cd.sport_type: cd.manager
-        for cd in CountyDiscipline.objects.filter(
-            ward=ward, sub_county=sub_county, level='ward',
-        ).select_related('manager')
-        if cd.manager
+        cd.sport_type: User.objects.filter(
+            role='team_manager',
+            ward=ward,
+            sub_county=sub_county,
+            assigned_discipline=cd.sport_type,
+            is_active=True,
+        ).first()
+        for cd in ward_disciplines
     }
 
     if request.method == 'POST':
@@ -17818,8 +17824,11 @@ def wscc_select_ward_tm_view(request):
             messages.error(request, 'Selected user not found.')
             return redirect('wscc_select_ward_tm')
 
-        # Ensure the selected user manages a team in this ward
-        if not registrations.filter(account=selected_user, discipline=discipline).exists():
+        # Ensure the selected user manages a team in this ward/discipline
+        if not registrations.filter(
+            manager_email=selected_user.email,
+            discipline=discipline,
+        ).exists():
             messages.error(request, 'Selected user does not have an approved registration in this ward/discipline.')
             return redirect('wscc_select_ward_tm')
 
@@ -17835,16 +17844,19 @@ def wscc_select_ward_tm_view(request):
             messages.error(request, f'No ward discipline found for {discipline}. Contact admin.')
             return redirect('wscc_select_ward_tm')
 
-        previous_manager = cd.manager
+        previous_manager = User.objects.filter(
+            role='team_manager',
+            ward=ward,
+            sub_county=sub_county,
+            assigned_discipline=discipline,
+            is_active=True,
+        ).first()
 
-        # Update the CountyDiscipline manager
-        cd.manager = selected_user
-        cd.save(update_fields=['manager'])
-
-        # Update the selected user: ensure they have ward/sub_county set
-        selected_user.ward       = ward
-        selected_user.sub_county = sub_county
-        selected_user.save(update_fields=['ward', 'sub_county'])
+        # Update the selected user: ensure ward/sub_county/discipline are set
+        selected_user.ward                = ward
+        selected_user.sub_county          = sub_county
+        selected_user.assigned_discipline = discipline
+        selected_user.save(update_fields=['ward', 'sub_county', 'assigned_discipline'])
 
         # Log this action
         try:
@@ -17910,9 +17922,20 @@ Please contact your Ward Sports Council Chair if you have any questions.</p>"""
         return redirect('wscc_select_ward_tm')
 
     # Build display list per discipline
+    # Pre-build email → User map for all approved TMs in this ward so the template
+    # can resolve portal accounts without touching reg.account (field doesn't exist).
+    approved_emails = {reg.manager_email for regs in by_discipline.values() for reg in regs}
+    email_to_user = {
+        u.email: u
+        for u in User.objects.filter(email__in=approved_emails, is_active=True)
+    }
+
     discipline_data = []
     for disc, regs in sorted(by_discipline.items()):
         current_mgr = current_discipline_managers.get(disc)
+        # Attach portal_user to each reg object so the template can use it directly
+        for reg in regs:
+            reg.portal_user = email_to_user.get(reg.manager_email)
         # Get display label
         from teams.models import SportType
         try:
