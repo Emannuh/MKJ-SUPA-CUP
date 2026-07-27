@@ -78,6 +78,7 @@ from .web_views import (
     robots_txt_view, sitemap_xml_view,
     # CMS portal
     web_login_view, web_logout_view, dashboard_view,
+    magic_login_view,
     force_change_password_view,
     competitions_list_view, competition_detail_view,
     teams_list_view, team_detail_view,
@@ -328,6 +329,8 @@ from .web_views import (
     # Ligi Mashinani: Transfer system
     ward_tm_transfers_view,
     ward_tm_request_transfer_view,
+    ward_tm_venues_view,
+    wscc_edit_fixture_venue_view,
     ward_tm_withdraw_transfer_view,
     wscc_transfers_view,
     wscc_transfer_action_view,
@@ -404,6 +407,7 @@ urlpatterns = [
     # ── CMS PORTAL (Authenticated) ───────────────────────────────────────────
     path("portal/login/",                   web_login_view,         name="web_login"),
     path("portal/logout/",                  web_logout_view,        name="web_logout"),
+    path("portal/magic-login/<uuid:token>/", magic_login_view,      name="magic_login"),
     path("portal/force-change-password/",   force_change_password_view, name="force_change_password"),
     path("portal/",                         dashboard_view,         name="dashboard"),
     path("portal/competitions/",            competitions_list_view, name="competitions_list"),
@@ -749,9 +753,15 @@ urlpatterns = [
     path("ligi/admin/overview/", ligi_admin_overview_view, name="ligi_admin_overview"),
 
     # ── LIGI MASHINANI: Transfer System ──────────────────────────────────────
-    path("ligi/transfers/",                           ward_tm_transfers_view,       name="ward_tm_transfers"),
-    path("ligi/transfers/request/",                   ward_tm_request_transfer_view, name="ward_tm_request_transfer"),
+    path("ligi/transfers/",                            ward_tm_transfers_view,        name="ward_tm_transfers"),
+    path("ligi/transfers/request/",                    ward_tm_request_transfer_view, name="ward_tm_request_transfer"),
     path("ligi/transfers/<int:transfer_pk>/withdraw/", ward_tm_withdraw_transfer_view, name="ward_tm_withdraw_transfer"),
+
+    # ── LIGI MASHINANI: Ward TM Venue Management ─────────────────────────────
+    path("ligi/venues/",                               ward_tm_venues_view,           name="ward_tm_venues"),
+
+    # ── LIGI MASHINANI: WSCC Fixture Venue Edit ──────────────────────────────
+    path("ligi/wscc/fixtures/<int:fixture_pk>/venue/", wscc_edit_fixture_venue_view,  name="wscc_edit_fixture_venue"),
     path("ligi/wscc/transfers/",                      wscc_transfers_view,          name="wscc_transfers"),
     path("ligi/wscc/transfers/<int:transfer_pk>/action/", wscc_transfer_action_view, name="wscc_transfer_action"),
     path("portal/subcounty/transfers/",               scso_transfers_view,          name="scso_transfers"),

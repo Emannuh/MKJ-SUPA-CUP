@@ -1631,6 +1631,62 @@ def web_logout_view(request):
     return redirect('home')
 
 
+def magic_login_view(request, token):
+    """
+    One-click login from the welcome email.
+
+    The token is a UUID stored on User.magic_token.  It is single-use:
+    consumed (cleared) immediately on first use.  If it has expired
+    (magic_token_expires in the past) the user is sent to the normal
+    login page with a friendly message.
+    """
+    from django.utils import timezone as _tz
+    import uuid as _uuid
+
+    # Validate token format
+    try:
+        token_uuid = _uuid.UUID(str(token))
+    except (ValueError, AttributeError):
+        messages.error(request, 'That login link is invalid. Please use your email and password to log in.')
+        return redirect('web_login')
+
+    user = User.objects.filter(magic_token=token_uuid, is_active=True).first()
+
+    if user is None:
+        messages.warning(
+            request,
+            'This login link has already been used or is invalid. '
+            'Please log in with your email and password.'
+        )
+        return redirect('web_login')
+
+    if user.magic_token_expires and user.magic_token_expires < _tz.now():
+        messages.warning(
+            request,
+            'This login link has expired (links are valid for 7 days). '
+            'Please log in with your email and password.'
+        )
+        # Clear the expired token
+        user.magic_token = None
+        user.magic_token_expires = None
+        user.save(update_fields=['magic_token', 'magic_token_expires'])
+        return redirect('web_login')
+
+    # ── Valid token: consume it, log the user in ──────────────────────────
+    user.magic_token = None
+    user.magic_token_expires = None
+    user.save(update_fields=['magic_token', 'magic_token_expires'])
+
+    login(request, user, backend='accounts.backends.EmailBackend')
+    request.session.cycle_key()
+
+    # Always send them to change-password on first use
+    if user.must_change_password:
+        return redirect('force_change_password')
+
+    return redirect('dashboard')
+
+
 # ── DASHBOARD ─────────────────────────────────────────────────────────────────
 
 @login_required(login_url='web_login')
@@ -12721,6 +12777,7 @@ def ward_tm_dashboard_view(request):
             ward=user.ward,
             level='ward',
         ).select_related('registration', 'ward_longlist')
+        discipline = None
         if user.assigned_discipline:
             discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
         if not discipline:
@@ -12795,6 +12852,8 @@ def ward_tm_dashboard_view(request):
         'qualified_to_subcounty': qualified_to_subcounty,
         'eligible_for_subcounty': eligible_for_subcounty,
         'eligible_count': len(eligible_for_subcounty),
+        'has_main_venue': discipline.has_main_venue,
+        'venues': discipline.ward_venues.filter(is_active=True).order_by('venue_type', 'name'),
     }
     return render(request, 'ligi/ward_tm_dashboard.html', context)
 
@@ -12937,6 +12996,15 @@ def ward_tm_add_player_view(request):
     if not ligi_cfg.player_registration_open:
         messages.error(request, ligi_cfg.player_registration_closed_message)
         return redirect('ward_tm_longlist')
+
+    # ── Gate: main venue must be registered before adding players ──────────
+    if not discipline.has_main_venue:
+        messages.error(
+            request,
+            'You must register at least one main match venue before adding players. '
+            'Please add your main venue first.'
+        )
+        return redirect('ward_tm_venues')
 
     if request.method == 'POST':
         form = WardLonglistPlayerForm(request.POST, request.FILES)
@@ -16192,6 +16260,84 @@ def _transfer_window_guard(request):
 # ── Ward Team Manager ─────────────────────────────────────────────────────────
 
 @role_required('team_manager', 'admin')
+def ward_tm_venues_view(request):
+    """
+    Ward TM: manage match venues (main + alternatives).
+    At least one MAIN venue must be registered before players can be added.
+    URL: /ligi/venues/
+    """
+    from teams.models import WardVenue, WardVenueType
+
+    user = request.user
+    discipline, longlist = _get_ward_tm_context(user, request)
+    if discipline is None:
+        messages.warning(request, 'No ward team found for your account.')
+        return redirect('ward_tm_dashboard')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        if action == 'add_venue':
+            vtype    = request.POST.get('venue_type', WardVenueType.MAIN)
+            name     = request.POST.get('name', '').strip()
+            location = request.POST.get('location_description', '').strip()
+            surface  = request.POST.get('surface', 'Natural Grass').strip()
+            try:
+                capacity = int(request.POST.get('capacity') or 0)
+            except ValueError:
+                capacity = 0
+
+            if not name:
+                messages.error(request, 'Venue name is required.')
+            elif vtype not in dict(WardVenueType.choices):
+                messages.error(request, 'Invalid venue type.')
+            elif vtype == WardVenueType.MAIN and discipline.ward_venues.filter(
+                venue_type=WardVenueType.MAIN, is_active=True
+            ).exists():
+                messages.error(
+                    request,
+                    'A main venue is already registered. '
+                    'Delete the existing main venue first, or add an alternative venue.'
+                )
+            else:
+                WardVenue.objects.create(
+                    discipline=discipline,
+                    venue_type=vtype,
+                    name=name,
+                    location_description=location,
+                    surface=surface,
+                    capacity=capacity,
+                    ward=user.ward,
+                    sub_county=user.sub_county,
+                    added_by=user,
+                )
+                messages.success(request, f'{dict(WardVenueType.choices)[vtype]} "{name}" added.')
+
+        elif action == 'delete_venue':
+            venue_pk = request.POST.get('venue_pk')
+            try:
+                venue = WardVenue.objects.get(pk=venue_pk, discipline=discipline)
+                vname = venue.name
+                venue.delete()
+                messages.success(request, f'Venue "{vname}" removed.')
+            except WardVenue.DoesNotExist:
+                messages.error(request, 'Venue not found.')
+
+        return redirect('ward_tm_venues')
+
+    venues      = discipline.ward_venues.filter(is_active=True).order_by('venue_type', 'name')
+    has_main    = discipline.has_main_venue
+
+    return render(request, 'ligi/ward_tm_venues.html', {
+        'discipline': discipline,
+        'longlist':   longlist,
+        'venues':     venues,
+        'has_main':   has_main,
+        'venue_types': WardVenueType.choices,
+    })
+
+
+@role_required('team_manager', 'admin')
 def ward_tm_transfers_view(request):
     """
     Ward TM: list their own transfer requests + button to create new one.
@@ -17791,6 +17937,78 @@ def transfer_tracking_dashboard_view(request):
 #  URL: /ligi/wscc/select-ward-tm/
 #  Auth: ward_sports_council_chair, admin
 # ══════════════════════════════════════════════════════════════════════════════
+
+@role_required('ward_sports_council_chair', 'admin')
+def wscc_edit_fixture_venue_view(request, fixture_pk):
+    """
+    WSCC edits the venue for a ward-level fixture.
+    They can pick from the ward's registered WardVenues or type a free-text override.
+    URL: /ligi/wscc/fixtures/<fixture_pk>/venue/
+    """
+    from competitions.models import Fixture, Venue
+    from teams.models import WardVenue
+
+    user = request.user
+    fixture = get_object_or_404(
+        Fixture.objects.select_related('competition', 'home_team', 'away_team'),
+        pk=fixture_pk,
+        competition__level='ward',
+        competition__sub_county=user.sub_county,
+    )
+
+    # Gather ward venues from either home team's discipline
+    home_discipline = getattr(fixture.home_team, 'source_discipline', None)
+    ward_venues = WardVenue.objects.none()
+    if home_discipline and home_discipline.level == 'ward':
+        ward_venues = home_discipline.ward_venues.filter(is_active=True).order_by('venue_type', 'name')
+
+    if request.method == 'POST':
+        venue_choice = request.POST.get('venue_choice', '').strip()   # 'ward_venue:<pk>' or 'custom'
+        custom_name  = request.POST.get('custom_name', '').strip()
+
+        if venue_choice.startswith('ward_venue:'):
+            try:
+                wv_pk  = int(venue_choice.split(':')[1])
+                wv     = WardVenue.objects.get(pk=wv_pk, is_active=True)
+                # Find or create a matching Venue record
+                venue, _ = Venue.objects.get_or_create(
+                    name=wv.name,
+                    county='Makueni',
+                    defaults={
+                        'city': wv.sub_county or 'Makueni',
+                        'address': wv.location_description,
+                        'surface': wv.surface,
+                        'capacity': wv.capacity,
+                        'is_active': True,
+                    },
+                )
+                fixture.venue = venue
+                fixture.save(update_fields=['venue', 'updated_at'])
+                messages.success(request, f'Venue updated to "{venue.name}".')
+            except (WardVenue.DoesNotExist, IndexError, ValueError):
+                messages.error(request, 'Selected venue not found.')
+        elif venue_choice == 'custom' and custom_name:
+            venue, _ = Venue.objects.get_or_create(
+                name=custom_name,
+                county='Makueni',
+                defaults={'city': user.sub_county or 'Makueni', 'is_active': True},
+            )
+            fixture.venue = venue
+            fixture.save(update_fields=['venue', 'updated_at'])
+            messages.success(request, f'Venue updated to "{custom_name}".')
+        else:
+            messages.error(request, 'Please select a venue or enter a custom name.')
+            return render(request, 'ligi/wscc/edit_fixture_venue.html', {
+                'fixture': fixture, 'ward_venues': ward_venues,
+            })
+
+        return redirect('wscc_ward_comp_manage', pk=fixture.competition.pk)
+
+    return render(request, 'ligi/wscc/edit_fixture_venue.html', {
+        'fixture':     fixture,
+        'ward_venues': ward_venues,
+    })
+
 
 @role_required('ward_sports_council_chair', 'admin')
 def wscc_mark_ligi_complete_view(request):

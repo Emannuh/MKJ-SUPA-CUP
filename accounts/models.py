@@ -65,18 +65,18 @@ class UserRole(models.TextChoices):
     VERIFICATION_OFFICER = "verification_officer", "Verification Officer"
     REFEREE             = "referee",             "Referee"
     TEAM_MANAGER        = "team_manager",        "Team Manager"
-    CEC_SPORTS_MEMBER = "cec_sports", "County CEC Member - Sports"
+    CEC_SPORTS_MEMBER = "cec_sports", "County CEC Member Sports"
     TREASURER           = "treasurer",           "Treasurer"
     JURY_CHAIR          = "jury_chair",          "Chair of the Jury"
     MEDIA_MANAGER       = "media_manager",       "Media Manager"
     SECRETARY_GENERAL   = "secretary_general",   "Secretary General"
     SCOUT               = "scout",               "Scout"
-    SUBCOUNTY_SPORTS_OFFICER = "subcounty_sports_officer", "Sub-County Sports Officer"
+    SUBCOUNTY_SPORTS_OFFICER = "subcounty_sports_officer", "Sub County Sports Officer"
     CHIEF_SPORTS_OFFICER = "chief_sports_officer", "Chief Sports Officer"
     DIRECTOR_SPORTS     = "director_sports",     "Director of Sports"
-    CHIEF_OFFICER_SPORTS = "chief_officer_sports", "Chief Officer - Sports"
+    CHIEF_OFFICER_SPORTS = "chief_officer_sports", "Chief Officer Sports"
     GOVERNOR            = "governor",            "Governor"
-    WAZIRI_SPORTS       = "waziri_sports",       "Waziri - Sports"
+    WAZIRI_SPORTS       = "waziri_sports",       "Waziri Sports"
     WARD_SPORTS_COUNCIL_CHAIR = "ward_sports_council_chair", "Ward Sports Council Chair"
     SUBCOUNTY_DISCIPLINE_COORDINATOR = "subcounty_discipline_coordinator", "Subcounty Discipline Coordinator"
     ADMIN               = "admin",               "System Admin"
@@ -180,6 +180,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     must_change_password = models.BooleanField(
         default=False,
         help_text="When True the user must set a new password on next login.",
+    )
+    # One-click magic login token (used in welcome emails so new users
+    # don't have to type the temporary password)
+    magic_token = models.UUIDField(
+        null=True, blank=True, unique=True,
+        help_text="Single-use login token included in the welcome email",
+    )
+    magic_token_expires = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Expiry date-time for the magic login token",
     )
     date_joined = models.DateTimeField(default=timezone.now)
     last_login  = models.DateTimeField(null=True, blank=True)

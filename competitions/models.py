@@ -60,7 +60,7 @@ class CompetitionStatus(models.TextChoices):
 
 class CompetitionLevel(models.TextChoices):
     WARD      = "ward",      "Ward (Ligi Mashinani)"
-    SUBCOUNTY = "subcounty", "Sub-County MKJ Finals"
+    SUBCOUNTY = "subcounty", "Sub County MKJ Finals"
     COUNTY    = "county",    "County MKJ Supa Cup"
 
 

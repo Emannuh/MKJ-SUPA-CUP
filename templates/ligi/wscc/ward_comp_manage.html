@@ -94,7 +94,8 @@
       <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6;text-align:center">Score</th>
       <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Away</th>
       <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Status</th>
-      <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Match Sheet</th>
+      <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Venue</th>
+      <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Sheet</th>
     </tr></thead>
     <tbody>
       {% for f in fixtures %}
@@ -111,6 +112,14 @@
           {% elif f.status == 'confirmed' %}<span style="background:#cfe2ff;color:#084298;padding:.15rem .5rem;border-radius:10px;font-size:.75rem">Confirmed</span>
           {% elif f.status == 'live' %}<span style="background:#f8d7da;color:#842029;padding:.15rem .5rem;border-radius:10px;font-size:.75rem">🔴 Live</span>
           {% else %}<span style="background:#e2e3e5;color:#41464b;padding:.15rem .5rem;border-radius:10px;font-size:.75rem">Pending</span>{% endif %}
+        </td>
+        <td style="padding:.5rem .9rem">
+          <a href="{% url 'wscc_edit_fixture_venue' f.pk %}"
+             title="Edit venue for this fixture"
+             style="padding:.25rem .55rem;background:#fff;color:#124491;border:1px solid #b6d4fe;border-radius:4px;font-size:.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem">
+            <i class="bi bi-geo-alt"></i>
+            <span>{% if f.venue %}{{ f.venue.name|truncatechars:14 }}{% else %}Set Venue{% endif %}</span>
+          </a>
         </td>
         <td style="padding:.5rem .9rem">
           <a href="{% url 'wscc_ward_match_sheet' f.pk %}"

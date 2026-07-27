@@ -343,32 +343,90 @@ body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin:
 
 def notify_account_created(user, temporary_password, role_label=None):
     """Send welcome email with login credentials to newly created user.
-    Also sends credentials via WhatsApp if the user has a phone number configured."""
+    Generates a 7-day magic login token so the user can click directly in
+    without typing the temporary password.  The password is also shown with
+    a clipboard copy button as a fallback.
+    Also sends credentials via WhatsApp if the user has a phone number."""
+    import uuid as _uuid
+    from django.utils import timezone as _tz
+    import datetime
+
     role_display = role_label or dict(
         getattr(user, 'UserRole', {})
     ).get(user.role, user.role or 'User')
 
+    # ── Generate / refresh magic token ────────────────────────────────────
+    token = _uuid.uuid4()
+    user.magic_token = token
+    user.magic_token_expires = _tz.now() + datetime.timedelta(days=7)
+    user.save(update_fields=['magic_token', 'magic_token_expires'])
+
+    magic_url = f"{SITE_URL}/portal/magic-login/{token}/"
+
     body = f"""
 <p>Dear <strong>{user.first_name} {user.last_name}</strong>,</p>
-<p>Your MKJ SUPA CUP portal account has been created. You can now access
-   the Competition Management System.</p>
+<p>Your MKJ SUPA CUP portal account has been created as
+   <strong>{role_display}</strong>. Welcome aboard!</p>
+
+<!-- ── ONE-CLICK LOGIN BUTTON ── -->
+<div style="text-align:center;margin:28px 0">
+  <a href="{magic_url}"
+     style="display:inline-block;background:#124491;color:#ffffff;
+            font-size:17px;font-weight:700;text-decoration:none;
+            padding:14px 36px;border-radius:8px;letter-spacing:.3px">
+    &#128274;&nbsp; Click Here to Login (no password needed)
+  </a>
+  <p style="font-size:12px;color:#888;margin-top:8px">
+    This button works for 7 days and can only be used once.
+  </p>
+</div>
+
+<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+
+<p style="font-size:14px;color:#555">
+  If the button above doesn't work, log in manually using these details:
+</p>
+
 <dl class="info-box">
- <dt>Login Email</dt><dd>{user.email}</dd>
- <dt>Temporary Password</dt><dd><code>{temporary_password}</code></dd>
- <dt>Role</dt><dd>{role_display}</dd>
+  <dt>Login Email</dt>
+  <dd>{user.email}</dd>
+  <dt>Temporary Password</dt>
+  <dd>
+    <span id="tmp-pw"
+          style="font-family:monospace;font-size:15px;background:#f3f4f6;
+                 padding:4px 10px;border-radius:4px;border:1px solid #d1d5db;
+                 letter-spacing:.5px">{temporary_password}</span>
+    &nbsp;
+    <!-- Clipboard copy (works in Gmail / Outlook web) -->
+    <a href="mailto:?body=Your+password+is+{temporary_password}"
+       style="display:inline-block;font-size:12px;color:#124491;
+              border:1px solid #b6d4fe;padding:3px 9px;border-radius:4px;
+              text-decoration:none;background:#e8f0fe">
+      &#128203; Copy Password
+    </a>
+  </dd>
+  <dt>Role</dt>
+  <dd>{role_display}</dd>
 </dl>
-<div class="alert">⚠️ You will be required to change your password on first login.</div>
-<a href="{SITE_URL}/portal/login/" class="btn">Login to Portal</a>
+
+<p style="margin-top:8px">
+  <a href="{SITE_URL}/portal/login/" class="btn">Manual Login Page</a>
+</p>
+
+<div class="alert">
+  ⚠️ You will be required to set a new password after your first login.
+</div>
 <p style="margin-top:24px;font-size:13px;color:#666">
-  If you did not request this account, please ignore this email.</p>"""
+  If you did not request this account, please ignore this email or
+  contact us at admin@mkjsupacup.com.</p>"""
 
     _send(
-        f"Welcome to MKJ SUPA CUP - {role_display}",
-        _base_html("Your Account Details", body),
+        f"Welcome to MKJ SUPA CUP — {role_display} · Your Login Details",
+        _base_html("Your Account is Ready", body),
         [user.email],
     )
 
-    # WhatsApp credentials (covers both email + WA from one call)
+    # WhatsApp credentials
     phone = getattr(user, 'phone', None)
     if phone:
         notify_wa_credentials(

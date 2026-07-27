@@ -168,6 +168,11 @@ class CountyDiscipline(models.Model):
     def can_add_player(self):
         return self.player_count < self.squad_limit
 
+    @property
+    def has_main_venue(self):
+        """True when at least one active MAIN ward venue has been registered for this discipline."""
+        return self.ward_venues.filter(venue_type="main", is_active=True).exists()
+
     def generated_team_name(self):
         base_name = f"{self.sub_county or self.registration.county} {self.get_sport_type_display()}"
         base_name = re.sub(r"\s+", " ", base_name).strip()
@@ -556,6 +561,81 @@ class WardLonglistStatus(models.TextChoices):
     SUBMITTED      = "submitted",      "Submitted for Review"
     WSCC_APPROVED  = "wscc_approved",  "WSCC Approved"
     RETURNED       = "returned",       "Returned for Corrections"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  WARD VENUE  (required before player registration opens)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class WardVenueType(models.TextChoices):
+    MAIN        = "main",        "Main Venue"
+    ALTERNATIVE = "alternative", "Alternative Venue"
+
+
+class WardVenue(models.Model):
+    """
+    Venues declared by the Ward Team Manager for their ward discipline.
+    At least a MAIN venue is required before players can be registered.
+    The WSCC can also edit venues when assigning them to ward fixtures.
+    """
+    discipline = models.ForeignKey(
+        CountyDiscipline,
+        on_delete=models.CASCADE,
+        related_name="ward_venues",
+        limit_choices_to={"level": "ward"},
+        help_text="Ward discipline this venue belongs to",
+    )
+    venue_type = models.CharField(
+        max_length=15,
+        choices=WardVenueType.choices,
+        default=WardVenueType.MAIN,
+        help_text="Main venue or alternative venue",
+    )
+    name = models.CharField(
+        max_length=200,
+        help_text="Name of the ground or facility",
+    )
+    location_description = models.TextField(
+        blank=True, default="",
+        help_text="Physical location, landmarks, directions",
+    )
+    ward = models.CharField(
+        max_length=100, blank=True, default="",
+        help_text="Ward where this venue is located",
+    )
+    sub_county = models.CharField(
+        max_length=100, blank=True, default="",
+        help_text="Sub-county where this venue is located",
+    )
+    surface = models.CharField(
+        max_length=100, blank=True, default="Natural Grass",
+        help_text="Playing surface type (e.g. Natural Grass, Concrete, Tarmac)",
+    )
+    capacity = models.PositiveIntegerField(
+        default=0,
+        help_text="Estimated spectator capacity",
+    )
+    is_active = models.BooleanField(default=True)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="ward_venues_added",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["discipline", "venue_type", "name"]
+        verbose_name = "Ward Venue"
+        verbose_name_plural = "Ward Venues"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_venue_type_display()}) - {self.discipline}"
+
+    @property
+    def is_main(self):
+        return self.venue_type == WardVenueType.MAIN
 
 
 class WardLonglist(models.Model):
