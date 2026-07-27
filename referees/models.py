@@ -38,7 +38,11 @@ class RefereeProfile(models.Model):
         related_name="referee_profile"
     )
     license_number = models.CharField(max_length=50, unique=True, blank=True)
-    level          = models.CharField(max_length=40, choices=RefereeLevel.choices, default=RefereeLevel.COUNTY_GRASSROOT)
+    level          = models.CharField(
+        max_length=60,
+        default="County Grassroot",
+        help_text="Officiating level (e.g. County Grassroot, National (KVF), FIBA International)",
+    )
     county         = models.CharField(max_length=100)
     is_approved    = models.BooleanField(default=False)
     approved_by    = models.ForeignKey(
@@ -49,10 +53,10 @@ class RefereeProfile(models.Model):
     id_number      = models.CharField(max_length=20, blank=True, validators=[national_id_validator], help_text="National ID")
     profile_picture = models.ImageField(upload_to="referee_photos/", null=True, blank=True, help_text="Passport-size photo")
     referee_type    = models.CharField(
-        max_length=20, choices=Specialisation.choices,
-        default=Specialisation.REFEREE,
+        max_length=40,
+        default="referee",
         verbose_name="Specialisation",
-        help_text="Whether this official is a Referee or Assistant Referee",
+        help_text="Official's role on match day (e.g. Referee, 1st Referee (R1), Umpire, Scorer)",
     )
     discipline      = models.CharField(
         max_length=30, blank=True, default="",

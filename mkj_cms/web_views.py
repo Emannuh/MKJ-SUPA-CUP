@@ -5554,6 +5554,7 @@ def coordinator_referees_view(request):
         },
         'discipline_label': _coordinator_label(discipline) if discipline else '',
         'sub_counties': MakueniSubCounty.choices,
+        'discipline_choices': COORDINATOR_DISCIPLINE_CHOICES,
         'levels': RefereeLevel.choices,
         'referee_types': Specialisation.choices,
     })

@@ -675,10 +675,13 @@ def edit_user_roles(request, user_id):
 
         user_obj.role = new_role
 
-        # Set is_staff for admin roles
-        if new_role == 'admin':
-            user_obj.is_staff = True
-        else:
+        # is_staff grants access to the Django /admin/ panel.
+        # Only superusers should have that — the System Admin *role* controls
+        # access to the MKJ portal admin dashboard, not Django admin.
+        # Never elevate is_staff here; leave it unchanged so that only
+        # explicitly superuser-flagged accounts can reach /admin/.
+        if new_role != 'admin' and not user_obj.is_superuser:
+            # Strip is_staff when moving away from admin role (unless superuser)
             user_obj.is_staff = False
 
         # Assign discipline for scout / coordinator roles

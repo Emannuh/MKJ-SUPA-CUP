@@ -2,10 +2,37 @@
 MKJ SUPA CUP CMS - Root URL Configuration
 """
 from django.contrib import admin
+from django.contrib.admin import AdminSite
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+
+
+class SuperuserOnlyAdminSite(AdminSite):
+    """
+    Restricts Django's /admin/ panel to superusers only.
+
+    A user with role='admin' and is_staff=True but is_superuser=False operates
+    the MKJ portal admin dashboard at /portal/admin-dashboard/ instead.
+    They must never reach the low-level Django admin.
+
+    Standard Django behaviour grants /admin/ access when is_staff=True; this
+    override tightens that to require is_superuser=True as well.
+    """
+
+    def has_permission(self, request):
+        # Active + superuser — nothing less
+        return (
+            request.user.is_active
+            and request.user.is_superuser
+        )
+
+
+# Replace the global admin site with our hardened version.
+# All admin.register() calls throughout the project attach to this instance
+# because they import from django.contrib.admin which proxies to admin.site.
+admin.site.__class__ = SuperuserOnlyAdminSite
 
 from teams.verification_views import (
     player_clearance_dashboard as _clearance_dashboard,
