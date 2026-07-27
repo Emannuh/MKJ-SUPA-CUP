@@ -1,112 +1,334 @@
 {% extends 'base.html' %}
-{% block title %}{{ competition.name }} - Manage - MKJ Portal{% endblock %}
+{% block title %}{{ competition.name }} · Manage · MKJ Portal{% endblock %}
+
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-    <div>
-        <h1><i class="bi bi-gear"></i> {{ competition.name }}</h1>
-        <p class="text-muted mb-0">
-            {{ competition.get_sport_type_display }} &bull; {{ competition.season }} &bull;
-            <span class="badge bg-secondary">{{ competition.get_status_display }}</span> &bull;
-            {{ competition.sub_county }}
-        </p>
+<div class="page-header">
+    <div class="breadcrumb">
+        <span><a href="{% url 'subcounty_officer_dashboard' %}" style="color:#124491;text-decoration:none">Dashboard</a></span>
+        <span><a href="{% url 'sc_competitions' %}" style="color:#124491;text-decoration:none">Competitions</a></span>
+        <span>{{ competition.name }}</span>
     </div>
-</div>
-
-{% if messages %}
-{% for msg in messages %}
-<div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
-    {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endfor %}
-{% endif %}
-
-<!-- Quick-action tiles -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <a href="{% url 'sc_manage_pools' pk=competition.pk %}" class="card text-center text-decoration-none h-100 p-3 border-0 shadow-sm">
-            <i class="bi bi-grid-3x3 fs-2 text-primary mb-1"></i>
-            <div class="fw-semibold small">Manage Pools</div>
-        </a>
-    </div>
-    <div class="col-6 col-md-3">
-        <a href="{% url 'sc_generate_fixtures' pk=competition.pk %}" class="card text-center text-decoration-none h-100 p-3 border-0 shadow-sm">
-            <i class="bi bi-calendar3 fs-2 text-success mb-1"></i>
-            <div class="fw-semibold small">Generate Fixtures</div>
-        </a>
-    </div>
-    <div class="col-6 col-md-3">
-        <a href="{% url 'sc_edit_standings' pk=competition.pk %}" class="card text-center text-decoration-none h-100 p-3 border-0 shadow-sm">
-            <i class="bi bi-table fs-2 text-warning mb-1"></i>
-            <div class="fw-semibold small">Edit Standings</div>
-        </a>
-    </div>
-    <div class="col-6 col-md-3">
-        <a href="{% url 'sc_competitions' %}" class="card text-center text-decoration-none h-100 p-3 border-0 shadow-sm">
-            <i class="bi bi-arrow-left-circle fs-2 text-secondary mb-1"></i>
-            <div class="fw-semibold small">All Competitions</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+            <h1><i class="bi bi-gear"></i> {{ competition.name }}</h1>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-top:.4rem">
+                <span style="font-size:.9rem;color:#666">{{ competition.get_sport_type_display }}</span>
+                <span style="color:#d1d5db">·</span>
+                <span style="font-size:.9rem;color:#666">{{ competition.season }}</span>
+                <span style="color:#d1d5db">·</span>
+                <span style="font-size:.9rem;color:#666">{{ competition.sub_county|title }} Sub County</span>
+                <span style="color:#d1d5db">·</span>
+                {% if competition.status == 'active' or competition.status == 'group_stage' or competition.status == 'knockout' %}
+                <span style="display:inline-flex;align-items:center;gap:.3rem;background:#d1fae5;color:#065f46;padding:.2rem .6rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #6ee7b7">
+                    <i class="bi bi-play-circle-fill"></i> {{ competition.get_status_display }}
+                </span>
+                {% elif competition.status == 'completed' %}
+                <span style="display:inline-flex;align-items:center;gap:.3rem;background:#e0e7ff;color:#4338ca;padding:.2rem .6rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #c7d2fe">
+                    <i class="bi bi-check-circle-fill"></i> Completed
+                </span>
+                {% elif competition.status == 'upcoming' %}
+                <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;padding:.2rem .6rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #fcd34d">
+                    <i class="bi bi-calendar-event"></i> Upcoming
+                </span>
+                {% else %}
+                <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f3f4f6;color:#6b7280;padding:.2rem .6rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #d1d5db">
+                    {{ competition.get_status_display }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <a href="{% url 'sc_competitions' %}" class="btn btn--secondary">
+            <i class="bi bi-arrow-left"></i> Back to Competitions
         </a>
     </div>
 </div>
 
-<!-- Pool standings summary -->
-<h5 class="mt-2">Pool Standings</h5>
-{% if pool_data %}
-{% for item in pool_data %}
-<div class="card mb-3 shadow-sm">
-    <div class="card-header fw-semibold">{{ item.pool.name }}</div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-sm mb-0">
-                <thead class="table-light"><tr>
-                    <th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>Pts</th>
-                </tr></thead>
+<!-- Stat pills -->
+<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.5rem">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Teams</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#4338ca">{{ teams_in_comp.count }}</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Pools</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#065f46">{{ pool_data|length }}</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Group Fixtures</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#b45309">{{ group_fixtures.count }}</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Knockout Fixtures</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#b91c1c">{{ knockout_fixtures.count }}</span>
+    </div>
+    {% if pending_reports %}
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #fcd34d;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Pending Reports</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#b45309">{{ pending_reports }}</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Action tiles -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin-bottom:1.5rem">
+    <a href="{% url 'sc_manage_pools' pk=competition.pk %}"
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.25rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;text-decoration:none;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.05)"
+       onmouseover="this.style.borderColor='#4338ca';this.style.background='#f5f3ff'"
+       onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff'">
+        <i class="bi bi-grid-3x3" style="font-size:1.75rem;color:#4338ca"></i>
+        <span style="font-size:.88rem;font-weight:700;color:#1e1b4b">Manage Pools</span>
+    </a>
+    <a href="{% url 'sc_generate_fixtures' pk=competition.pk %}"
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.25rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;text-decoration:none;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.05)"
+       onmouseover="this.style.borderColor='#059669';this.style.background='#ecfdf5'"
+       onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff'">
+        <i class="bi bi-calendar3" style="font-size:1.75rem;color:#059669"></i>
+        <span style="font-size:.88rem;font-weight:700;color:#022c22">Generate Fixtures</span>
+    </a>
+    <a href="{% url 'sc_edit_standings' pk=competition.pk %}"
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.25rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;text-decoration:none;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.05)"
+       onmouseover="this.style.borderColor='#d97706';this.style.background='#fffbeb'"
+       onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff'">
+        <i class="bi bi-table" style="font-size:1.75rem;color:#d97706"></i>
+        <span style="font-size:.88rem;font-weight:700;color:#451a03">Edit Standings</span>
+    </a>
+    {% if competition.status == 'completed' %}
+    <a href="{% url 'sc_qualify_teams' pk=competition.pk %}"
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.25rem;background:#fff;border:2px solid #fcd34d;border-radius:10px;text-decoration:none;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.05)"
+       onmouseover="this.style.background='#fffbeb'"
+       onmouseout="this.style.background='#fff'">
+        <i class="bi bi-trophy-fill" style="font-size:1.75rem;color:#d97706"></i>
+        <span style="font-size:.88rem;font-weight:700;color:#92400e">Qualify Teams</span>
+    </a>
+    {% endif %}
+    {% if group_fixtures %}
+    <a href="{% url 'sc_appoint_referee' competition.pk group_fixtures.first.pk %}"
+       style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.25rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;text-decoration:none;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.05)"
+       onmouseover="this.style.borderColor='#7c3aed';this.style.background='#f5f3ff'"
+       onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff'">
+        <i class="bi bi-whistle" style="font-size:1.75rem;color:#7c3aed"></i>
+        <span style="font-size:.88rem;font-weight:700;color:#2e1065">Appoint Referee</span>
+    </a>
+    {% else %}
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;padding:1.25rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;opacity:.5">
+        <i class="bi bi-whistle" style="font-size:1.75rem;color:#9ca3af"></i>
+        <span style="font-size:.88rem;font-weight:700;color:#6b7280">Appoint Referee</span>
+        <span style="font-size:.72rem;color:#9ca3af">Generate fixtures first</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pool Standings -->
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <h2 style="font-size:1.1rem;color:#333;margin:0">
+            <i class="bi bi-grid-3x3-gap"></i> Pool Standings
+        </h2>
+        <a href="{% url 'sc_manage_pools' pk=competition.pk %}" style="font-size:.85rem;color:#124491;text-decoration:none">
+            Manage Pools <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    {% if pool_data %}
+    {% for item in pool_data %}
+    <div style="margin-bottom:1.25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <h3 style="font-size:.95rem;font-weight:700;color:#124491;margin:0">
+                <i class="bi bi-grid"></i> {{ item.pool.name }}
+            </h3>
+            <span style="font-size:.8rem;color:#888">{{ item.teams|length }} team{{ item.teams|length|pluralize }}</span>
+        </div>
+        <div style="overflow-x:auto;border-radius:8px;border:1px solid #e5e7eb">
+            <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+                <thead>
+                    <tr style="background:#f8f9fa;text-align:center">
+                        <th style="padding:.5rem .75rem;border-bottom:1px solid #dee2e6;text-align:left;font-weight:700;color:#374151">Team</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#374151;min-width:30px">P</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#374151;min-width:30px">W</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#374151;min-width:30px">D</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#374151;min-width:30px">L</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#374151;min-width:35px">GF</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#374151;min-width:35px">GA</th>
+                        <th style="padding:.5rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#124491;min-width:35px">Pts</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for pt in item.teams %}
-                    <tr>
-                        <td>{{ pt.team.name }}</td>
-                        <td>{{ pt.played }}</td><td>{{ pt.won }}</td>
-                        <td>{{ pt.drawn }}</td><td>{{ pt.lost }}</td>
-                        <td>{{ pt.goals_for }}</td><td>{{ pt.goals_against }}</td>
-                        <td><strong>{{ pt.points }}</strong></td>
+                    <tr style="border-bottom:1px solid #f0f0f0;text-align:center{% if forloop.last %};border-bottom:none{% endif %}">
+                        <td style="padding:.5rem .75rem;text-align:left;font-weight:500;color:#111827">
+                            {% if forloop.counter <= competition.qualify_from_group %}
+                            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:.4rem;vertical-align:middle"></span>
+                            {% endif %}
+                            {{ pt.team.name }}
+                        </td>
+                        <td style="padding:.5rem .5rem;color:#374151">{{ pt.played }}</td>
+                        <td style="padding:.5rem .5rem;color:#374151">{{ pt.won }}</td>
+                        <td style="padding:.5rem .5rem;color:#374151">{{ pt.drawn }}</td>
+                        <td style="padding:.5rem .5rem;color:#374151">{{ pt.lost }}</td>
+                        <td style="padding:.5rem .5rem;color:#374151">{{ pt.goals_for }}</td>
+                        <td style="padding:.5rem .5rem;color:#374151">{{ pt.goals_against }}</td>
+                        <td style="padding:.5rem .5rem;font-weight:800;color:#124491;font-size:.95rem">{{ pt.points }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% if item.teams %}
+        <div style="font-size:.75rem;color:#6b7280;margin-top:.4rem;display:flex;align-items:center;gap:.4rem">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981"></span>
+            Top {{ competition.qualify_from_group }} advance to knockout stage
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="padding:1.5rem;text-align:center;color:#888">
+        <i class="bi bi-grid-3x3" style="font-size:1.75rem;display:block;margin-bottom:.5rem;color:#d1d5db"></i>
+        <p style="margin:0 0 .75rem">No pools yet.</p>
+        <a href="{% url 'sc_manage_pools' pk=competition.pk %}" class="btn btn--secondary" style="font-size:.85rem">
+            <i class="bi bi-plus-circle"></i> Create Pools
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Group Stage Fixtures -->
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <h2 style="font-size:1.1rem;color:#333;margin:0">
+            <i class="bi bi-calendar-event"></i> Group Stage Fixtures
+        </h2>
+        <a href="{% url 'sc_generate_fixtures' pk=competition.pk %}" style="font-size:.85rem;color:#124491;text-decoration:none">
+            Generate / Manage <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    {% if group_fixtures %}
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+            <thead>
+                <tr style="background:#f0f4ff;text-align:left">
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6">Date</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6">Pool</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6">Home Team</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6;text-align:center">Score</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6">Away Team</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6">Status</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #dee2e6">Live</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fx in group_fixtures %}
+                <tr style="border-bottom:1px solid #f0f0f0;transition:background .15s"
+                    onmouseover="this.style.background='#f8f9fa'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding:.6rem .85rem;white-space:nowrap;color:#374151;font-size:.85rem">
+                        {{ fx.match_date|default:"TBD"|date:"d M Y" }}
+                    </td>
+                    <td style="padding:.6rem .85rem;font-size:.82rem;color:#6b7280">
+                        {{ fx.pool.name|default:"" }}
+                    </td>
+                    <td style="padding:.6rem .85rem;font-weight:500;color:#111827">{{ fx.home_team.name }}</td>
+                    <td style="padding:.6rem .85rem;text-align:center;font-weight:700;font-size:1rem;color:#124491">
+                        {% if fx.home_score is not None %}
+                        {{ fx.home_score }} : {{ fx.away_score }}
+                        {% else %}
+                        <span style="color:#9ca3af;font-weight:400;font-size:.85rem">vs</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:.6rem .85rem;font-weight:500;color:#111827">{{ fx.away_team.name }}</td>
+                    <td style="padding:.6rem .85rem">
+                        {% if fx.status == 'live' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fee2e2;color:#991b1b;padding:.2rem .6rem;border-radius:12px;font-size:.75rem;font-weight:700;border:1px solid #fca5a5">
+                            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#dc2626;animation:pulse 1s infinite"></span> LIVE
+                        </span>
+                        {% elif fx.status == 'completed' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#d1fae5;color:#065f46;padding:.2rem .6rem;border-radius:12px;font-size:.75rem;font-weight:700">
+                            <i class="bi bi-check"></i> FT
+                        </span>
+                        {% else %}
+                        <span style="font-size:.8rem;color:#6b7280">{{ fx.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:.6rem .85rem">
+                        <a href="{% url 'sc_live_match' pk=competition.pk fixture_pk=fx.pk %}"
+                           style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .65rem;font-size:.8rem;
+                           {% if fx.status == 'live' %}background:#dc2626;{% else %}background:#124491;{% endif %}
+                           color:#fff;border-radius:5px;text-decoration:none">
+                            <i class="bi bi-broadcast"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding:1.5rem;text-align:center;color:#888">
+        <i class="bi bi-calendar3" style="font-size:1.75rem;display:block;margin-bottom:.5rem;color:#d1d5db"></i>
+        <p style="margin:0 0 .75rem">No fixtures generated yet.</p>
+        <a href="{% url 'sc_generate_fixtures' pk=competition.pk %}" class="btn btn--secondary" style="font-size:.85rem">
+            <i class="bi bi-calendar-plus"></i> Generate Fixtures
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% if knockout_fixtures %}
+<!-- Knockout Fixtures -->
+<div class="card" style="padding:1.5rem">
+    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
+        <i class="bi bi-diagram-3"></i> Knockout Stage Fixtures
+    </h2>
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+            <thead>
+                <tr style="background:#fff3cd;text-align:left">
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #fcd34d">Round</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #fcd34d">Home Team</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #fcd34d;text-align:center">Score</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #fcd34d">Away Team</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #fcd34d">Date</th>
+                    <th style="padding:.6rem .85rem;border-bottom:2px solid #fcd34d">Live</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fx in knockout_fixtures %}
+                <tr style="border-bottom:1px solid #f0f0f0;transition:background .15s"
+                    onmouseover="this.style.background='#fffbeb'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding:.6rem .85rem;font-size:.82rem;font-weight:600;color:#92400e">
+                        {{ fx.get_knockout_round_display|default:"Knockout" }}
+                    </td>
+                    <td style="padding:.6rem .85rem;font-weight:500;color:#111827">{{ fx.home_team.name }}</td>
+                    <td style="padding:.6rem .85rem;text-align:center;font-weight:700;font-size:1rem;color:#124491">
+                        {% if fx.home_score is not None %}{{ fx.home_score }} : {{ fx.away_score }}
+                        {% else %}<span style="color:#9ca3af;font-weight:400;font-size:.85rem">vs</span>{% endif %}
+                    </td>
+                    <td style="padding:.6rem .85rem;font-weight:500;color:#111827">{{ fx.away_team.name }}</td>
+                    <td style="padding:.6rem .85rem;font-size:.85rem;color:#6b7280">
+                        {{ fx.match_date|default:"TBD"|date:"d M Y" }}
+                    </td>
+                    <td style="padding:.6rem .85rem">
+                        <a href="{% url 'sc_live_match' pk=competition.pk fixture_pk=fx.pk %}"
+                           style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .65rem;font-size:.8rem;background:#d97706;color:#fff;border-radius:5px;text-decoration:none">
+                            <i class="bi bi-broadcast"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
-{% endfor %}
-{% else %}
-<p class="text-muted">No pools yet. <a href="{% url 'sc_manage_pools' pk=competition.pk %}">Create pools first.</a></p>
 {% endif %}
 
-<!-- Fixtures summary -->
-<h5 class="mt-3">Group Stage Fixtures</h5>
-{% if group_fixtures %}
-<div class="table-responsive">
-    <table class="table table-sm table-hover">
-        <thead class="table-light"><tr>
-            <th>Date</th><th>Home</th><th>Score</th><th>Away</th><th>Status</th><th>Live</th>
-        </tr></thead>
-        <tbody>
-            {% for fx in group_fixtures %}
-            <tr>
-                <td>{{ fx.match_date|default:"TBD" }}</td>
-                <td>{{ fx.home_team.name }}</td>
-                <td>{{ fx.home_score|default:" - " }} - {{ fx.away_score|default:" - " }}</td>
-                <td>{{ fx.away_team.name }}</td>
-                <td><span class="badge bg-secondary">{{ fx.status }}</span></td>
-                <td>
-                    <a href="{% url 'sc_live_match' pk=competition.pk fixture_pk=fx.pk %}" class="btn btn-xs btn-outline-success btn-sm">
-                        <i class="bi bi-broadcast"></i>
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% else %}
-<p class="text-muted">No fixtures yet.</p>
-{% endif %}
+<style>
+@keyframes pulse { 0%, 100% { opacity:1 } 50% { opacity:.4 } }
+</style>
 {% endblock %}

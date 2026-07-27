@@ -1,88 +1,163 @@
 {% extends 'base.html' %}
-{% block title %}Generate Fixtures - {{ competition.name }} - MKJ Portal{% endblock %}
-{% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-    <div>
-        <h1><i class="bi bi-calendar3"></i> Generate Fixtures  -  {{ competition.name }}</h1>
-        <p class="text-muted mb-0">{{ competition.sub_county }} &bull; {{ competition.get_sport_type_display }}</p>
-    </div>
-    <a href="{% url 'sc_competition_manage' pk=competition.pk %}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left"></i> Back
-    </a>
-</div>
+{% block title %}Generate Fixtures · {{ competition.name }} · MKJ Portal{% endblock %}
 
-{% if messages %}
-{% for msg in messages %}
-<div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
-    {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">
+        <span><a href="{% url 'subcounty_officer_dashboard' %}" style="color:#124491;text-decoration:none">Dashboard</a></span>
+        <span><a href="{% url 'sc_competitions' %}" style="color:#124491;text-decoration:none">Competitions</a></span>
+        <span><a href="{% url 'sc_competition_manage' pk=competition.pk %}" style="color:#124491;text-decoration:none">{{ competition.name }}</a></span>
+        <span>Generate Fixtures</span>
+    </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+            <h1><i class="bi bi-calendar3"></i> Generate Fixtures</h1>
+            <p style="font-size:.9rem;color:#666;margin:.3rem 0 0">
+                {{ competition.name }} · {{ competition.sub_county|title }} Sub County
+            </p>
+        </div>
+        <a href="{% url 'sc_competition_manage' pk=competition.pk %}" class="btn btn--secondary">
+            <i class="bi bi-arrow-left"></i> Back to Competition
+        </a>
+    </div>
 </div>
-{% endfor %}
-{% endif %}
 
 {% if existing_count %}
-<div class="alert alert-warning">
-    <i class="bi bi-exclamation-triangle"></i>
-    <strong>{{ existing_count }}</strong> fixtures already exist for this competition.
-    Generating new fixtures will not remove existing ones.
-    <form method="post" class="d-inline ms-2" onsubmit="return confirm('Delete all {{ existing_count }} existing fixtures?')">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="clear">
-        <button type="submit" class="btn btn-sm btn-danger">
-            <i class="bi bi-trash"></i> Clear All Fixtures
-        </button>
-    </form>
+<div style="padding:1rem 1.25rem;background:#fff3cd;border:1px solid #fcd34d;border-left:4px solid #d97706;border-radius:8px;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div style="display:flex;align-items:flex-start;gap:.65rem">
+            <i class="bi bi-exclamation-triangle-fill" style="color:#d97706;flex-shrink:0;margin-top:.1rem"></i>
+            <div>
+                <strong style="color:#92400e">{{ existing_count }} fixture{{ existing_count|pluralize }} already exist</strong>
+                <p style="font-size:.85rem;color:#854d0e;margin:.2rem 0 0">
+                    Generating new fixtures will add to the existing ones, not replace them.
+                    Clear all fixtures first if you want a clean slate.
+                </p>
+            </div>
+        </div>
+        <form method="post" onsubmit="return confirm('Delete all {{ existing_count }} fixtures? This cannot be undone.')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="clear">
+            <button type="submit" class="btn btn--danger" style="white-space:nowrap;font-size:.85rem">
+                <i class="bi bi-trash"></i> Clear All Fixtures
+            </button>
+        </form>
+    </div>
 </div>
 {% endif %}
 
-<div class="row g-3 mb-3">
-    {% for pool in pools %}
-    <div class="col-6 col-md-3">
-        <div class="card text-center p-2 shadow-sm">
-            <div class="fw-semibold">{{ pool.name }}</div>
-            <div class="text-muted small">{{ pool.pool_teams.count }} team{{ pool.pool_teams.count|pluralize }}</div>
+<!-- Pool Summary -->
+{% if pools %}
+<div class="card" style="padding:1.25rem;margin-bottom:1.5rem">
+    <h2 style="font-size:1rem;font-weight:700;color:#374151;margin-bottom:.85rem">
+        <i class="bi bi-grid-3x3-gap"></i> Pool Summary
+    </h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.65rem">
+        {% for pool in pools %}
+        <div style="padding:.75rem 1rem;background:#f0f4ff;border:1px solid #b6d4fe;border-radius:8px;text-align:center">
+            <div style="font-weight:700;color:#124491;font-size:.95rem;margin-bottom:.2rem">{{ pool.name }}</div>
+            <div style="font-size:.82rem;color:#1e40af">{{ pool.pool_teams.count }} team{{ pool.pool_teams.count|pluralize }}</div>
+        </div>
+        {% endfor %}
+        <div style="padding:.75rem 1rem;background:#f0fdf4;border:1px solid #6ee7b7;border-radius:8px;text-align:center">
+            <div style="font-weight:700;color:#065f46;font-size:.95rem;margin-bottom:.2rem">Total</div>
+            <div style="font-size:.82rem;color:#065f46">{{ total_pool_teams }} team{{ total_pool_teams|pluralize }}</div>
         </div>
     </div>
-    {% endfor %}
 </div>
-<p class="text-muted small">Total teams in pools: <strong>{{ total_pool_teams }}</strong></p>
+{% else %}
+<div style="padding:1rem 1.25rem;background:#fee2e2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:8px;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;gap:.65rem">
+        <i class="bi bi-x-circle-fill" style="color:#dc2626"></i>
+        <div>
+            <strong style="color:#991b1b">No pools found</strong>
+            <p style="font-size:.85rem;color:#7f1d1d;margin:.15rem 0 0">
+                You need to <a href="{% url 'sc_manage_pools' pk=competition.pk %}" style="color:#991b1b">create pools and add teams</a>
+                before generating fixtures.
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
 
-<div class="card shadow-sm" style="max-width: 600px;">
-    <div class="card-body">
+<!-- Generation Form -->
+<div style="max-width:600px">
+    <div class="card" style="padding:1.75rem">
+        <h2 style="font-size:1.1rem;font-weight:700;color:#333;margin-bottom:1.25rem">
+            <i class="bi bi-magic"></i> Fixture Generation Settings
+        </h2>
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="generate">
-            <div class="mb-3">
-                <label class="form-label fw-semibold">Start Date <span class="text-danger">*</span></label>
-                <input type="date" name="start_date" class="form-control" required>
+
+            <div style="margin-bottom:1.25rem">
+                <label style="display:block;font-weight:600;font-size:.9rem;color:#374151;margin-bottom:.4rem">
+                    Start Date <span style="color:#dc3545">*</span>
+                </label>
+                <input type="date" name="start_date" required
+                    style="width:100%;padding:.6rem .85rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem">
             </div>
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Kick-off Time</label>
-                    <input type="time" name="kickoff_time" class="form-control" value="14:00">
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+                <div>
+                    <label style="display:block;font-weight:600;font-size:.9rem;color:#374151;margin-bottom:.4rem">
+                        Kick-off Time
+                    </label>
+                    <input type="time" name="kickoff_time" value="14:00"
+                        style="width:100%;padding:.6rem .85rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Default Venue</label>
-                    <select name="venue_name" class="form-select">
-                        <option value="">-- No default --</option>
-                        {% for v in venues %}<option value="{{ v.name }}">{{ v.name }}</option>{% endfor %}
+                <div>
+                    <label style="display:block;font-weight:600;font-size:.9rem;color:#374151;margin-bottom:.4rem">
+                        Default Venue
+                    </label>
+                    <select name="venue_name"
+                        style="width:100%;padding:.6rem .85rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;background:#fff">
+                        <option value="">No default venue</option>
+                        {% for v in venues %}
+                        <option value="{{ v.name }}">{{ v.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
             </div>
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <label class="form-label">Group stage interval (days)</label>
-                    <input type="number" name="group_interval" class="form-control" value="7" min="1">
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;margin-bottom:1.75rem">
+                <div>
+                    <label style="display:block;font-weight:600;font-size:.85rem;color:#374151;margin-bottom:.3rem">
+                        Group Stage Interval
+                    </label>
+                    <div style="position:relative">
+                        <input type="number" name="group_interval" value="7" min="1"
+                            style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem">
+                        <span style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);font-size:.75rem;color:#9ca3af">days</span>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Knockout interval (days)</label>
-                    <input type="number" name="knockout_interval" class="form-control" value="3" min="1">
+                <div>
+                    <label style="display:block;font-weight:600;font-size:.85rem;color:#374151;margin-bottom:.3rem">
+                        Knockout Interval
+                    </label>
+                    <div style="position:relative">
+                        <input type="number" name="knockout_interval" value="3" min="1"
+                            style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem">
+                        <span style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);font-size:.75rem;color:#9ca3af">days</span>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Knockout teams</label>
-                    <input type="number" name="knockout_teams" class="form-control" placeholder="auto">
+                <div>
+                    <label style="display:block;font-weight:600;font-size:.85rem;color:#374151;margin-bottom:.3rem">
+                        Knockout Teams
+                    </label>
+                    <input type="number" name="knockout_teams" placeholder="auto"
+                        style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem">
+                    <div style="font-size:.72rem;color:#9ca3af;margin-top:.2rem">Leave blank for auto</div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-success">
+
+            <div style="padding:.85rem 1rem;background:#f0fdf4;border:1px solid #6ee7b7;border-radius:8px;margin-bottom:1.5rem;font-size:.85rem;color:#065f46">
+                <i class="bi bi-info-circle"></i>
+                Fixtures will be generated using a round robin format for each pool. Every team plays every other team in their pool once.
+                Knockout stage fixtures are generated from the top qualifying teams per pool.
+            </div>
+
+            <button type="submit" class="btn btn--primary" {% if not pools %}disabled style="opacity:.5;cursor:not-allowed"{% endif %}>
                 <i class="bi bi-calendar-check"></i> Generate Fixtures
             </button>
         </form>

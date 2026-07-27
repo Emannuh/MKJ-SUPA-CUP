@@ -1,122 +1,237 @@
 {% extends 'base.html' %}
-{% block title %}Edit Standings - {{ competition.name }} - MKJ Portal{% endblock %}
+{% block title %}Edit Standings · {{ competition.name }} · MKJ Portal{% endblock %}
+
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-    <div>
-        <h1><i class="bi bi-table"></i> Edit Standings  -  {{ competition.name }}</h1>
-        <p class="text-muted mb-0">{{ competition.sub_county }} &bull; {{ competition.get_sport_type_display }}</p>
+<div class="page-header">
+    <div class="breadcrumb">
+        <span><a href="{% url 'subcounty_officer_dashboard' %}" style="color:#124491;text-decoration:none">Dashboard</a></span>
+        <span><a href="{% url 'sc_competitions' %}" style="color:#124491;text-decoration:none">Competitions</a></span>
+        <span><a href="{% url 'sc_competition_manage' pk=competition.pk %}" style="color:#124491;text-decoration:none">{{ competition.name }}</a></span>
+        <span>Edit Standings</span>
     </div>
-    <a href="{% url 'sc_competition_manage' pk=competition.pk %}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left"></i> Back
-    </a>
-</div>
-
-{% if messages %}
-{% for msg in messages %}
-<div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
-    {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endfor %}
-{% endif %}
-
-{% if pool_data %}
-{% for item in pool_data %}
-<div class="card shadow-sm mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>{{ item.pool.name }}</strong>
-        <form method="post" class="mb-0">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="recalculate">
-            <input type="hidden" name="pool_id" value="{{ item.pool.pk }}">
-            <button type="submit" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-clockwise"></i> Recalculate
-            </button>
-        </form>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-sm mb-0">
-                <thead class="table-light"><tr>
-                    <th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th>
-                    <th>GF</th><th>GA</th><th>Bonus</th><th>Pts</th><th>Override</th>
-                </tr></thead>
-                <tbody>
-                    {% for pt in item.teams %}
-                    <tr>
-                        <td>{{ pt.team.name }}</td>
-                        <td>{{ pt.played }}</td><td>{{ pt.won }}</td>
-                        <td>{{ pt.drawn }}</td><td>{{ pt.lost }}</td>
-                        <td>{{ pt.goals_for }}</td><td>{{ pt.goals_against }}</td>
-                        <td>{{ pt.bonus_points }}</td>
-                        <td><strong>{{ pt.points }}</strong></td>
-                        <td>
-                            <button type="button" class="btn btn-xs btn-outline-warning btn-sm"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#override-{{ pt.pk }}">
-                                Edit
-                            </button>
-                        </td>
-                    </tr>
-                    <tr class="collapse" id="override-{{ pt.pk }}">
-                        <td colspan="10">
-                            <div class="alert alert-warning p-2 mb-0">
-                                <strong>Exceptional override only.</strong>
-                                This action is logged and reported.
-                            </div>
-                            <form method="post" class="row g-2 p-2">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="update_standings">
-                                <input type="hidden" name="pool_team_id" value="{{ pt.pk }}">
-                                <div class="col-3"><label class="form-label small">Played</label>
-                                    <input type="number" name="played" class="form-control form-control-sm" value="{{ pt.played }}" min="0"></div>
-                                <div class="col-3"><label class="form-label small">Won</label>
-                                    <input type="number" name="won" class="form-control form-control-sm" value="{{ pt.won }}" min="0"></div>
-                                <div class="col-3"><label class="form-label small">Drawn</label>
-                                    <input type="number" name="drawn" class="form-control form-control-sm" value="{{ pt.drawn }}" min="0"></div>
-                                <div class="col-3"><label class="form-label small">Lost</label>
-                                    <input type="number" name="lost" class="form-control form-control-sm" value="{{ pt.lost }}" min="0"></div>
-                                <div class="col-3"><label class="form-label small">Goals For</label>
-                                    <input type="number" name="goals_for" class="form-control form-control-sm" value="{{ pt.goals_for }}" min="0"></div>
-                                <div class="col-3"><label class="form-label small">Goals Against</label>
-                                    <input type="number" name="goals_against" class="form-control form-control-sm" value="{{ pt.goals_against }}" min="0"></div>
-                                <div class="col-3"><label class="form-label small">Bonus Pts</label>
-                                    <input type="number" name="bonus_points" class="form-control form-control-sm" value="{{ pt.bonus_points }}" min="0"></div>
-                                <div class="col-12">
-                                    <label class="form-label small">Exceptional Reason <span class="text-danger">*</span> (min 12 chars)</label>
-                                    <input type="text" name="exceptional_reason" class="form-control form-control-sm" minlength="12" required>
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="confirm_exceptional" value="1" id="conf-{{ pt.pk }}" required>
-                                        <label class="form-check-label small" for="conf-{{ pt.pk }}">
-                                            I confirm this is an exceptional case and accept that this override is logged.
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <button type="submit" class="btn btn-warning btn-sm">
-                                        <i class="bi bi-save"></i> Save Override
-                                    </button>
-                                </div>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+            <h1><i class="bi bi-table"></i> Edit Standings</h1>
+            <p style="font-size:.9rem;color:#666;margin:.3rem 0 0">
+                {{ competition.name }} · {{ competition.sub_county|title }} Sub County ·
+                <span style="color:#d97706;font-weight:600">{{ competition.get_sport_type_display }}</span>
+            </p>
+        </div>
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap;align-items:center">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="recalculate_all">
+                <button type="submit" class="btn btn--secondary" style="font-size:.85rem">
+                    <i class="bi bi-arrow-repeat"></i> Recalculate All Pools
+                </button>
+            </form>
+            <a href="{% url 'sc_competition_manage' pk=competition.pk %}" class="btn btn--secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
         </div>
     </div>
 </div>
-{% endfor %}
 
-<form method="post" class="mb-3">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="recalculate_all">
-    <button type="submit" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-arrow-repeat"></i> Recalculate All Pools
-    </button>
-</form>
+<!-- Override Warning -->
+<div style="padding:1rem 1.25rem;background:#fff3cd;border:1px solid #fcd34d;border-left:4px solid #d97706;border-radius:8px;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:flex-start;gap:.65rem">
+        <i class="bi bi-exclamation-triangle-fill" style="color:#d97706;flex-shrink:0;margin-top:.1rem"></i>
+        <div>
+            <strong style="color:#92400e;font-size:.9rem">Manual Override — Exceptional Use Only</strong>
+            <p style="font-size:.85rem;color:#854d0e;margin:.2rem 0 0">
+                Standings are normally auto-calculated from match results. Manual edits are logged,
+                require a written reason, and are visible to system administrators. Use only for genuine exceptional cases.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% if pool_data %}
+{% for item in pool_data %}
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:1.5rem">
+    <!-- Pool Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;background:#f8f9fa;border-bottom:2px solid #e5e7eb;flex-wrap:wrap;gap:.5rem">
+        <div>
+            <h2 style="font-size:1.05rem;font-weight:800;color:#124491;margin:0">{{ item.pool.name }}</h2>
+            <p style="font-size:.8rem;color:#6b7280;margin:.15rem 0 0">{{ item.teams|length }} team{{ item.teams|length|pluralize }}</p>
+        </div>
+        <form method="post" style="margin:0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="recalculate">
+            <input type="hidden" name="pool_id" value="{{ item.pool.pk }}">
+            <button type="submit" class="btn btn--secondary" style="font-size:.82rem">
+                <i class="bi bi-arrow-clockwise"></i> Recalculate Pool
+            </button>
+        </form>
+    </div>
+
+    <!-- Standings Table -->
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+            <thead>
+                <tr style="background:#f0f4ff;text-align:center">
+                    <th style="padding:.65rem .85rem;border-bottom:2px solid #dee2e6;text-align:left;font-weight:700;color:#374151">Team</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:36px" title="Played">P</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:36px" title="Won">W</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:36px" title="Drawn">D</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:36px" title="Lost">L</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:40px" title="Goals For">GF</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:40px" title="Goals Against">GA</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151;min-width:40px" title="Bonus Points">Bon</th>
+                    <th style="padding:.65rem .6rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#124491;min-width:40px" title="Points">Pts</th>
+                    <th style="padding:.65rem .85rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Override</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pt in item.teams %}
+                <tr style="border-bottom:1px solid #f0f0f0" id="row-{{ pt.pk }}">
+                    <td style="padding:.65rem .85rem;font-weight:600;color:#111827">
+                        {% if forloop.counter <= competition.qualify_from_group %}
+                        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981;margin-right:.4rem;vertical-align:middle"></span>
+                        {% endif %}
+                        {{ pt.team.name }}
+                    </td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.played }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.won }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.drawn }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.lost }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.goals_for }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.goals_against }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;color:#374151">{{ pt.bonus_points }}</td>
+                    <td style="padding:.65rem .6rem;text-align:center;font-weight:800;color:#124491;font-size:.95rem">{{ pt.points }}</td>
+                    <td style="padding:.65rem .85rem">
+                        <button type="button"
+                            onclick="toggleOverride('{{ pt.pk }}')"
+                            style="padding:.3rem .75rem;font-size:.78rem;background:#fff3cd;color:#92400e;border:1px solid #fcd34d;border-radius:6px;cursor:pointer;font-weight:600">
+                            <i class="bi bi-pencil-square"></i> Edit
+                        </button>
+                    </td>
+                </tr>
+                <!-- Override Form Row (hidden) -->
+                <tr id="override-{{ pt.pk }}" style="display:none;background:#fffbeb;border-bottom:2px solid #fcd34d">
+                    <td colspan="10" style="padding:1.25rem">
+                        <div style="max-width:700px">
+                            <div style="padding:.75rem 1rem;background:#fff3cd;border:1px solid #fcd34d;border-radius:6px;margin-bottom:1rem;font-size:.85rem;color:#92400e">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <strong>Exceptional override for {{ pt.team.name }}.</strong>
+                                This action is logged and cannot be hidden from administrators.
+                            </div>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update_standings">
+                                <input type="hidden" name="pool_team_id" value="{{ pt.pk }}">
+
+                                <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;margin-bottom:1rem">
+                                    {% for fname, flabel, fval in pt|override_fields %}
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">{{ flabel }}</label>
+                                        <input type="number" name="{{ fname }}" value="{{ fval }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    {% empty %}
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Played</label>
+                                        <input type="number" name="played" value="{{ pt.played }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Won</label>
+                                        <input type="number" name="won" value="{{ pt.won }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Drawn</label>
+                                        <input type="number" name="drawn" value="{{ pt.drawn }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Lost</label>
+                                        <input type="number" name="lost" value="{{ pt.lost }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Goals For</label>
+                                        <input type="number" name="goals_for" value="{{ pt.goals_for }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Goals Against</label>
+                                        <input type="number" name="goals_against" value="{{ pt.goals_against }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.2rem">Bonus Pts</label>
+                                        <input type="number" name="bonus_points" value="{{ pt.bonus_points }}" min="0"
+                                            style="width:100%;padding:.45rem .5rem;border:1px solid #d1d5db;border-radius:5px;font-size:.88rem;text-align:center">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <div style="margin-bottom:.85rem">
+                                    <label style="display:block;font-weight:600;font-size:.85rem;color:#374151;margin-bottom:.3rem">
+                                        Exceptional Reason <span style="color:#dc3545">*</span>
+                                        <span style="font-weight:400;color:#888">(minimum 12 characters)</span>
+                                    </label>
+                                    <input type="text" name="exceptional_reason" minlength="12" required
+                                        placeholder="e.g. Correcting error from abandoned match on 15 Jan"
+                                        style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem">
+                                </div>
+
+                                <div style="margin-bottom:1rem;display:flex;align-items:flex-start;gap:.5rem">
+                                    <input type="checkbox" name="confirm_exceptional" value="1"
+                                        id="conf-{{ pt.pk }}" required
+                                        style="margin-top:.2rem;flex-shrink:0">
+                                    <label for="conf-{{ pt.pk }}" style="font-size:.85rem;color:#374151;cursor:pointer">
+                                        I confirm this is an exceptional case and accept that this override is permanently
+                                        logged and visible to system administrators.
+                                    </label>
+                                </div>
+
+                                <div style="display:flex;gap:.65rem">
+                                    <button type="submit" class="btn btn--secondary"
+                                        style="background:#d97706;color:#fff;border-color:#d97706;font-size:.85rem">
+                                        <i class="bi bi-save"></i> Save Override
+                                    </button>
+                                    <button type="button" onclick="toggleOverride('{{ pt.pk }}')"
+                                        style="padding:.45rem .9rem;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;cursor:pointer">
+                                        <i class="bi bi-x"></i> Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if item.teams %}
+    <div style="padding:.65rem 1rem;background:#f8f9fa;border-top:1px solid #e5e7eb;font-size:.75rem;color:#6b7280;display:flex;align-items:center;gap:.4rem">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10b981"></span>
+        Top {{ competition.qualify_from_group }} advance to knockout stage
+        <span style="margin-left:.5rem;color:#d1d5db">·</span>
+        <span style="margin-left:.25rem">Points calculated using {{ sport_family|title }} rules</span>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
 {% else %}
-<div class="alert alert-info">No pools or teams to show.</div>
+<div class="card" style="padding:3rem;text-align:center">
+    <i class="bi bi-table" style="font-size:3rem;color:#d1d5db;display:block;margin-bottom:1rem"></i>
+    <p style="font-size:1.1rem;font-weight:600;color:#374151;margin:0 0 .5rem">No Pools or Teams Found</p>
+    <p style="color:#6b7280;margin:0 0 1.5rem">
+        Create pools and add teams before editing standings.
+    </p>
+    <a href="{% url 'sc_manage_pools' pk=competition.pk %}" class="btn btn--primary" style="display:inline-flex;width:auto;margin:0 auto">
+        <i class="bi bi-grid-3x3"></i> Manage Pools
+    </a>
+</div>
 {% endif %}
+
+<script>
+function toggleOverride(ptPk) {
+    var row = document.getElementById('override-' + ptPk);
+    row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+}
+</script>
 {% endblock %}

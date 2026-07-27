@@ -1,65 +1,120 @@
 {% extends 'base.html' %}
-{% block title %}Sub-County Competitions - {{ sub_county }} - MKJ Portal{% endblock %}
+{% block title %}Sub County Competitions · {{ sub_county }} · MKJ Portal{% endblock %}
+
 {% block content %}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-    <div>
-        <h1><i class="bi bi-trophy"></i> Sub-County Competitions</h1>
-        <p class="text-muted mb-0">{{ sub_county }} &mdash; level: subcounty</p>
+<div class="page-header">
+    <div class="breadcrumb">
+        <span><a href="{% url 'subcounty_officer_dashboard' %}" style="color:#124491;text-decoration:none">Dashboard</a></span>
+        <span>Competitions</span>
     </div>
-    <a href="{% url 'sc_create_competition' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> New Competition
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+            <h1><i class="bi bi-trophy"></i> Sub County Competitions</h1>
+            <p style="font-size:.95rem;color:#666;margin:.3rem 0 0">
+                <strong style="color:#124491">{{ sub_county|title }}</strong> Sub County · Level: Sub County Finals
+            </p>
+        </div>
+        <a href="{% url 'sc_create_competition' %}" class="btn btn--primary">
+            <i class="bi bi-plus-circle"></i> New Competition
+        </a>
+    </div>
+</div>
+
+<!-- Status filter pills -->
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem;align-items:center">
+    <span style="font-size:.8rem;color:#888;text-transform:uppercase;letter-spacing:.05em;font-weight:600">Filter:</span>
+    <a href="?status=" style="padding:.3rem .8rem;border-radius:20px;font-size:.82rem;font-weight:600;text-decoration:none;
+        {% if not current_status %}background:#124491;color:#fff;{% else %}background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;{% endif %}">
+        All
     </a>
+    {% for val, label in status_choices %}
+    <a href="?status={{ val }}" style="padding:.3rem .8rem;border-radius:20px;font-size:.82rem;font-weight:600;text-decoration:none;
+        {% if current_status == val %}background:#124491;color:#fff;{% else %}background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;{% endif %}">
+        {{ label }}
+    </a>
+    {% endfor %}
 </div>
-
-{% if messages %}
-{% for msg in messages %}
-<div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
-    {{ msg }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endfor %}
-{% endif %}
-
-<form method="get" class="row g-2 mb-4">
-    <div class="col-auto">
-        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="">All statuses</option>
-            {% for val, label in status_choices %}
-            <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-</form>
 
 {% if competitions %}
-<div class="table-responsive">
-    <table class="table table-hover align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>Name</th><th>Sport</th><th>Season</th><th>Status</th>
-                <th>Start Date</th><th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for comp in competitions %}
-            <tr>
-                <td><strong>{{ comp.name }}</strong></td>
-                <td>{{ comp.get_sport_type_display }}</td>
-                <td>{{ comp.season }}</td>
-                <td><span class="badge bg-secondary">{{ comp.get_status_display }}</span></td>
-                <td>{{ comp.start_date|default:" - " }}</td>
-                <td>
-                    <a href="{% url 'sc_competition_manage' pk=comp.pk %}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-gear"></i> Manage
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card" style="padding:0;overflow:hidden">
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+            <thead>
+                <tr style="background:#f0f4ff;text-align:left">
+                    <th style="padding:.75rem 1rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Competition</th>
+                    <th style="padding:.75rem 1rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Sport</th>
+                    <th style="padding:.75rem 1rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Season</th>
+                    <th style="padding:.75rem 1rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Status</th>
+                    <th style="padding:.75rem 1rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Dates</th>
+                    <th style="padding:.75rem 1rem;border-bottom:2px solid #dee2e6;font-weight:700;color:#374151">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comp in competitions %}
+                <tr style="border-bottom:1px solid #f0f0f0;transition:background .15s"
+                    onmouseover="this.style.background='#f8f9fa'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding:.75rem 1rem">
+                        <div style="font-weight:600;color:#111827;margin-bottom:.2rem">{{ comp.name }}</div>
+                        <div style="font-size:.78rem;color:#6b7280">
+                            {% if 'football' in comp.sport_type %}⚽{% elif 'volleyball' in comp.sport_type %}🏐{% elif 'basketball' in comp.sport_type %}🏀{% elif 'handball' in comp.sport_type %}🤾{% endif %}
+                            {{ comp.get_format_type_display }}
+                        </div>
+                    </td>
+                    <td style="padding:.75rem 1rem;color:#374151">{{ comp.get_sport_type_display }}</td>
+                    <td style="padding:.75rem 1rem;color:#374151">{{ comp.season }}</td>
+                    <td style="padding:.75rem 1rem">
+                        {% if comp.status == 'active' or comp.status == 'group_stage' or comp.status == 'knockout' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#d1fae5;color:#065f46;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #6ee7b7">
+                            <i class="bi bi-play-circle-fill"></i> {{ comp.get_status_display }}
+                        </span>
+                        {% elif comp.status == 'completed' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#e0e7ff;color:#4338ca;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #c7d2fe">
+                            <i class="bi bi-check-circle-fill"></i> Completed
+                        </span>
+                        {% elif comp.status == 'upcoming' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #fcd34d">
+                            <i class="bi bi-calendar-event"></i> Upcoming
+                        </span>
+                        {% elif comp.status == 'cancelled' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fee2e2;color:#991b1b;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #fecaca">
+                            <i class="bi bi-x-circle-fill"></i> Cancelled
+                        </span>
+                        {% else %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f3f4f6;color:#6b7280;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #d1d5db">
+                            {{ comp.get_status_display }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:.75rem 1rem;font-size:.85rem;color:#6b7280;white-space:nowrap">
+                        {% if comp.start_date %}{{ comp.start_date|date:"d M Y" }}{% else %}TBD{% endif %}
+                    </td>
+                    <td style="padding:.75rem 1rem">
+                        <a href="{% url 'sc_competition_manage' pk=comp.pk %}"
+                           style="display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .8rem;font-size:.82rem;background:#124491;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+                            <i class="bi bi-gear"></i> Manage
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% else %}
-<div class="alert alert-info">No sub-county competitions found.
-    <a href="{% url 'sc_create_competition' %}">Create one now.</a>
+<div class="card" style="padding:3rem;text-align:center">
+    <i class="bi bi-trophy" style="font-size:3rem;color:#d1d5db;display:block;margin-bottom:1rem"></i>
+    <p style="font-size:1.1rem;font-weight:600;color:#374151;margin:0 0 .5rem">No Competitions Found</p>
+    <p style="color:#6b7280;margin:0 0 1.5rem">
+        {% if current_status %}No competitions with status "{{ current_status }}" found.
+        <a href="?" style="color:#124491">Clear filter</a>{% else %}
+        Create your first sub county competition to get started.{% endif %}
+    </p>
+    {% if not current_status %}
+    <a href="{% url 'sc_create_competition' %}" class="btn btn--primary" style="display:inline-flex;width:auto;margin:0 auto">
+        <i class="bi bi-plus-circle"></i> Create Competition
+    </a>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

@@ -1,203 +1,271 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load humanize %}
 
-{% block title %}{{ sub_county }} - MKJ SUPA CUP Portal{% endblock %}
+{% block title %}Sub County Sports Officer Dashboard · MKJ SUPA CUP{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1><i class="bi bi-building"></i> {{ sub_county }} Sub-County</h1>
-    <p>MKJ SUPA CUP 2026 - County Finals - {{ stats.county }}</p>
+    <div class="breadcrumb">
+        <span>Portal</span>
+        <span>Sub County Officer</span>
+        <span>Dashboard</span>
+    </div>
+    <h1><i class="bi bi-building"></i> Sub County Sports Officer Dashboard</h1>
+    <p style="font-size:1rem;color:#666;margin:.5rem 0 0">
+        {{ stats.county|title }} County · <strong style="color:#124491">{{ sub_county|title }} Sub County</strong>
+    </p>
 </div>
 
-<!-- Sub-County Badge -->
-<div class="card mb-1" style="background: linear-gradient(135deg, #003388 0%, #124491 50%, #124491 100%); color: #fff; border: none;">
-    <div class="card-body" style="padding: 1.4rem;">
-        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-geo-alt-fill" style="font-size: 1.6rem;"></i>
-            </div>
-            <div style="flex:1;">
-                <h2 style="margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: 1px;">{{ sub_county }}</h2>
-                <p style="margin: .25rem 0 0; opacity: .8; font-size: .82rem;">
-                    {{ stats.disciplines }} discipline{{ stats.disciplines|pluralize }} &bull;
-                    {{ stats.players }} player{{ stats.players|pluralize }} registered &bull;
-                    {{ stats.fixtures }} fixture{{ stats.fixtures|pluralize }} scheduled
-                </p>
-            </div>
-            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
-                <span style="background: rgba(255,255,255,.14); padding: .3rem .7rem; border-radius: 50px; font-size: .68rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border: 1px solid rgba(255,255,255,.25);">
-                    <i class="bi bi-shield-check"></i> MKJ SUPA CUP
-                </span>
-                <span style="background: rgba(255,255,255,.14); padding: .3rem .7rem; border-radius: 50px; font-size: .68rem; font-weight: 600;">
-                    Season 2026
-                </span>
-            </div>
-        </div>
+{% if messages %}
+<div style="margin-bottom:1rem">
+    {% for msg in messages %}
+    <div class="alert alert--{{ msg.tags }}" style="padding:.75rem 1rem;border-radius:6px;margin-bottom:.5rem;
+        {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;border:1px solid #f5c2c7;
+        {% elif 'success' in msg.tags %}background:#d1e7dd;color:#0a3622;border:1px solid #badbcc;
+        {% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;border:1px solid #ffecb5;
+        {% else %}background:#cfe2ff;color:#084298;border:1px solid #b6d4fe;{% endif %}">
+        {{ msg }}
     </div>
-</div>
-
-<!-- Stats -->
-<div class="stats-grid">
-    <div class="stat-card blue">
-        <div class="stat-icon blue"><i class="bi bi-trophy"></i></div>
-        <div class="stat-info">
-            <h3>{{ stats.competitions }}</h3>
-            <p>Competitions</p>
-        </div>
-    </div>
-    <div class="stat-card green">
-        <div class="stat-icon green"><i class="bi bi-diagram-3"></i></div>
-        <div class="stat-info">
-            <h3>{{ stats.disciplines }}</h3>
-            <p>Disciplines</p>
-        </div>
-    </div>
-    <div class="stat-card blue">
-        <div class="stat-icon blue"><i class="bi bi-person-vcard"></i></div>
-        <div class="stat-info">
-            <h3>{{ stats.players }}</h3>
-            <p>Players</p>
-        </div>
-    </div>
-    <div class="stat-card green">
-        <div class="stat-icon green"><i class="bi bi-people"></i></div>
-        <div class="stat-info">
-            <h3>{{ stats.teams }}</h3>
-            <p>Teams</p>
-        </div>
-    </div>
-    <div class="stat-card red">
-        <div class="stat-icon red"><i class="bi bi-calendar-event"></i></div>
-        <div class="stat-info">
-            <h3>{{ stats.fixtures }}</h3>
-            <p>Fixtures</p>
-        </div>
-    </div>
-</div>
-
-<!-- Pool Assignments -->
-{% if my_pool_teams %}
-<div class="card mb-1">
-    <div class="card-header"><h3><i class="bi bi-grid-3x3-gap"></i> Your Pool Assignments</h3></div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Discipline</th>
-                        <th>Pool</th>
-                        <th style="text-align:center;">P</th>
-                        <th style="text-align:center;">W</th>
-                        <th style="text-align:center;">D</th>
-                        <th style="text-align:center;">L</th>
-                        <th style="text-align:center; font-weight:800;">Pts</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for pt in my_pool_teams %}
-                    <tr>
-                        <td><strong>{{ pt.pool.competition.get_sport_type_display }}</strong></td>
-                        <td><span class="badge badge-info" style="font-size:.7rem;">{{ pt.pool.name }}</span></td>
-                        <td style="text-align:center;">{{ pt.played }}</td>
-                        <td style="text-align:center;">{{ pt.won }}</td>
-                        <td style="text-align:center;">{{ pt.drawn }}</td>
-                        <td style="text-align:center;">{{ pt.lost }}</td>
-                        <td style="text-align:center; font-weight:800; color:var(--primary);">{{ pt.points }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% endfor %}
 </div>
 {% endif %}
 
-<!-- Quick Actions -->
-<div class="card mb-1">
-    <div class="card-header"><h3><i class="bi bi-lightning"></i> Quick Actions</h3></div>
-    <div class="card-body">
-        <div class="quick-actions">
-            <a href="{% url 'subcounty_officer_disciplines' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-person-vcard"></i></div>
-                <h4>Manage Disciplines</h4>
-                <p>Add disciplines, players & bench</p>
-            </a>
-            <a href="{% url 'competitions_list' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-trophy"></i></div>
-                <h4>Competitions</h4>
-                <p>Pools & standings per discipline</p>
-            </a>
-            <a href="{% url 'teams_list' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-people"></i></div>
-                <h4>Teams</h4>
-                <p>All registered teams</p>
-            </a>
-            <a href="{% url 'matches_list' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-calendar-event"></i></div>
-                <h4>Fixtures</h4>
-                <p>Full fixture schedule</p>
-            </a>
-            <a href="{% url 'subcounty_officer_referees' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-flag"></i></div>
-                <h4>Referees</h4>
-                <p>Add referees per discipline</p>
-            </a>
-            <a href="{% url 'sc_verification_dashboard' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-patch-check"></i></div>
-                <h4>Verify Players</h4>
-                <p>Sub-county player verification</p>
-            </a>
-            <a href="{% url 'scso_player_reg_request' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-person-plus"></i></div>
-                <h4>Player Reg Window</h4>
-                <p>Request open/close player registration</p>
-            </a>
-            <a href="{% url 'scso_transfers' %}" class="action-card">
-                <div class="action-icon"><i class="bi bi-arrow-left-right"></i></div>
-                <h4>Transfers</h4>
-                <p>Review player transfer requests</p>
-            </a>
-        </div>
+<!-- Quick Stats Pills -->
+<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.5rem">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Competitions</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#4338ca">{{ stats.sc_competitions }}</span>
     </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Disciplines</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#065f46">{{ stats.disciplines }}</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Teams</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#b45309">{{ stats.teams }}</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Players</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#1e40af">{{ stats.players }}</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="width:8px;height:8px;border-radius:50%;background:#8b5cf6;flex-shrink:0"></div>
+        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Fixtures</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#6d28d9">{{ stats.fixtures }}</span>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
+    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
+        <i class="bi bi-lightning-fill"></i> Quick Actions
+    </h2>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <a href="{% url 'sc_competitions' %}" class="btn btn--primary">
+            <i class="bi bi-trophy"></i> Manage Competitions
+        </a>
+        <a href="{% url 'subcounty_officer_disciplines' %}" class="btn btn--secondary">
+            <i class="bi bi-list-stars"></i> View Disciplines
+        </a>
+        <a href="{% url 'county_admin_verification' %}" class="btn btn--secondary">
+            <i class="bi bi-shield-check"></i> Verify Players
+        </a>
+        <a href="{% url 'subcounty_verified_players' %}" class="btn btn--secondary">
+            <i class="bi bi-people-fill"></i> Verified Players
+        </a>
+        <a href="{% url 'subcounty_officer_referees' %}" class="btn btn--secondary">
+            <i class="bi bi-whistle"></i> Manage Referees
+        </a>
+        <a href="{% url 'sc_create_competition' %}" class="btn btn--secondary" style="border:2px solid #198754;color:#0a3622">
+            <i class="bi bi-plus-circle"></i> New Competition
+        </a>
+    </div>
+</div>
+
+<!-- Sub County Competitions -->
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <h2 style="font-size:1.1rem;color:#333;margin:0">
+            <i class="bi bi-trophy-fill"></i> {{ sub_county|title }} Sub County Competitions
+        </h2>
+        <a href="{% url 'sc_competitions' %}" style="font-size:.85rem;color:#124491;text-decoration:none">
+            View All <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    {% if sc_recent_competitions %}
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+            <thead>
+                <tr style="background:#f0f4ff;text-align:left">
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Competition</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Sport</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Status</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Dates</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comp in sc_recent_competitions %}
+                <tr style="border-bottom:1px solid #dee2e6{% if forloop.last %};border-bottom:none{% endif %};transition:background .2s"
+                    onmouseover="this.style.background='#f8f9fa'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding:.65rem 1rem;font-weight:500">{{ comp.name }}</td>
+                    <td style="padding:.65rem 1rem">{{ comp.get_sport_type_display }}</td>
+                    <td style="padding:.65rem 1rem">
+                        {% if comp.status == 'active' or comp.status == 'group_stage' or comp.status == 'knockout' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#d1fae5;color:#065f46;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #6ee7b7">
+                            <i class="bi bi-play-circle-fill"></i> {{ comp.get_status_display }}
+                        </span>
+                        {% elif comp.status == 'completed' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#e0e7ff;color:#4338ca;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #c7d2fe">
+                            <i class="bi bi-check-circle-fill"></i> Completed
+                        </span>
+                        {% elif comp.status == 'upcoming' %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #fcd34d">
+                            <i class="bi bi-calendar-event"></i> Upcoming
+                        </span>
+                        {% else %}
+                        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f3f4f6;color:#6b7280;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700;border:1px solid #d1d5db">
+                            {{ comp.get_status_display }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:.65rem 1rem;color:#888;font-size:.85rem">
+                        {{ comp.start_date|date:"d M" }} - {{ comp.end_date|date:"d M Y" }}
+                    </td>
+                    <td style="padding:.65rem 1rem">
+                        <a href="{% url 'sc_competition_manage' comp.pk %}"
+                           style="padding:.3rem .75rem;font-size:.82rem;background:#124491;color:#fff;border-radius:4px;text-decoration:none">
+                            <i class="bi bi-gear"></i> Manage
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding:2rem;text-align:center;color:#888">
+        <i class="bi bi-trophy" style="font-size:2.5rem;display:block;margin-bottom:.75rem;color:#d1d5db"></i>
+        <p style="margin:0 0 1rem;font-size:1.05rem;font-weight:600;color:#374151">No Sub County Competitions Yet</p>
+        <p style="margin:0 0 1.25rem;font-size:.9rem;color:#6b7280">
+            Create your first sub county competition to get started with fixtures, pools, and standings.
+        </p>
+        <a href="{% url 'sc_create_competition' %}" class="btn btn--primary">
+            <i class="bi bi-plus-circle"></i> Create Competition
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Upcoming Fixtures -->
-{% if upcoming_fixtures %}
-<div class="card">
-    <div class="card-header"><h3><i class="bi bi-calendar-week"></i> Your Upcoming Fixtures</h3></div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Discipline</th>
-                        <th>Pool</th>
-                        <th>Home</th>
-                        <th style="text-align:center;"></th>
-                        <th>Away</th>
-                        <th>Venue</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for match in upcoming_fixtures %}
-                    <tr>
-                        <td style="white-space:nowrap;">{{ match.match_date|date:"d M" }}</td>
-                        <td style="white-space:nowrap;">{{ match.kickoff_time|time:"H:i"|default:"TBD" }}</td>
-                        <td style="font-size:.78rem;">{{ match.competition.get_sport_type_display }}</td>
-                        <td>{% if match.pool %}<span class="badge badge-info" style="font-size:.65rem;">{{ match.pool.name }}</span>{% endif %}</td>
-                        <td style="font-weight:{% if match.home_team.sub_county == sub_county %}800{% else %}400{% endif %};">{{ match.home_team.sub_county }}</td>
-                        <td style="text-align:center; font-weight:800; color:var(--muted);">vs</td>
-                        <td style="font-weight:{% if match.away_team.sub_county == sub_county %}800{% else %}400{% endif %};">{{ match.away_team.sub_county }}</td>
-                        <td style="font-size:.78rem; color:var(--muted);">{{ match.venue.name|default:"TBD" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
+    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
+        <i class="bi bi-calendar-event"></i> Upcoming Fixtures
+    </h2>
+
+    {% if upcoming_fixtures %}
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+            <thead>
+                <tr style="background:#f0f4ff;text-align:left">
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Date</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Competition</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Fixture</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Venue</th>
+                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fixture in upcoming_fixtures %}
+                <tr style="border-bottom:1px solid #dee2e6{% if forloop.last %};border-bottom:none{% endif %};transition:background .2s"
+                    onmouseover="this.style.background='#f8f9fa'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding:.65rem 1rem;white-space:nowrap">
+                        <div style="font-weight:600;color:#124491">{{ fixture.match_date|date:"d M Y" }}</div>
+                        <div style="font-size:.8rem;color:#888">{{ fixture.kickoff_time|time:"H:i" }}</div>
+                    </td>
+                    <td style="padding:.65rem 1rem;font-size:.85rem">{{ fixture.competition.name|truncatewords:4 }}</td>
+                    <td style="padding:.65rem 1rem">
+                        <div style="font-weight:500;margin-bottom:.15rem">{{ fixture.home_team.name|truncatewords:3 }}</div>
+                        <div style="font-size:.8rem;color:#888">vs</div>
+                        <div style="font-weight:500;margin-top:.15rem">{{ fixture.away_team.name|truncatewords:3 }}</div>
+                    </td>
+                    <td style="padding:.65rem 1rem;font-size:.85rem">
+                        {% if fixture.venue %}{{ fixture.venue.name|truncatewords:3 }}{% else %}TBD{% endif %}
+                    </td>
+                    <td style="padding:.65rem 1rem">
+                        <a href="{% url 'sc_live_match' fixture.competition.pk fixture.pk %}"
+                           style="padding:.3rem .75rem;font-size:.82rem;background:#198754;color:#fff;border-radius:4px;text-decoration:none">
+                            <i class="bi bi-broadcast"></i> Track
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
+    {% else %}
+    <div style="padding:2rem;text-align:center;color:#888">
+        <i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:.75rem"></i>
+        <p style="margin:0">No upcoming fixtures scheduled.</p>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
+
+<!-- Registered Disciplines -->
+<div class="card" style="padding:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <h2 style="font-size:1.1rem;color:#333;margin:0">
+            <i class="bi bi-list-stars"></i> Registered Disciplines
+        </h2>
+        <a href="{% url 'subcounty_officer_disciplines' %}" style="font-size:.85rem;color:#124491;text-decoration:none">
+            View All <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    {% if disciplines %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem">
+        {% for disc in disciplines %}
+        <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:1rem;transition:all .2s;cursor:pointer"
+             onmouseover="this.style.background='#f0f4ff';this.style.borderColor='#b6d4fe'"
+             onmouseout="this.style.background='#f8f9fa';this.style.borderColor='#e5e7eb'"
+             onclick="window.location.href='{% url 'subcounty_officer_discipline_players' disc.pk %}'">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+                <span style="font-size:1.5rem">
+                    {% if 'football' in disc.sport_type %}⚽
+                    {% elif 'volleyball' in disc.sport_type %}🏐
+                    {% elif 'basketball' in disc.sport_type %}🏀
+                    {% elif 'handball' in disc.sport_type %}🤾
+                    {% else %}🏅{% endif %}
+                </span>
+                <span style="display:inline-block;padding:.2rem .6rem;background:#e8f5e9;color:#1b5e20;border-radius:12px;font-size:.75rem;font-weight:700">
+                    {{ disc.player_count }} players
+                </span>
+            </div>
+            <div style="font-weight:700;font-size:.95rem;color:#124491;margin-bottom:.3rem">
+                {{ disc.get_sport_type_display }}
+            </div>
+            <div style="font-size:.8rem;color:#6b7280">
+                {{ disc.sub_county|title }} Sub County
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding:2rem;text-align:center;color:#888">
+        <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem"></i>
+        <p style="margin:0 0 1rem">No disciplines registered yet for {{ sub_county|title }} Sub County.</p>
+        <a href="{% url 'subcounty_officer_disciplines' %}" class="btn btn--secondary">
+            <i class="bi bi-plus-circle"></i> Add Discipline
+        </a>
+    </div>
+    {% endif %}
+</div>
 
 {% endblock %}
