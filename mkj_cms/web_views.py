@@ -1668,11 +1668,22 @@ def dashboard_view(request):
     # ── Team Manager: route to Ligi dashboard if ward TM, else MKJ dashboard ──
     if user.role == 'team_manager':
         # A ward TM has ward, sub_county, and assigned_discipline set on their account.
-        # Check that directly rather than looking for a WardLonglist, which may not
-        # exist yet for newly selected ward TMs.
         is_ward_tm = bool(user.ward and user.sub_county and user.assigned_discipline)
         if is_ward_tm:
-            return redirect('ward_tm_dashboard')
+            # Check if WSCC has marked Ligi Mashinani complete for this discipline.
+            # If complete → ward TM dashboard (sub-county squad management).
+            # If not yet complete → Ligi dashboard (longlist management still active).
+            from teams.models import WardLonglist
+            ligi_complete = WardLonglist.objects.filter(
+                discipline__ward=user.ward,
+                discipline__sub_county=user.sub_county,
+                discipline__level='ward',
+                discipline__sport_type=user.assigned_discipline,
+                ligi_mashinani_complete=True,
+            ).exists()
+            if ligi_complete:
+                return redirect('ward_tm_dashboard')
+            return redirect('ward_tm_longlist')
         return redirect('team_manager_dashboard')
 
     # Only admin/generic roles reach here  -  compute stats
@@ -12679,10 +12690,9 @@ def ward_tm_dashboard_view(request):
             ward=user.ward,
             level='ward',
         ).select_related('registration', 'ward_longlist')
-        # Prefer the discipline matching assigned_discipline; fall back to first
         if user.assigned_discipline:
             discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
-        else:
+        if not discipline:
             discipline = discipline_qs.first()
 
     # Guard: no ward discipline
@@ -12786,12 +12796,17 @@ def _get_ward_tm_context(user, request=None):
                 longlist = None
             return discipline, longlist
 
-    # Standard TM lookup by ward+sub_county
-    discipline = CountyDiscipline.objects.filter(
+    # Standard TM lookup by ward+sub_county+assigned_discipline
+    discipline_qs = CountyDiscipline.objects.filter(
         sub_county=user.sub_county,
         ward=user.ward,
         level='ward',
-    ).select_related('registration', 'ward_longlist').first()
+    ).select_related('registration', 'ward_longlist')
+
+    if user.assigned_discipline:
+        discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
+    else:
+        discipline = discipline_qs.first()
 
     if discipline is None:
         return None, None
@@ -12885,15 +12900,6 @@ def ward_tm_add_player_view(request):
         messages.warning(request, 'No ward team found for your account.')
         return redirect('ward_tm_dashboard')
 
-    # Block if longlist is submitted or approved (4.7 / 3.6)
-    if longlist.is_locked:
-        messages.error(
-            request,
-            'Your longlist has been submitted or approved and cannot be modified. '
-            'Contact your WSCC to return it for corrections.',
-        )
-        return redirect('ward_tm_longlist')
-
     # ── Gate: player registration window must be open ─────────────────────
     from teams.models import LigiSettings
     ligi_cfg = LigiSettings.get()
@@ -12965,15 +12971,6 @@ def ward_tm_edit_player_view(request, player_pk):
     # Fetch the player; ensure it belongs to this user's discipline
     player = get_object_or_404(CountyPlayer, pk=player_pk, discipline=discipline)
 
-    # Block edit if longlist is locked (submitted or wscc_approved)
-    if longlist.is_locked:
-        messages.error(
-            request,
-            'Your longlist has been submitted or approved. '
-            'Players cannot be edited until the WSCC returns it for corrections.',
-        )
-        return redirect('ward_tm_longlist')
-
     if request.method == 'POST':
         form = WardLonglistPlayerForm(request.POST, request.FILES, instance=player)
         if form.is_valid():
@@ -13040,15 +13037,6 @@ def ward_tm_delete_player_view(request, player_pk):
 
     # ── WINDOW OPEN: allow direct deletion ───────────────────────────────
     if window_open:
-        # Still block if longlist is locked (submitted / wscc_approved)
-        if longlist.is_locked:
-            messages.error(
-                request,
-                'Your longlist has been submitted or approved. '
-                'Players cannot be removed until the WSCC returns it for corrections.',
-            )
-            return redirect('ward_tm_longlist')
-
         if request.method == 'POST':
             name = f'{player.first_name} {player.last_name}'
             player.delete()
@@ -13148,6 +13136,15 @@ def ward_tm_submit_longlist_view(request):
 
     # POST-only: reject GET with redirect
     if request.method != 'POST':
+        return redirect('ward_tm_longlist')
+
+    # Only the designated Ward Team Manager (with an assigned_discipline) may submit.
+    if not user.is_superuser and not getattr(user, 'is_admin', False) and not user.assigned_discipline:
+        messages.error(
+            request,
+            'Only the selected Ward Team Manager can submit the ward longlist. '
+            'Contact your Ward Sports Council Chair.',
+        )
         return redirect('ward_tm_longlist')
 
     discipline, longlist = _get_ward_tm_context(user, request)
@@ -14108,10 +14105,25 @@ def wscc_dashboard_view(request):
                 'player_count': cd.players.count() if cd else 0,
             })
 
+    # Ligi completion state per discipline in this ward
+    from teams.models import WardLonglist
+    ward_longlists = []
+    all_complete = False
+    if hasattr(user, 'ward') and user.ward:
+        wl_qs = WardLonglist.objects.filter(
+            discipline__ward=user.ward,
+            discipline__sub_county=user.sub_county,
+            discipline__level='ward',
+        ).select_related('discipline', 'ligi_complete_by')
+        ward_longlists = list(wl_qs)
+        all_complete = bool(ward_longlists) and all(wl.ligi_mashinani_complete for wl in ward_longlists)
+
     context = {
         'submitted_longlists': submitted_longlists,
         'counts': counts,
         'registered_teams': registered_teams,
+        'ward_longlists': ward_longlists,
+        'all_ligi_complete': all_complete,
         'sub_county': user.sub_county if not user.is_superuser else 'All',
         'ward': user.ward if not user.is_superuser else 'All',
     }
@@ -17750,6 +17762,82 @@ def transfer_tracking_dashboard_view(request):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @role_required('ward_sports_council_chair', 'admin')
+def wscc_mark_ligi_complete_view(request):
+    """
+    WSCC marks the Ligi Mashinani ward competition as complete for a specific discipline.
+    This is a prerequisite before the WSCC can select a Ward Team Manager.
+
+    POST params:
+      - longlist_pk: pk of the WardLonglist to mark complete
+      - confirm: must be '1' to proceed
+
+    URL: /ligi/wscc/mark-ligi-complete/
+    """
+    from teams.models import WardLonglist
+
+    if request.method != 'POST':
+        return redirect('wscc_dashboard')
+
+    user = request.user
+    longlist_pk = request.POST.get('longlist_pk', '').strip()
+    confirm = request.POST.get('confirm', '0')
+
+    if confirm != '1':
+        messages.error(request, 'Please confirm that the Ligi Mashinani competition is complete.')
+        return redirect('wscc_dashboard')
+
+    try:
+        longlist = WardLonglist.objects.select_related('discipline').get(pk=longlist_pk)
+    except WardLonglist.DoesNotExist:
+        messages.error(request, 'Longlist not found.')
+        return redirect('wscc_dashboard')
+
+    # Scope guard — WSCC can only mark their own ward
+    if not (user.is_superuser or user.role == 'admin'):
+        if (longlist.discipline.ward != user.ward or
+                longlist.discipline.sub_county != user.sub_county):
+            messages.error(request, 'You can only mark your own ward as complete.')
+            return redirect('wscc_dashboard')
+
+    if longlist.ligi_mashinani_complete:
+        messages.info(
+            request,
+            f'Ligi Mashinani for {longlist.discipline.ward} Ward '
+            f'({longlist.discipline.get_sport_type_display()}) is already marked complete.',
+        )
+        return redirect('wscc_dashboard')
+
+    longlist.ligi_mashinani_complete = True
+    longlist.ligi_complete_at = timezone.now()
+    longlist.ligi_complete_by = user
+    longlist.save(update_fields=['ligi_mashinani_complete', 'ligi_complete_at', 'ligi_complete_by', 'updated_at'])
+
+    try:
+        from admin_dashboard.activity_logger import log_activity, get_client_ip
+        log_activity(
+            user=user,
+            action='OTHER',
+            description=(
+                f'WSCC {user.get_full_name()} marked Ligi Mashinani as complete for '
+                f'{longlist.discipline.ward} Ward ({longlist.discipline.get_sport_type_display()}) '
+                f'in {longlist.discipline.sub_county} sub-county.'
+            ),
+            obj=longlist,
+            ip_address=get_client_ip(request),
+        )
+    except Exception:
+        pass
+
+    messages.success(
+        request,
+        f'Ligi Mashinani for {longlist.discipline.ward} Ward '
+        f'({longlist.discipline.get_sport_type_display()}) has been marked as complete. '
+        f'You can now select the Ward Team Manager.',
+    )
+    return redirect('wscc_select_ward_tm')
+
+
+@role_required('ward_sports_council_chair', 'admin')
 def wscc_select_ward_tm_view(request):
     """
     WSCC selects a team manager from their ward to become the Ward Team Manager
@@ -17771,6 +17859,23 @@ def wscc_select_ward_tm_view(request):
 
     if not ward or not sub_county:
         messages.error(request, 'Your account is not assigned to a ward. Contact your administrator.')
+        return redirect('wscc_dashboard')
+
+    # ── GATE: Ligi Mashinani must be marked complete before TM selection ─────
+    from teams.models import WardLonglist
+    incomplete_longlists = WardLonglist.objects.filter(
+        discipline__ward=ward,
+        discipline__sub_county=sub_county,
+        discipline__level='ward',
+        ligi_mashinani_complete=False,
+    )
+    if incomplete_longlists.exists() and not (user.is_superuser or user.role == 'admin'):
+        messages.error(
+            request,
+            'You must mark the Ligi Mashinani competition as complete before '
+            'selecting a Ward Team Manager. Go to your dashboard and click '
+            '"Mark Ligi Mashinani Complete" for each discipline first.',
+        )
         return redirect('wscc_dashboard')
 
     # All APPROVED team registrations in this ward (any discipline)

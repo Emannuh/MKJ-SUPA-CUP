@@ -37,16 +37,9 @@
     <span style="background:#f8d7da;color:#842029;padding:.3rem .8rem;border-radius:20px;font-size:.85rem;font-weight:600"><i class="bi bi-arrow-return-left"></i> Returned for Corrections</span>
   {% endif %}
 
-  {% if not longlist.is_locked %}
   <a href="{% url 'ward_tm_add_player' %}{% if request.GET.discipline %}?discipline={{ request.GET.discipline }}{% endif %}" class="btn btn--primary" style="margin-left:auto">
     <i class="bi bi-person-plus"></i> Add Player
   </a>
-  {% endif %}
-  {% if longlist.can_submit %}
-  <button type="button" class="btn btn--secondary" onclick="document.getElementById('submit-confirm-modal').style.display='flex'">
-    <i class="bi bi-send"></i> Submit for Review
-  </button>
-  {% endif %}
   <!-- PDF Downloads -->
   <a href="{% url 'ward_longlist_pdf' discipline.pk %}?sort={{ request.GET.sort|default:'name' }}"
      style="padding:.45rem .9rem;background:#dc3545;color:#fff;border-radius:6px;font-size:.85rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:.35rem">
@@ -117,7 +110,6 @@
           <span style="color:#dc3545"><i class="bi bi-exclamation-circle"></i> Missing Docs</span>
         {% endif %}
       </div>
-      {% if not longlist.is_locked %}
       <div style="display:flex;gap:.35rem;margin-top:.6rem">
         <a href="{% url 'ward_tm_edit_player' player.pk %}"
            style="flex:1;text-align:center;padding:.25rem;font-size:.75rem;background:#e9ecef;color:#495057;border-radius:4px;text-decoration:none">
@@ -128,7 +120,6 @@
           <i class="bi bi-trash"></i>
         </a>
       </div>
-      {% endif %}
     </div>
   </div>
   {% endfor %}
@@ -149,9 +140,7 @@
         <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6;text-align:center">Age</th>
         <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Position</th>
         <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6;text-align:center">Docs</th>
-        {% if not longlist.is_locked %}
         <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Actions</th>
-        {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -196,7 +185,6 @@
           {% endif %}
         </td>
 
-        {% if not longlist.is_locked %}
         <td style="padding:.6rem 1rem">
           <div style="display:flex;gap:.35rem">
             <a href="{% url 'ward_tm_edit_player' player.pk %}"
@@ -209,7 +197,6 @@
             </a>
           </div>
         </td>
-        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
@@ -221,11 +208,9 @@
 <div class="card" style="padding:2.5rem;text-align:center;color:#888">
   <i class="bi bi-person-x" style="font-size:2.5rem;display:block;margin-bottom:.75rem"></i>
   <p style="margin:0">No players added yet.</p>
-  {% if not longlist.is_locked %}
   <a href="{% url 'ward_tm_add_player' %}" class="btn btn--primary" style="margin-top:1rem;display:inline-block">
     <i class="bi bi-person-plus"></i> Add Your First Player
   </a>
-  {% endif %}
 </div>
 {% endif %}
 
@@ -235,47 +220,10 @@
   </a>
 </div>
 
-{% if longlist.can_submit %}
-<!-- ── Submit for Review: inline warning note ──────────────────────── -->
-<div style="margin-top:1.5rem;padding:.9rem 1rem;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:.87rem;color:#856404">
-  <strong><i class="bi bi-info-circle"></i> Before you submit:</strong>
-  <ul style="margin:.5rem 0 0 1.2rem;padding:0;line-height:1.9">
-    <li>Your list will be sent to the <strong>Ward Sports Council Chair (WSCC)</strong> for review.</li>
-    <li>Once submitted, <strong>you cannot add, edit or remove players</strong> until the WSCC returns the list for corrections.</li>
-    <li>Make sure all players have valid documents and correct details before submitting.</li>
-  </ul>
+<!-- ── WSCC Review Notice ─────────────────────────────────────────────── -->
+<div style="margin-top:1.5rem;padding:.9rem 1rem;background:#cfe2ff;border:1px solid #b6d4fe;border-radius:8px;font-size:.87rem;color:#084298">
+  <i class="bi bi-info-circle"></i>
+  <strong>No submission needed.</strong>
+  The Ward Sports Council Chair (WSCC) reviews all ward teams directly — just keep your player list up to date.
 </div>
-
-<!-- ── Confirmation Modal ─────────────────────────────────────────── -->
-<div id="submit-confirm-modal"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:12px;padding:2rem;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <h3 style="font-size:1.1rem;color:#124491;margin:0 0 .75rem">
-      <i class="bi bi-send"></i> Submit Longlist for Review?
-    </h3>
-    <p style="font-size:.9rem;color:#444;margin:0 0 .5rem">
-      Your longlist of <strong>{{ player_count }} player{{ player_count|pluralize }}</strong> will be sent to the
-      <strong>Ward Sports Council Chair</strong> for review.
-    </p>
-    <p style="font-size:.87rem;color:#856404;background:#fff3cd;border-radius:6px;padding:.6rem .8rem;margin:0 0 1.25rem">
-      <i class="bi bi-lock"></i> <strong>Your list will be locked</strong> — no edits until the WSCC
-      approves or returns it for corrections.
-    </p>
-    <div style="display:flex;gap:.75rem;justify-content:flex-end">
-      <button type="button"
-              onclick="document.getElementById('submit-confirm-modal').style.display='none'"
-              style="padding:.5rem 1.1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.9rem">
-        Cancel
-      </button>
-      <form method="post" action="{% url 'ward_tm_submit_longlist' %}" style="margin:0">
-        {% csrf_token %}
-        <button type="submit"
-                style="padding:.5rem 1.25rem;background:#124491;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600">
-          <i class="bi bi-send"></i> Yes, Submit
-        </button>
-      </form>
-    </div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}

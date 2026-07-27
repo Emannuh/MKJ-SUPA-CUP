@@ -155,6 +155,106 @@
     {% endif %}
 </div>
 
+<!-- Ligi Mashinani Completion Status -->
+{% if ward_longlists %}
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem;border-left:4px solid {% if all_ligi_complete %}#198754{% else %}#f59e0b{% endif %}">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem">
+        <h2 style="font-size:1.1rem;color:#333;margin:0">
+            <i class="bi bi-flag-fill" style="color:{% if all_ligi_complete %}#198754{% else %}#f59e0b{% endif %}"></i>
+            Ligi Mashinani Completion
+        </h2>
+        {% if all_ligi_complete %}
+        <span style="display:inline-flex;align-items:center;gap:.4rem;background:#d1fae5;color:#065f46;padding:.3rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;border:1px solid #6ee7b7">
+            <i class="bi bi-check-circle-fill"></i> All Disciplines Complete
+        </span>
+        {% else %}
+        <span style="display:inline-flex;align-items:center;gap:.4rem;background:#fef3c7;color:#92400e;padding:.3rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;border:1px solid #fcd34d">
+            <i class="bi bi-hourglass-split"></i> Pending Completion
+        </span>
+        {% endif %}
+    </div>
+
+    <div style="display:grid;gap:.65rem">
+        {% for wl in ward_longlists %}
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;
+                    padding:.85rem 1rem;border-radius:8px;border:1px solid #e5e7eb;
+                    background:{% if wl.ligi_mashinani_complete %}#f0fdf4{% else %}#fffdf5{% endif %}">
+            <div style="display:flex;align-items:center;gap:.75rem">
+                <div style="width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+                            background:{% if wl.ligi_mashinani_complete %}#d1fae5{% else %}#fef3c7{% endif %}">
+                    {% if wl.ligi_mashinani_complete %}✅{% else %}⏳{% endif %}
+                </div>
+                <div>
+                    <div style="font-weight:700;font-size:.92rem;color:#111827">
+                        {{ wl.discipline.get_sport_type_display }}
+                    </div>
+                    {% if wl.ligi_mashinani_complete %}
+                    <div style="font-size:.75rem;color:#6b7280">
+                        Marked complete by {{ wl.ligi_complete_by.get_full_name|default:wl.ligi_complete_by.email }}
+                        on {{ wl.ligi_complete_at|date:"d M Y, H:i" }}
+                    </div>
+                    {% else %}
+                    <div style="font-size:.75rem;color:#92400e">
+                        Not yet marked complete — required before selecting Ward TM
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not wl.ligi_mashinani_complete %}
+            <button type="button"
+                    onclick="document.getElementById('complete-modal-{{ wl.pk }}').style.display='flex'"
+                    style="padding:.45rem 1rem;background:#124491;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:600;cursor:pointer;white-space:nowrap">
+                <i class="bi bi-flag-fill"></i> Mark Complete
+            </button>
+            {% else %}
+            <span style="display:inline-flex;align-items:center;gap:.35rem;color:#065f46;font-size:.82rem;font-weight:600">
+                <i class="bi bi-check-circle-fill"></i> Done
+            </span>
+            {% endif %}
+        </div>
+
+        {% if not wl.ligi_mashinani_complete %}
+        <div id="complete-modal-{{ wl.pk }}"
+             style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+            <div style="background:#fff;border-radius:14px;padding:2rem;max-width:440px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
+                <h3 style="font-size:1.1rem;color:#124491;margin:0 0 .75rem">
+                    <i class="bi bi-flag-fill"></i> Mark Ligi Mashinani Complete?
+                </h3>
+                <p style="font-size:.9rem;color:#374151;margin:0 0 .5rem">
+                    You are about to mark the <strong>{{ wl.discipline.get_sport_type_display }}</strong>
+                    Ligi Mashinani for <strong>{{ ward|title }} Ward</strong> as complete.
+                </p>
+                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;padding:.75rem .9rem;margin-bottom:1.25rem;font-size:.85rem;color:#92400e">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>This cannot be undone.</strong> Make sure all ward fixtures have been
+                    played and the winner is determined before proceeding.
+                    This will unlock the <em>Select Ward TM</em> action.
+                </div>
+                <div style="display:flex;gap:.75rem;justify-content:flex-end">
+                    <button type="button"
+                            onclick="document.getElementById('complete-modal-{{ wl.pk }}').style.display='none'"
+                            style="padding:.5rem 1.1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.88rem">
+                        Cancel
+                    </button>
+                    <form method="post" action="{% url 'wscc_mark_ligi_complete' %}" style="margin:0">
+                        {% csrf_token %}
+                        <input type="hidden" name="longlist_pk" value="{{ wl.pk }}">
+                        <input type="hidden" name="confirm" value="1">
+                        <button type="submit"
+                                style="padding:.5rem 1.25rem;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:700">
+                            <i class="bi bi-flag-fill"></i> Yes, Mark Complete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Quick navigation -->
 <div class="card" style="padding:1.5rem">
     <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
@@ -179,9 +279,16 @@
         <a href="{% url 'wscc_ward_competition_setup' %}" class="btn btn--secondary" style="border:2px solid #198754;color:#0a3622">
             <i class="bi bi-trophy"></i> Ward Competition
         </a>
+        {% if all_ligi_complete %}
         <a href="{% url 'wscc_select_ward_tm' %}" class="btn btn--secondary" style="border:2px solid #6d28d9;color:#4c1d95">
             <i class="bi bi-person-badge-fill"></i> Select Ward TM
         </a>
+        {% else %}
+        <span title="Mark Ligi Mashinani as complete for all disciplines first"
+              style="display:inline-flex;align-items:center;gap:.5rem;padding:.55rem 1rem;border:2px solid #d1d5db;color:#9ca3af;border-radius:8px;font-size:.9rem;font-weight:600;cursor:not-allowed;background:#f9fafb">
+            <i class="bi bi-lock-fill"></i> Select Ward TM
+        </span>
+        {% endif %}
         <a href="{% url 'wscc_allstars_dashboard' %}" class="btn btn--secondary" style="border:2px solid #e67e22;color:#7d3c00">
             <i class="bi bi-trophy-fill"></i> Ward All Stars
         </a>

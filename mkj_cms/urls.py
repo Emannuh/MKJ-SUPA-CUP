@@ -317,6 +317,7 @@ from .web_views import (
     wscc_ward_comp_generate_fixtures_view,
     wscc_ward_match_sheet_view,
     wscc_select_ward_tm_view,
+    wscc_mark_ligi_complete_view,
     # Ligi Mashinani: Senior transfers (CSO/Director/Admin)
     senior_transfers_view,
     senior_transfer_action_view,
@@ -353,6 +354,7 @@ urlpatterns = [
     path("ligi/wscc/teams/",                                wscc_teams_list_view,          name="wscc_teams_list"),
     path("ligi/wscc/teams/<int:team_pk>/confirm-payment/",  wscc_confirm_payment_view,     name="wscc_confirm_payment"),
     path("ligi/wscc/teams/<int:team_pk>/delete/",           wscc_delete_team_view,         name="wscc_delete_team"),
+    path("ligi/wscc/mark-ligi-complete/",                   wscc_mark_ligi_complete_view,  name="wscc_mark_ligi_complete"),
     path("sitemap.xml",                   sitemap_xml_view,               name="sitemap_xml"),
     path("",                              home_view,                      name="home"),
     path("about/",                        about_view,                     name="about"),

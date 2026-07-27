@@ -595,6 +595,27 @@ class WardLonglist(models.Model):
         blank=True, default="",
         help_text="Reason provided by WSCC when returning longlist for corrections",
     )
+
+    # ── Ligi Mashinani Completion ─────────────────────────────────────────────
+    ligi_mashinani_complete = models.BooleanField(
+        default=False,
+        help_text=(
+            "Marked True by the WSCC once all ward fixtures are done and a winner "
+            "has been determined. Required before a Ward TM can be selected."
+        ),
+    )
+    ligi_complete_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When the WSCC marked Ligi Mashinani as complete",
+    )
+    ligi_complete_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="ligi_completions_marked",
+        help_text="WSCC who marked Ligi Mashinani as complete",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
