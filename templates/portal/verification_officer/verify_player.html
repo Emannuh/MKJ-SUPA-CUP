@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
-{% block title %}Verify Player - MKJ SUPA CUP Portal{% endblock %}
+{% block title %}Verify Player Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -28,7 +28,7 @@
     </div>
     <div class="stat-card blue">
         <div class="stat-icon blue"><i class="bi bi-geo-alt"></i></div>
-        <div class="stat-info"><h3>{{ player.discipline.sub_county|default:" - " }}</h3><p>Sub-County</p></div>
+        <div class="stat-info"><h3>{{ player.discipline.sub_county|default:" - " }}</h3><p>Sub County</p></div>
     </div>
     <div class="stat-card blue">
         <div class="stat-icon blue"><i class="bi bi-trophy"></i></div>
@@ -81,7 +81,7 @@
             </div>
             <div>
                 <p><strong>County:</strong> {{ player.discipline.registration.county }}</p>
-                <p><strong>Sub-County:</strong> {{ player.discipline.sub_county|default:" - " }}</p>
+                <p><strong>Sub County:</strong> {{ player.discipline.sub_county|default:" - " }}</p>
                 <p><strong>Ward:</strong> {{ player.ward|default:" - " }}</p>
                 <p><strong>Phone:</strong> {{ player.phone|default:" - " }}</p>
             </div>

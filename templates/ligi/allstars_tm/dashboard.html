@@ -1,10 +1,10 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}{{ allstars.official_name }} - Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="breadcrumb"><span>Ligi Mashinani</span><span>Ward All Stars</span><span>Dashboard</span></div>
   <h1><i class="bi bi-speedometer2"></i> {{ allstars.official_name }}</h1>
-  <p>{{ allstars.sub_county }} Sub-County · {{ allstars.competition.name }}</p>
+  <p>{{ allstars.sub_county }} Sub County · {{ allstars.competition.name }}</p>
 </div>
 {% if messages %}{% for msg in messages %}<div class="alert alert-{{ msg.tags }}">{{ msg }}</div>{% endfor %}{% endif %}
 

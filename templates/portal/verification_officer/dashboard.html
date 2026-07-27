@@ -1,7 +1,7 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Verification Officer - MKJ SUPA CUP Portal{% endblock %}
+{% block title %}Verification Officer Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -24,7 +24,7 @@
             </div>
             <div style="margin-left: auto; display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
                 <a href="{% url 'vo_players_by_subcounty' %}" style="background:rgba(255,255,255,.2);color:#fff;padding:.45rem 1rem;border-radius:8px;font-size:.8rem;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.3);display:inline-flex;align-items:center;gap:.4rem">
-                    <i class="bi bi-geo-alt-fill"></i> All Players by Sub-County
+                    <i class="bi bi-geo-alt-fill"></i> All Players by Sub County
                 </a>
                 <span style="background: rgba(255,255,255,.16); color: #fff; padding: .4rem .8rem; border-radius: 50px; font-size: .7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border: 1px solid rgba(255,255,255,.3);">
                     <i class="bi bi-shield-fill-check"></i> VERIFICATION
@@ -84,15 +84,15 @@
     </div>
 </div>
 
-<!-- Filter by Sub-County -->
+<!-- Filter by Sub County -->
 <div class="card mb-1">
     <div class="card-body" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
-        <label style="font-weight:700;font-size:.85rem"><i class="bi bi-geo-alt"></i> Sub-County:</label>
+        <label style="font-weight:700;font-size:.85rem"><i class="bi bi-geo-alt"></i> Sub County:</label>
         <form method="get" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
             <input type="hidden" name="tab" value="{{ tab }}">
             {% if discipline_filter %}<input type="hidden" name="discipline" value="{{ discipline_filter }}">{% endif %}
             <select name="subcounty" onchange="this.form.submit()" style="padding:.4rem .75rem;border:1px solid #ddd;border-radius:6px;font-size:.85rem;min-width:180px">
-                <option value="">All Sub-Counties</option>
+                <option value="">All Sub Counties</option>
                 {% for sc in subcounty_choices %}
                 <option value="{{ sc }}" {% if subcounty_filter == sc %}selected{% endif %}>{{ sc }}</option>
                 {% endfor %}
@@ -128,7 +128,7 @@
                 <thead>
                     <tr>
                         <th>Player</th>
-                        <th>Sub-County</th>
+                        <th>Sub County</th>
                         <th>Discipline</th>
                         <th>Age</th>
                         <th>Current Step</th>
@@ -176,7 +176,7 @@
                 <thead>
                     <tr>
                         <th>Player</th>
-                        <th>Sub-County</th>
+                        <th>Sub County</th>
                         <th>Discipline</th>
                         <th>Age</th>
                         <th>National ID</th>
@@ -216,7 +216,7 @@
                 <thead>
                     <tr>
                         <th>Player</th>
-                        <th>Sub-County</th>
+                        <th>Sub County</th>
                         <th>Discipline</th>
                         <th>Failed Step</th>
                         <th>Reason</th>
@@ -257,9 +257,9 @@
 
 
 {% if subcounties %}
-<!-- Sub-County Registration Summary -->
+<!-- Sub County Registration Summary -->
 <div class="card mb-1">
-    <div class="card-header"><h3><i class="bi bi-diagram-3"></i> Sub-County Registration Summary</h3></div>
+    <div class="card-header"><h3><i class="bi bi-diagram-3"></i> Sub County Registration Summary</h3></div>
     <div class="card-body">
         <p style="font-size:.85rem;color:#888;margin-bottom:1rem"><i class="bi bi-info-circle"></i> Sub-counties are auto-registered when disciplines are created. No manual registration is needed.</p>
         <div class="table-responsive">
@@ -267,7 +267,7 @@
                 <thead>
                     <tr>
                         <th>County</th>
-                        <th>Sub-County</th>
+                        <th>Sub County</th>
                         <th>Disciplines</th>
                         <th>Players</th>
                     </tr>

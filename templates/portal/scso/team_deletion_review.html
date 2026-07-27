@@ -1,10 +1,10 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Review Deletion Request – {{ del_req.registration.team_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="breadcrumb">
-        <a href="{% url 'subcounty_officer_dashboard' %}">Sub-County Dashboard</a>
+        <a href="{% url 'subcounty_officer_dashboard' %}">Sub County Dashboard</a>
         <a href="{% url 'scso_team_deletion_requests' %}">Team Deletion Requests</a>
         <span>Review</span>
     </div>
@@ -27,7 +27,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;font-size:.88rem">
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Team</span><strong>{{ del_req.registration.team_name }}</strong></div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Ward</span>{{ del_req.registration.ward|title }}</div>
-        <div><span style="color:#9ca3af;font-size:.78rem;display:block">Sub-County</span>{{ del_req.registration.sub_county|title }}</div>
+        <div><span style="color:#9ca3af;font-size:.78rem;display:block">Sub County</span>{{ del_req.registration.sub_county|title }}</div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Discipline</span>{{ del_req.registration.get_discipline_display }}</div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Payment</span>
             {% if del_req.registration.payment_confirmed %}

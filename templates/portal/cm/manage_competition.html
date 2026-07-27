@@ -1,7 +1,7 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ competition.name }} - MKJ SUPA CUP Portal{% endblock %}
+{% block title %}{{ competition.name }} Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -228,7 +228,7 @@
     </div>
 </div>
 
-<!-- Pending Team Registrations  -  qualified sub-county teams awaiting acceptance -->
+<!-- Pending Team Registrations · qualified Sub County teams awaiting acceptance -->
 {% with qualified_pending=eligible_teams|dictsortreversed:"qualified_to_county" %}
 {% if eligible_teams %}
 <div class="card" style="margin-bottom:1.5rem;">
@@ -241,7 +241,7 @@
             <thead>
                 <tr style="background:#FAFAFA;border-bottom:1px solid #eee;">
                     <th style="padding:.5rem 1rem;text-align:left;font-weight:600;color:#555;">Team</th>
-                    <th style="padding:.5rem .75rem;text-align:left;font-weight:600;color:#555;">Sub-County</th>
+                    <th style="padding:.5rem .75rem;text-align:left;font-weight:600;color:#555;">Sub County</th>
                     <th style="padding:.5rem .75rem;text-align:left;font-weight:600;color:#555;">Status</th>
                     <th style="padding:.5rem .75rem;text-align:left;font-weight:600;color:#555;">Action</th>
                 </tr>
@@ -261,7 +261,7 @@
                         {% endif %}
                     </td>
                     <td style="padding:.55rem .75rem;">
-                        <a href="{% url 'cm_manage_pools' pk=competition.pk %}" class="btn btn-success btn-sm" style="font-size:.72rem;padding:.15rem .5rem;" title="Accept  -  add to a pool">
+                        <a href="{% url 'cm_manage_pools' pk=competition.pk %}" class="btn btn-success btn-sm" style="font-size:.72rem;padding:.15rem .5rem;" title="Accept · add to a pool">
                             <i class="bi bi-check-lg"></i> Accept
                         </a>
                         <span style="font-size:.7rem;color:#999;margin-left:.3rem;">or defer by not adding to any pool</span>

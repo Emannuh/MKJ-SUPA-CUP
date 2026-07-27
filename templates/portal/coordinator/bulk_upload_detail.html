@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Upload Details #{{ bulk.pk }} - Coordinator - MKJ SUPA CUP{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Upload Details #{{ bulk.pk }} - Coordinator Â· MKJ SUPA CUP{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -17,7 +17,7 @@
     <div class="card-body">
         <div class="row" style="font-size:.88rem;">
             <div class="col-md-3"><strong>Discipline:</strong> {{ bulk.get_sport_type_display }}</div>
-            <div class="col-md-3"><strong>Sub-County:</strong> {{ bulk.get_sub_county_display }}</div>
+            <div class="col-md-3"><strong>Sub County:</strong> {{ bulk.get_sub_county_display }}</div>
             <div class="col-md-3"><strong>Uploaded:</strong> {{ bulk.created_at|date:"d M Y H:i" }}</div>
             <div class="col-md-3">
                 <strong>Status:</strong>

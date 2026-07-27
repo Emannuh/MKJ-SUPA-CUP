@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Ligi Mashinani Player Register{% endblock %}
 
 {% block content %}
@@ -126,7 +126,7 @@
       </select>
     </div>
 
-    <!-- Age band (hidden  -  controlled by cards above) -->
+    <!-- Age band (hidden · controlled by cards above) -->
     <input type="hidden" name="age_band" value="{{ f_age_band }}">
 
     <!-- Search -->
@@ -197,7 +197,7 @@
       {% elif f_age_band == 'unknown' %}Players with Unknown Age
       {% else %}All Players
       {% endif %}
-       -  <span style="color:#124491">{{ display_players|length }}</span>
+      · <span style="color:#124491">{{ display_players|length }}</span>
     </h2>
     <span style="font-size:.78rem;color:#888;background:#f8f9fa;padding:.25rem .6rem;border-radius:4px">
       <i class="bi bi-lock"></i> Read-only

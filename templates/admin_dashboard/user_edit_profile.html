@@ -1,5 +1,5 @@
 ﻿{% extends "base.html" %}
-{% block title %}Edit Profile: {{ detail_user.get_full_name }} - MKJ SUPA CUP Portal{% endblock %}
+{% block title %}Edit Profile: {{ detail_user.get_full_name }} Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -107,9 +107,9 @@
                 <div class="form-row">
                     <div class="field">
                         <input type="hidden" name="county" value="Makueni">
-                        <label>Sub-County</label>
+                        <label>Sub County</label>
                         <select name="sub_county" class="form-control" required>
-                            <option value="">-- Select Sub-County --</option>
+                            <option value="">-- Select Sub County --</option>
                             {% for value, label in subcounty_choices %}
                             <option value="{{ value }}" {% if detail_user.sub_county == value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}

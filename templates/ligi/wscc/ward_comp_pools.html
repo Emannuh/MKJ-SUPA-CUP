@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Manage Pools  -  {{ comp.name }}{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Manage Pools · {{ comp.name }}{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="breadcrumb">
@@ -8,7 +8,7 @@
     <span>Pools</span>
   </div>
   <h1><i class="bi bi-diagram-3"></i> Manage Pools</h1>
-  <p style="color:#666;font-size:.9rem">{{ comp.name }}  -  {{ comp.get_sport_type_display }}</p>
+  <p style="color:#666;font-size:.9rem">{{ comp.name }} · {{ comp.get_sport_type_display }}</p>
 </div>
 
 {% if messages %}

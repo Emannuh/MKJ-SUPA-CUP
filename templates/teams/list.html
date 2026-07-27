@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Teams - MKJ SUPA CUP Portal{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Teams Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -24,7 +24,7 @@
                 <input type="text" id="teamSearch" placeholder="Search teams..." oninput="filterTeams()">
             </div>
             <select class="toolbar-select" id="subCountyFilter" onchange="filterTeams()">
-                <option value="">All Sub-Counties</option>
+                <option value="">All Sub Counties</option>
             </select>
             <select class="toolbar-select" id="disciplineFilter" onchange="filterTeams()">
                 <option value="">All Disciplines</option>
@@ -108,7 +108,7 @@ function filterTeams() {
     });
     document.getElementById('teamCount').textContent = visible + ' of ' + rows.length;
 }
-// Populate sub-county and discipline filters
+// Populate Sub County and discipline filters
 document.addEventListener('DOMContentLoaded', function() {
     const subCounties = new Set();
     const disciplines = new Set();

@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Match Sheet  -  {{ fixture.home_team }} vs {{ fixture.away_team }}{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Match Sheet · {{ fixture.home_team }} vs {{ fixture.away_team }}{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="breadcrumb">
@@ -99,7 +99,7 @@
   <div class="card" style="padding:1.1rem">
     <h3 style="font-size:.9rem;color:#124491;margin-bottom:.75rem">
       <i class="bi bi-people"></i> {{ fixture.home_team.name }}
-      {% if not home_squad %}<span style="font-size:.75rem;color:#dc3545;font-weight:400">  -  No squad submitted</span>{% endif %}
+      {% if not home_squad %}<span style="font-size:.75rem;color:#dc3545;font-weight:400"> · No squad submitted</span>{% endif %}
     </h3>
     {% if home_players %}
     <table style="width:100%;border-collapse:collapse;font-size:.8rem">
@@ -132,7 +132,7 @@
   <div class="card" style="padding:1.1rem">
     <h3 style="font-size:.9rem;color:#124491;margin-bottom:.75rem">
       <i class="bi bi-people"></i> {{ fixture.away_team.name }}
-      {% if not away_squad %}<span style="font-size:.75rem;color:#dc3545;font-weight:400">  -  No squad submitted</span>{% endif %}
+      {% if not away_squad %}<span style="font-size:.75rem;color:#dc3545;font-weight:400"> · No squad submitted</span>{% endif %}
     </h3>
     {% if away_players %}
     <table style="width:100%;border-collapse:collapse;font-size:.8rem">

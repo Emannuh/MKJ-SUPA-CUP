@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Verified Players - Director of Sports{% endblock %}
 
 {% block content %}
@@ -37,7 +37,7 @@
         <div>
             <label class="form-label mb-1" style="font-size:.82rem;font-weight:600;">Sub County</label>
             <select name="subcounty" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">All Sub-Counties</option>
+                <option value="">All Sub Counties</option>
                 {% for val, label in subcounties %}
                 <option value="{{ val }}" {% if val == subcounty_filter %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -78,19 +78,19 @@
 <div class="card p-3 mb-3" style="background:#eef6ff;">
     <div class="d-flex gap-2 align-items-center flex-wrap">
         <strong style="font-size:.85rem;"><i class="bi bi-lightning-charge"></i> Bulk Actions:</strong>
-        <form method="post" action="{% url 'director_sports_bulk_approve' %}" style="display:inline;" onsubmit="return confirm('Approve all pending players{% if subcounty_filter %} in this sub-county{% endif %}{% if discipline_filter %} for this discipline{% endif %}?')">
+        <form method="post" action="{% url 'director_sports_bulk_approve' %}" style="display:inline;" onsubmit="return confirm('Approve all pending players{% if subcounty_filter %} in this Sub County{% endif %}{% if discipline_filter %} for this discipline{% endif %}?')">
             {% csrf_token %}
             <input type="hidden" name="subcounty" value="{{ subcounty_filter }}">
             <input type="hidden" name="discipline" value="{{ discipline_filter }}">
             <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-all"></i> Approve All Pending</button>
         </form>
-        <form method="post" action="{% url 'director_sports_lock_list' %}" style="display:inline;" onsubmit="return confirm('Lock all approved players{% if subcounty_filter %} in this sub-county{% endif %}{% if discipline_filter %} for this discipline{% endif %}? After locking, no one else can edit the list.')">
+        <form method="post" action="{% url 'director_sports_lock_list' %}" style="display:inline;" onsubmit="return confirm('Lock all approved players{% if subcounty_filter %} in this Sub County{% endif %}{% if discipline_filter %} for this discipline{% endif %}? After locking, no one else can edit the list.')">
             {% csrf_token %}
             <input type="hidden" name="subcounty" value="{{ subcounty_filter }}">
             <input type="hidden" name="discipline" value="{{ discipline_filter }}">
             <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-lock-fill"></i> Lock Approved List</button>
         </form>
-        <form method="post" action="{% url 'director_sports_unlock_list' %}" style="display:inline;" onsubmit="return confirm('Unlock all locked players{% if subcounty_filter %} in this sub-county{% endif %}{% if discipline_filter %} for this discipline{% endif %}?')">
+        <form method="post" action="{% url 'director_sports_unlock_list' %}" style="display:inline;" onsubmit="return confirm('Unlock all locked players{% if subcounty_filter %} in this Sub County{% endif %}{% if discipline_filter %} for this discipline{% endif %}?')">
             {% csrf_token %}
             <input type="hidden" name="subcounty" value="{{ subcounty_filter }}">
             <input type="hidden" name="discipline" value="{{ discipline_filter }}">
@@ -108,7 +108,7 @@
                     <th>#</th>
                     <th>Photo</th>
                     <th>Player Name</th>
-                    <th>Sub-County</th>
+                    <th>Sub County</th>
                     <th>Discipline</th>
                     <th>National ID</th>
                     <th>Position</th>

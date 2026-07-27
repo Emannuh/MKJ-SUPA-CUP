@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Bulk Player Upload - Coordinator - MKJ SUPA CUP{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Bulk Player Upload - Coordinator Â· MKJ SUPA CUP{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -28,7 +28,7 @@
                 <tbody>
                     <tr><td>A</td><td>S/NO</td><td>Ignored</td><td>Numbering in source file</td></tr>
                     <tr><td>B</td><td>NAME (Full - As per ID)</td><td><span class="badge bg-danger">Yes</span></td><td>Full name as per National ID</td></tr>
-                    <tr><td>C</td><td>WARD</td><td><span class="badge bg-danger">Yes</span></td><td>Ward within sub-county</td></tr>
+                    <tr><td>C</td><td>WARD</td><td><span class="badge bg-danger">Yes</span></td><td>Ward within Sub County</td></tr>
                     <tr><td>D</td><td>ID</td><td><span class="badge bg-danger">Yes</span></td><td>National ID (5-10 digits, unique)</td></tr>
                     <tr><td>E</td><td>POSITION</td><td><span class="badge bg-danger">Yes</span></td><td>e.g. GK, CB, CM, CF</td></tr>
                     <tr><td>F</td><td>PHONE NUMBER</td><td><span class="badge bg-danger">Yes</span></td><td>e.g. 0712345678 or +254712345678</td></tr>
@@ -56,9 +56,9 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label fw-bold">Sub-County *</label>
+                    <label class="form-label fw-bold">Sub County *</label>
                     <select name="sub_county" class="form-select" required>
-                        <option value="">-- Select Sub-County --</option>
+                        <option value="">-- Select Sub County --</option>
                         {% for val, label in subcounty_choices %}
                         <option value="{{ val }}">{{ label }}</option>
                         {% endfor %}
@@ -76,7 +76,7 @@
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" name="replace_existing" value="1" id="replaceExistingUpload">
                 <label class="form-check-label" for="replaceExistingUpload">
-                    Replace my existing upload for this discipline + sub-county
+                    Replace my existing upload for this discipline + Sub County
                 </label>
             </div>
             <button type="submit" class="btn btn-primary"><i class="bi bi-cloud-upload"></i> Upload &amp; Submit for Approval</button>

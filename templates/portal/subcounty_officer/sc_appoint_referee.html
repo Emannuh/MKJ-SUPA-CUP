@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Appoint Referees - {{ fixture }} - MKJ Portal{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Appoint Referees - {{ fixture }} Â· MKJ Portal{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
     <div>
@@ -102,7 +102,7 @@
                             {{ ref.full_name }} ({{ ref.level }})
                             {% if ref.is_busy %}⚠ Busy{% endif %}
                             {% if ref.is_appointed_here %}✓ Appointed{% endif %}
-                             -  {{ ref.availability_label }}
+                            · {{ ref.availability_label }}
                         </option>
                         {% endfor %}
                     </select>

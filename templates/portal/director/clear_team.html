@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Clear Team Players – {{ team.team_name }}{% endblock %}
 
 {% block content %}
@@ -31,7 +31,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;font-size:.88rem">
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Team</span><strong>{{ team.team_name }}</strong></div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Ward</span>{{ team.ward|title }}</div>
-        <div><span style="color:#9ca3af;font-size:.78rem;display:block">Sub-County</span>{{ team.sub_county|title }}</div>
+        <div><span style="color:#9ca3af;font-size:.78rem;display:block">Sub County</span>{{ team.sub_county|title }}</div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Discipline</span>{{ team.get_discipline_display }}</div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Players to Remove</span>
             <strong style="color:#dc3545">{{ player_count }}</strong></div>

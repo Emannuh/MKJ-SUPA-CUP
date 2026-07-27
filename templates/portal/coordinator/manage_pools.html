@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Manage Pools - {{ competition.name }} - MKJ SUPA CUP Portal{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Manage Pools - {{ competition.name }} Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -54,10 +54,10 @@
 <div class="card mb-3" style="border-left:4px solid #124491;">
     <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
         <div>
-            <div style="font-weight:700;margin-bottom:.2rem;">Apply Sub-County Finals Pooling</div>
+            <div style="font-weight:700;margin-bottom:.2rem;">Apply Sub County Finals Pooling</div>
             <div style="font-size:.85rem;color:#666;">Load the agreed 2026 grouping for this competition. The coordinator can adjust pools afterwards.</div>
         </div>
-        <form method="post" onsubmit="return confirm('Replace the current pool setup with the agreed sub-county grouping? Existing group fixtures will be regenerated.');" style="margin:0;">
+        <form method="post" onsubmit="return confirm('Replace the current pool setup with the agreed Sub County grouping? Existing group fixtures will be regenerated.');" style="margin:0;">
             {% csrf_token %}
             <input type="hidden" name="action" value="apply_preset">
             <button type="submit" class="btn btn-sm btn-primary">Apply Current Pooling</button>
@@ -124,7 +124,7 @@
         {% empty %}
         <div class="pool-empty">No teams assigned</div>
         {% endfor %}
-        <!-- Add sub-county team -->
+        <!-- Add Sub County team -->
         {% if available_subcounties %}
         <div style="padding:.75rem 1rem;border-top:1px solid #eee;">
             <form method="post" class="d-flex gap-2">
@@ -132,7 +132,7 @@
                 <input type="hidden" name="action" value="add_team">
                 <input type="hidden" name="pool_id" value="{{ pool.pk }}">
                 <select name="sub_county" class="form-select form-select-sm" required>
-                    <option value="">Add sub-county…</option>
+                    <option value="">Add Sub County…</option>
                     {% for sc in available_subcounties %}<option value="{{ sc }}">{{ sc }}</option>{% endfor %}
                 </select>
                 <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus"></i></button>

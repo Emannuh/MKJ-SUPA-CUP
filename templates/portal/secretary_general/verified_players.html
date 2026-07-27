@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Verified Players - Secretary General{% endblock %}
 
 {% block content %}
@@ -32,9 +32,9 @@
             </select>
         </div>
         <div>
-            <label class="form-label mb-1" style="font-size:.82rem;font-weight:600;">Sub-County</label>
+            <label class="form-label mb-1" style="font-size:.82rem;font-weight:600;">Sub County</label>
             <select name="subcounty" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">All Sub-Counties</option>
+                <option value="">All Sub Counties</option>
                 {% for val, label in subcounties %}
                 <option value="{{ val }}" {% if val == subcounty_filter %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -53,7 +53,7 @@
                 <tr>
                     <th>#</th>
                     <th>Player Name</th>
-                    <th>Sub-County</th>
+                    <th>Sub County</th>
                     <th>Discipline</th>
                     <th>National ID</th>
                     <th>Registered</th>

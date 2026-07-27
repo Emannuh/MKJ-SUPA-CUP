@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Verify Player - {{ player.first_name }} {{ player.last_name }} - MKJ Portal{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Verify Player - {{ player.first_name }} {{ player.last_name }} Â· MKJ Portal{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <div>
@@ -7,7 +7,7 @@
         <p class="text-muted mb-0">
             {{ player.first_name }} {{ player.last_name }} &bull;
             {{ player.discipline.get_sport_type_display|default:" - " }} &bull;
-            Sub-County Level
+            Sub County Level
         </p>
     </div>
     <a href="{% url 'sc_verification_dashboard' %}" class="btn btn-outline-secondary btn-sm">
@@ -40,7 +40,7 @@
     </div>
     <div class="stat-card blue">
         <div class="stat-icon blue"><i class="bi bi-geo-alt"></i></div>
-        <div class="stat-info"><h3>{{ player.discipline.sub_county|default:" - " }}</h3><p>Sub-County</p></div>
+        <div class="stat-info"><h3>{{ player.discipline.sub_county|default:" - " }}</h3><p>Sub County</p></div>
     </div>
     <div class="stat-card blue">
         <div class="stat-icon blue"><i class="bi bi-trophy"></i></div>
@@ -92,7 +92,7 @@
                 <p><strong>National ID:</strong> {{ player.national_id_number|default:" - " }}</p>
             </div>
             <div>
-                <p><strong>Sub-County:</strong> {{ player.discipline.sub_county|default:" - " }}</p>
+                <p><strong>Sub County:</strong> {{ player.discipline.sub_county|default:" - " }}</p>
                 <p><strong>Ward:</strong> {{ player.ward|default:" - " }}</p>
                 <p><strong>Phone:</strong> {{ player.phone|default:" - " }}</p>
             </div>

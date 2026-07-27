@@ -1,5 +1,5 @@
 ﻿{% extends 'base.html' %}
-{% block title %}Dashboard - MKJ SUPA CUP Portal{% endblock %}
+{% block title %}Dashboard Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -131,12 +131,12 @@
                         <a href="{% url 'ligi_player_register' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-people-fill" style="color:#198754"></i></div>
                             <h4>Player Register</h4>
-                            <p>All ward players  -  age categories, all disciplines</p>
+                            <p>All ward players · age categories, all disciplines</p>
                         </a>
                         <a href="{% url 'scso_ligi_overview' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-map" style="color:#198754"></i></div>
-                            <h4>Sub-County Overview</h4>
-                            <p>View Ligi activities by sub-county &amp; ward</p>
+                            <h4>Sub County Overview</h4>
+                            <p>View Ligi activities by Sub County &amp; ward</p>
                         </a>
                         <a href="{% url 'wscc_ward_competition_setup' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-trophy" style="color:#198754"></i></div>
@@ -146,11 +146,11 @@
                         <a href="{% url 'wscc_allstars_dashboard' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-star-fill" style="color:#198754"></i></div>
                             <h4>All-Stars Dashboard</h4>
-                            <p>Sub-county finals &amp; all-star teams management</p>
+                            <p>Sub County finals &amp; all-star teams management</p>
                         </a>
                         <a href="{% url 'senior_transfers' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-arrow-left-right" style="color:#198754"></i></div>
-                            <h4>Inter-Sub-County Transfers</h4>
+                            <h4>Inter-Sub County Transfers</h4>
                             <p>Review transfers between sub-counties</p>
                         </a>
                         <a href="{% url 'transfer_tracking' %}" class="action-card" style="border-top:3px solid #198754">
@@ -245,28 +245,28 @@
                         </a>
                     </div>
 
-                    <!-- Sub-County & County -->
-                    <h5 class="mb-2" style="color:#1A6FB5;border-bottom:2px solid #e8f0f8;padding-bottom:6px;"><i class="bi bi-geo me-1"></i>Sub-County &amp; County</h5>
+                    <!-- Sub County & County -->
+                    <h5 class="mb-2" style="color:#1A6FB5;border-bottom:2px solid #e8f0f8;padding-bottom:6px;"><i class="bi bi-geo me-1"></i>Sub County &amp; County</h5>
                     <div class="quick-actions mb-3">
                         <a href="{% url 'subcounty_officer_dashboard' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-map"></i></div>
-                            <h4>Sub-County Officer</h4>
-                            <p>Sub-county sports portal</p>
+                            <h4>Sub County Officer</h4>
+                            <p>Sub County sports portal</p>
                         </a>
                         <a href="{% url 'subcounty_officer_disciplines' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-layers"></i></div>
                             <h4>Disciplines</h4>
-                            <p>Sub-county disciplines</p>
+                            <p>Sub County disciplines</p>
                         </a>
                         <a href="{% url 'subcounty_officer_referees' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-person-badge"></i></div>
-                            <h4>Sub-County Referees</h4>
+                            <h4>Sub County Referees</h4>
                             <p>Local referee management</p>
                         </a>
                         <a href="{% url 'subcounty_officer_delegation_members' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-people-fill"></i></div>
-                            <h4>Sub-County Delegation</h4>
-                            <p>Sub-county delegation members</p>
+                            <h4>Sub County Delegation</h4>
+                            <p>Sub County delegation members</p>
                         </a>
                     </div>
 
@@ -291,7 +291,7 @@
                         <a href="{% url 'subcounty_verified_players' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-person-check"></i></div>
                             <h4>Verified Players</h4>
-                            <p>Sub-county verified list</p>
+                            <p>Sub County verified list</p>
                         </a>
                         <a href="{% url 'director_sports_verified_players' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-check-circle"></i></div>
@@ -315,12 +315,12 @@
                         </a>
                     </div>
 
-                    <!-- Sub-County Registration -->
-                    <h5 class="mb-2" style="color:#1A6FB5;border-bottom:2px solid #e8f0f8;padding-bottom:6px;"><i class="bi bi-geo-alt me-1"></i>Sub-County Registration</h5>
+                    <!-- Sub County Registration -->
+                    <h5 class="mb-2" style="color:#1A6FB5;border-bottom:2px solid #e8f0f8;padding-bottom:6px;"><i class="bi bi-geo-alt me-1"></i>Sub County Registration</h5>
                     <div class="quick-actions mb-3">
                         <a href="{% url 'teams_list' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-shield"></i></div>
-                            <h4>All Sub-Counties</h4>
+                            <h4>All Sub Counties</h4>
                             <p>View registered sub-counties</p>
                         </a>
                         <a href="{% url 'pending_teams' %}" class="action-card">
@@ -477,8 +477,8 @@
             {% if user.role == 'subcounty_sports_officer' %}
             <a href="{% url 'subcounty_officer_dashboard' %}" class="action-card">
                 <div class="action-icon"><i class="bi bi-geo-alt"></i></div>
-                <h4>Sub-County Portal</h4>
-                <p>Manage your sub-county</p>
+                <h4>Sub County Portal</h4>
+                <p>Manage your Sub County</p>
             </a>
             <a href="{% url 'competitions_list' %}" class="action-card">
                 <div class="action-icon"><i class="bi bi-trophy"></i></div>

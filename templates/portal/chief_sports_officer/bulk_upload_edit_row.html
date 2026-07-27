@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Edit Row #{{ row.row_number }} - MKJ SUPA CUP{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Edit Row #{{ row.row_number }} Â· MKJ SUPA CUP{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -24,7 +24,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold">WARD *</label>
-                    <input type="text" name="ward" class="form-control" value="{{ row.ward|default:'' }}" required placeholder="Ward within the sub-county">
+                    <input type="text" name="ward" class="form-control" value="{{ row.ward|default:'' }}" required placeholder="Ward within the Sub County">
                 </div>
             </div>
             <div class="row g-3 mb-3">

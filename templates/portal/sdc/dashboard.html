@@ -1,14 +1,14 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}SDC Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="breadcrumb"><span>Subcounty Discipline Coordinator</span><span>Dashboard</span></div>
   <h1><i class="bi bi-clipboard-data-fill"></i> Subcounty Discipline Coordinator</h1>
-  {% if sdc %}<p>{{ sdc.sub_county }} Sub-County · {{ sdc.get_sport_type_display }} · {{ sdc.season }} Season</p>{% endif %}
+  {% if sdc %}<p>{{ sdc.sub_county }} Sub County · {{ sdc.get_sport_type_display }} · {{ sdc.season }} Season</p>{% endif %}
 </div>
 
 {% if not sdc %}
-<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i> You have not been assigned as a Subcounty Discipline Coordinator yet. Contact the Sub-County Sports Officer.</div>
+<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i> You have not been assigned as a Subcounty Discipline Coordinator yet. Contact the Sub County Sports Officer.</div>
 {% else %}
 
 <!-- Stats -->

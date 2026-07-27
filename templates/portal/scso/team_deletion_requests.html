@@ -1,14 +1,14 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Team Deletion Requests – SCSO{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="breadcrumb">
-        <a href="{% url 'subcounty_officer_dashboard' %}">Sub-County Dashboard</a>
+        <a href="{% url 'subcounty_officer_dashboard' %}">Sub County Dashboard</a>
         <span>Team Deletion Requests</span>
     </div>
     <h1><i class="bi bi-trash3"></i> Team Deletion Requests</h1>
-    {% if sub_county %}<p>{{ sub_county|title }} Sub-County</p>{% endif %}
+    {% if sub_county %}<p>{{ sub_county|title }} Sub County</p>{% endif %}
 </div>
 
 {% if messages %}

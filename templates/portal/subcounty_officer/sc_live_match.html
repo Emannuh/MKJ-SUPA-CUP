@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Live: {{ fixture }} - MKJ Portal{% endblock %}
+﻿{% extends 'base.html' %}
+{% block title %}Live: {{ fixture }} Â· MKJ Portal{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <div>
@@ -155,7 +155,7 @@
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>
                     <strong>{{ g.scorer_name }}</strong> ({{ g.team.name }})
-                     -  {{ g.minute }}&prime; | {{ g.get_goal_type_display }}
+                    · {{ g.minute }}&prime; | {{ g.get_goal_type_display }}
                 </span>
                 <form method="post" class="mb-0">{% csrf_token %}
                     <input type="hidden" name="action" value="delete_goal">
