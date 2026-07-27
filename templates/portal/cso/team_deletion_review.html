@@ -33,7 +33,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;font-size:.88rem;margin-bottom:1rem">
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Team</span><strong>{{ del_req.registration.team_name }}</strong></div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Ward</span>{{ del_req.registration.ward|title }}</div>
-        <div><span style="color:#9ca3af;font-size:.78rem;display:block">Sub-County</span>{{ del_req.registration.sub_county|title }}</div>
+        <div><span style="color:#9ca3af;font-size:.78rem;display:block">Sub County</span>{{ del_req.registration.sub_county|title }}</div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Discipline</span>{{ del_req.registration.get_discipline_display }}</div>
         <div><span style="color:#9ca3af;font-size:.78rem;display:block">Payment Confirmed</span>
             {% if del_req.registration.payment_confirmed %}<span style="color:#198754;font-weight:600">Yes</span>

@@ -11,7 +11,7 @@
   <h1><i class="bi bi-clipboard2-check"></i> Match-Day Squad</h1>
   <p style="color:#555;font-size:.9rem">
     <strong>{{ fixture.home_team }}</strong> vs <strong>{{ fixture.away_team }}</strong>
-    &mdash; {{ fixture.match_date|date:"d M Y" }}{% if fixture.kickoff_time %} at {{ fixture.kickoff_time|time:"H:i" }}{% endif %}
+    · {{ fixture.match_date|date:"d M Y" }}{% if fixture.kickoff_time %} at {{ fixture.kickoff_time|time:"H:i" }}{% endif %}
   </p>
 </div>
 

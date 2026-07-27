@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Players by Sub-County - Verification{% endblock %}
+{% block title %}Players by Sub County - Verification{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -10,8 +10,8 @@
         <a href="{% url 'vo_dashboard' %}">Verification Officer</a>
         <span>Players by Sub-County</span>
     </div>
-    <h1><i class="bi bi-geo-alt"></i> All Players by Sub-County</h1>
-    <p>View all players added for verification from different sub-counties. <strong>{{ total_players }}</strong> player{{ total_players|pluralize }} found.</p>
+    <h1><i class="bi bi-geo-alt"></i> All Players by Sub County</h1>
+    <p>View all players added for verification from different sub counties. <strong>{{ total_players }}</strong> player{{ total_players|pluralize }} found.</p>
 </div>
 
 <!-- Filters -->
@@ -20,7 +20,7 @@
         <form method="get" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
             <label style="font-weight:700;font-size:.85rem"><i class="bi bi-funnel"></i> Filters:</label>
             <select name="subcounty" style="padding:.4rem .75rem;border:1px solid #ddd;border-radius:6px;font-size:.85rem;min-width:180px">
-                <option value="">All Sub-Counties</option>
+                <option value="">All Sub Counties</option>
                 {% for sc in subcounty_choices %}
                 <option value="{{ sc }}" {% if subcounty_filter == sc %}selected{% endif %}>{{ sc }}</option>
                 {% endfor %}
