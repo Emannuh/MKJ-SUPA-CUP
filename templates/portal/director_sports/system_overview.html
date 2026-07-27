@@ -1,0 +1,600 @@
+{% extends 'base.html' %}
+{% block title %}System Overview · Director of Sports · MKJ SUPA CUP{% endblock %}
+
+{% block extra_css %}
+<style>
+.section-heading {
+    font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+    color:#6b7280;margin:0 0 .75rem;padding:.2rem 0;border-bottom:2px solid #e5e7eb;
+}
+.portal-grid {
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.75rem;
+}
+.portal-card {
+    display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;
+    border-radius:12px;padding:1.1rem 1.2rem;text-decoration:none;
+    transition:border-color .15s,box-shadow .15s;position:relative;overflow:hidden;
+}
+.portal-card:hover {
+    border-color:#93c5fd;box-shadow:0 4px 16px rgba(18,68,145,.1);text-decoration:none;
+}
+.portal-card .card-icon {
+    font-size:1.75rem;margin-bottom:.55rem;display:block;
+}
+.portal-card .card-title {
+    font-size:.95rem;font-weight:700;color:#111827;margin-bottom:.2rem;line-height:1.3;
+}
+.portal-card .card-desc {
+    font-size:.78rem;color:#6b7280;line-height:1.4;flex:1;
+}
+.portal-card .card-badge {
+    display:inline-block;margin-top:.65rem;font-size:.7rem;font-weight:700;
+    padding:.18rem .55rem;border-radius:20px;
+}
+.badge-view   { background:#e0e7ff;color:#4338ca; }
+.badge-manage { background:#d1fae5;color:#065f46; }
+.badge-ligi   { background:#fef3c7;color:#92400e; }
+.badge-warn   { background:#fee2e2;color:#991b1b; }
+.ro-strip {
+    position:absolute;top:0;right:0;font-size:.6rem;font-weight:800;letter-spacing:.05em;
+    text-transform:uppercase;background:#f0f4ff;color:#1e40af;
+    padding:.2rem .5rem;border-bottom-left-radius:8px;
+}
+.health-pill {
+    display:inline-flex;align-items:center;gap:.4rem;
+    background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+    padding:.45rem .85rem;font-size:.82rem;
+}
+.health-pill .dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.health-pill .num { font-weight:800;font-size:1rem; }
+.level-label {
+    display:inline-flex;align-items:center;gap:.35rem;font-size:.7rem;font-weight:700;
+    padding:.15rem .55rem;border-radius:20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">
+        <span><a href="{% url 'director_sports_dashboard' %}" style="color:#124491;text-decoration:none">Director of Sports</a></span>
+        <span>System Overview</span>
+    </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+            <h1><i class="bi bi-grid-3x3-gap-fill"></i> System Overview</h1>
+            <p style="color:#666;margin:.3rem 0 0;font-size:.93rem">
+                Read-only walkthrough of every portal. Use this page to navigate,
+                audit, and test all system functions across all roles.
+            </p>
+        </div>
+        <a href="{% url 'director_sports_dashboard' %}" class="btn btn--secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- ── LIVE HEALTH SNAPSHOT ─────────────────────────────────────────── -->
+<div class="card" style="padding:1.25rem;margin-bottom:1.5rem">
+    <p class="section-heading"><i class="bi bi-activity"></i> Live System Health</p>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+
+        {% if health.ligi_pending %}
+        <div class="health-pill" style="border-color:#fcd34d">
+            <span class="dot" style="background:#f59e0b"></span>
+            <span>Ligi Registrations Pending</span>
+            <span class="num" style="color:#b45309">{{ health.ligi_pending }}</span>
+        </div>
+        {% endif %}
+
+        {% if health.longlists_pending %}
+        <div class="health-pill" style="border-color:#fcd34d">
+            <span class="dot" style="background:#f59e0b"></span>
+            <span>Longlists Awaiting WSCC Review</span>
+            <span class="num" style="color:#b45309">{{ health.longlists_pending }}</span>
+        </div>
+        {% endif %}
+
+        {% if health.players_pending_verify %}
+        <div class="health-pill" style="border-color:#fca5a5">
+            <span class="dot" style="background:#ef4444"></span>
+            <span>Players Pending Verification</span>
+            <span class="num" style="color:#b91c1c">{{ health.players_pending_verify }}</span>
+        </div>
+        {% endif %}
+
+        <div class="health-pill" style="border-color:#6ee7b7">
+            <span class="dot" style="background:#10b981"></span>
+            <span>Players Verified</span>
+            <span class="num" style="color:#065f46">{{ health.players_verified }}</span>
+        </div>
+
+        {% if health.referees_pending %}
+        <div class="health-pill" style="border-color:#fcd34d">
+            <span class="dot" style="background:#f59e0b"></span>
+            <span>Referees Pending Approval</span>
+            <span class="num" style="color:#b45309">{{ health.referees_pending }}</span>
+        </div>
+        {% endif %}
+
+        {% if health.appeals_open %}
+        <div class="health-pill" style="border-color:#fca5a5">
+            <span class="dot" style="background:#ef4444"></span>
+            <span>Open Appeals</span>
+            <span class="num" style="color:#b91c1c">{{ health.appeals_open }}</span>
+        </div>
+        {% endif %}
+
+        <div class="health-pill">
+            <span class="dot" style="background:#6366f1"></span>
+            <span>County Competitions</span>
+            <span class="num" style="color:#4338ca">{{ health.county_competitions }}</span>
+        </div>
+        <div class="health-pill">
+            <span class="dot" style="background:#3b82f6"></span>
+            <span>Sub County Competitions</span>
+            <span class="num" style="color:#1e40af">{{ health.sc_competitions }}</span>
+        </div>
+        <div class="health-pill">
+            <span class="dot" style="background:#10b981"></span>
+            <span>Ward Competitions</span>
+            <span class="num" style="color:#065f46">{{ health.ward_competitions }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- ── LEVEL 1: WARD PIPELINE ─────────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #10b981">
+    <p class="section-heading">
+        <i class="bi bi-geo-alt-fill" style="color:#10b981"></i>
+        Level 1 · Ward (Ligi Mashinani)
+        <span class="level-label" style="background:#d1fae5;color:#065f46;margin-left:.5rem">Grassroots</span>
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'ligi_admin_overview' %}" class="portal-card">
+            <span class="card-icon">🏘️</span>
+            <div class="card-title">Ligi Mashinani Admin Overview</div>
+            <div class="card-desc">All ward registrations across all six sub counties. Approve or reject team manager applications.</div>
+            <span class="card-badge badge-manage">Admin · Manage</span>
+        </a>
+
+        <a href="{% url 'ligi_player_register' %}" class="portal-card">
+            <span class="card-icon">📋</span>
+            <div class="card-title">Ligi Player Register</div>
+            <div class="card-desc">Full read-only register of every ward-level player across all disciplines and age categories.</div>
+            <span class="card-badge badge-view">Read Only</span>
+        </a>
+
+        <a href="{% url 'ward_tm_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">👤</span>
+            <div class="card-title">Ward Team Manager Portal</div>
+            <div class="card-desc">Where ward TMs manage their player longlist, submit it for WSCC review, and select match day squads.</div>
+            <span class="card-badge badge-ligi">Ward TM</span>
+        </a>
+
+        <a href="{% url 'wscc_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🛡️</span>
+            <div class="card-title">Ward Sports Council Chair Portal</div>
+            <div class="card-desc">WSCC reviews longlists, marks Ligi Mashinani complete, sets up ward competitions and manages All Stars.</div>
+            <span class="card-badge badge-ligi">WSCC</span>
+        </a>
+
+        <a href="{% url 'allstars_tm_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">⭐</span>
+            <div class="card-title">Ward All Stars Team Manager</div>
+            <div class="card-desc">All Stars TM selects the sub county squad from the WSCC-approved longlist and manages outside-Ligi requests.</div>
+            <span class="card-badge badge-ligi">All Stars TM</span>
+        </a>
+
+        <a href="{% url 'transfer_tracking' %}" class="portal-card">
+            <span class="card-icon">🔄</span>
+            <div class="card-title">Transfer Tracking</div>
+            <div class="card-desc">Full audit trail of every player transfer request at ward level — status, approvals, rejections.</div>
+            <span class="card-badge badge-view">Director · Read Only</span>
+        </a>
+
+        <a href="{% url 'ligi_settings' %}" class="portal-card">
+            <span class="card-icon">🪟</span>
+            <div class="card-title">Ligi Windows Control</div>
+            <div class="card-desc">Open or close the registration and transfer windows for Ligi Mashinani. Takes effect immediately.</div>
+            <span class="card-badge badge-manage">Director · Control</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── LEVEL 2: SUB COUNTY PIPELINE ──────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #3b82f6">
+    <p class="section-heading">
+        <i class="bi bi-diagram-3-fill" style="color:#3b82f6"></i>
+        Level 2 · Sub County (MKJ Sub County Finals)
+        <span class="level-label" style="background:#dbeafe;color:#1e40af;margin-left:.5rem">6 Sub Counties</span>
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'subcounty_officer_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🏛️</span>
+            <div class="card-title">Sub County Sports Officer Portal</div>
+            <div class="card-desc">SCSO manages disciplines, teams, player verification and sub county competitions for their assigned sub county.</div>
+            <span class="card-badge badge-view">SCSO</span>
+        </a>
+
+        <a href="{% url 'sc_competitions' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🏆</span>
+            <div class="card-title">Sub County Competitions</div>
+            <div class="card-desc">All sub county level competitions across Makueni. Create, manage pools, generate fixtures and track standings.</div>
+            <span class="card-badge badge-view">SCSO</span>
+        </a>
+
+        <a href="{% url 'subcounty_officer_disciplines' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🎽</span>
+            <div class="card-title">Sub County Disciplines</div>
+            <div class="card-desc">Disciplines registered per sub county, with player and team counts per sport family.</div>
+            <span class="card-badge badge-view">SCSO</span>
+        </a>
+
+        <a href="{% url 'sc_verification_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">✅</span>
+            <div class="card-title">Sub County Player Verification</div>
+            <div class="card-desc">4-step verification pipeline for sub county players. Documents, IPRS age, Huduma check, higher league flag.</div>
+            <span class="card-badge badge-view">SCSO · Verification</span>
+        </a>
+
+        <a href="{% url 'scso_ligi_overview' %}" class="portal-card">
+            <span class="card-icon">🗺️</span>
+            <div class="card-title">Ligi Mashinani Overview (SCSO)</div>
+            <div class="card-desc">SCSO view of all ward team registrations within their sub county. Ward by ward progress tracker.</div>
+            <span class="card-badge badge-view">SCSO</span>
+        </a>
+
+        <a href="{% url 'sdc_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">📌</span>
+            <div class="card-title">Sub County Discipline Coordinator</div>
+            <div class="card-desc">SDC oversees discipline-specific operations within a sub county. Fixtures, teams, standings per discipline.</div>
+            <span class="card-badge badge-view">SDC</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── LEVEL 3: COUNTY PIPELINE ───────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #6366f1">
+    <p class="section-heading">
+        <i class="bi bi-trophy-fill" style="color:#6366f1"></i>
+        Level 3 · County (MKJ Supa Cup Finals)
+        <span class="level-label" style="background:#e0e7ff;color:#4338ca;margin-left:.5rem">Main Event</span>
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'cm_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🗂️</span>
+            <div class="card-title">Competition Manager Portal</div>
+            <div class="card-desc">Organising Secretary manages county competitions — create, run group stages, knockout, and match reports.</div>
+            <span class="card-badge badge-manage">CM · Full Control</span>
+        </a>
+
+        <a href="{% url 'coordinator_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🎯</span>
+            <div class="card-title">Coordinator Portal</div>
+            <div class="card-desc">Discipline coordinator manages their sport family — fixtures, referees, appointments, match reports.</div>
+            <span class="card-badge badge-manage">Coordinator</span>
+        </a>
+
+        <a href="{% url 'competitions_list' %}" class="portal-card">
+            <span class="card-icon">📊</span>
+            <div class="card-title">All Competitions</div>
+            <div class="card-desc">County-wide view of all competitions across all sports and seasons.</div>
+            <span class="card-badge badge-view">Read Only</span>
+        </a>
+
+        <a href="{% url 'teams_list' %}" class="portal-card">
+            <span class="card-icon">👥</span>
+            <div class="card-title">All Teams</div>
+            <div class="card-desc">Every team registered across all sub counties and disciplines. County, sub county, and ward levels.</div>
+            <span class="card-badge badge-view">Read Only</span>
+        </a>
+
+        <a href="{% url 'matches_list' %}" class="portal-card">
+            <span class="card-icon">📅</span>
+            <div class="card-title">Fixtures and Results</div>
+            <div class="card-desc">Full fixture list and match results across all competitions and sport families.</div>
+            <span class="card-badge badge-view">Read Only</span>
+        </a>
+
+        <a href="{% url 'team_manager_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">📝</span>
+            <div class="card-title">Team Manager Portal</div>
+            <div class="card-desc">County TM registers players, manages bench officials, selects match day squads and tracks clearances.</div>
+            <span class="card-badge badge-ligi">Team Manager</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── PLAYER VERIFICATION PIPELINE ──────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #f59e0b">
+    <p class="section-heading">
+        <i class="bi bi-shield-check" style="color:#f59e0b"></i>
+        Player Verification Pipeline
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'vo_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🔍</span>
+            <div class="card-title">Verification Officer Portal</div>
+            <div class="card-desc">VO runs the 4-step sequential verification — documents, IPRS age, Huduma Kenya, higher league check.</div>
+            <span class="card-badge badge-manage">Verification Officer</span>
+        </a>
+
+        <a href="{% url 'player_clearance_dashboard' %}" class="portal-card">
+            <span class="card-icon">🗃️</span>
+            <div class="card-title">Player Clearance Dashboard</div>
+            <div class="card-desc">Full clearance audit across all players — step completion rates, blocked players, IPRS results.</div>
+            <span class="card-badge badge-view">Director · Read Only</span>
+        </a>
+
+        <a href="{% url 'director_sports_verified_players' %}" class="portal-card">
+            <span class="card-icon">✅</span>
+            <div class="card-title">Verified Players (Director Approval)</div>
+            <div class="card-desc">Players who have passed all four verification steps and are awaiting the Director's final countersignature.</div>
+            <span class="card-badge badge-manage">Director · Approve</span>
+        </a>
+
+        <a href="{% url 'director_bulk_upload_list' %}" class="portal-card">
+            <span class="card-icon">📤</span>
+            <div class="card-title">Bulk Upload Approvals</div>
+            <div class="card-desc">Review and approve or reject bulk player list uploads submitted by team managers and CSO.</div>
+            <span class="card-badge badge-manage">Director · Approve</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── REFEREES AND OFFICIALS ──────────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #8b5cf6">
+    <p class="section-heading">
+        <i class="bi bi-whistle-fill" style="color:#8b5cf6"></i>
+        Referees and Match Officials
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'coordinator_referees' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🚩</span>
+            <div class="card-title">Coordinator Referee Management</div>
+            <div class="card-desc">Coordinator adds, approves, and manages referees per discipline. Level and role per sport type.</div>
+            <span class="card-badge badge-manage">Coordinator</span>
+        </a>
+
+        <a href="{% url 'coordinator_appointments' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">📌</span>
+            <div class="card-title">Referee Appointments</div>
+            <div class="card-desc">Fixture-by-fixture referee appointment log — who is assigned, accepted, declined, or replaced.</div>
+            <span class="card-badge badge-view">Coordinator</span>
+        </a>
+
+        <a href="{% url 'referees_list' %}" class="portal-card">
+            <span class="card-icon">👨‍⚖️</span>
+            <div class="card-title">Full Referee Register</div>
+            <div class="card-desc">All registered referees system-wide. Filter by sub county, discipline, approval status.</div>
+            <span class="card-badge badge-view">Read Only</span>
+        </a>
+
+        <a href="{% url 'referee_portal' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🧑‍⚖️</span>
+            <div class="card-title">Referee Portal</div>
+            <div class="card-desc">What a referee sees — their match schedule, appointment confirmations, availability and match reports.</div>
+            <span class="card-badge badge-ligi">Referee</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── GOVERNANCE AND LEADERSHIP ───────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #dc2626">
+    <p class="section-heading">
+        <i class="bi bi-building-fill" style="color:#dc2626"></i>
+        Governance and Leadership Portals
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'governor_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🏛️</span>
+            <div class="card-title">Governor Portal</div>
+            <div class="card-desc">Top-level executive dashboard — county-wide headlines, competition outcomes, and key metrics.</div>
+            <span class="card-badge badge-view">Governor</span>
+        </a>
+
+        <a href="{% url 'waziri_sports_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🎖️</span>
+            <div class="card-title">Waziri Sports Portal</div>
+            <div class="card-desc">Cabinet Member for Sports' oversight view — competition health, team performance, player register.</div>
+            <span class="card-badge badge-view">Waziri Sports</span>
+        </a>
+
+        <a href="{% url 'chief_officer_sports_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">📋</span>
+            <div class="card-title">Chief Officer Sports Portal</div>
+            <div class="card-desc">Chief Officer oversees implementation across sub counties, monitors compliance and progress.</div>
+            <span class="card-badge badge-view">Chief Officer</span>
+        </a>
+
+        <a href="{% url 'chief_sports_officer_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">⚙️</span>
+            <div class="card-title">Chief Sports Officer Portal</div>
+            <div class="card-desc">CSO operational hub — bulk upload management, discipline oversight, pending verifications.</div>
+            <span class="card-badge badge-manage">CSO</span>
+        </a>
+
+        <a href="{% url 'sg_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">📜</span>
+            <div class="card-title">Secretary General Portal</div>
+            <div class="card-desc">Official communication hub — league tables, competition reports, county delegation management.</div>
+            <span class="card-badge badge-view">Secretary General</span>
+        </a>
+
+        <a href="{% url 'treasurer_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">💰</span>
+            <div class="card-title">Treasurer Portal</div>
+            <div class="card-desc">Approves county registration payments — M-Pesa and bank slip verification workflow.</div>
+            <span class="card-badge badge-manage">Treasurer</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── DISCIPLINARY AND APPEALS ───────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #e11d48">
+    <p class="section-heading">
+        <i class="bi bi-briefcase-fill" style="color:#e11d48"></i>
+        Disciplinary and Appeals
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'appeals_list' %}" class="portal-card">
+            <span class="card-icon">⚖️</span>
+            <div class="card-title">Appeals List</div>
+            <div class="card-desc">All filed appeals across all disciplines — status, hearings, outcomes. Full audit trail.</div>
+            <span class="card-badge badge-view">Read Only</span>
+        </a>
+
+        <a href="{% url 'jury_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🔨</span>
+            <div class="card-title">Jury Chair Portal</div>
+            <div class="card-desc">Chair of the Jury schedules hearings, records decisions, and publishes outcomes per appeal.</div>
+            <span class="card-badge badge-manage">Jury Chair</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── MEDIA AND COMMUNICATIONS ───────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.25rem;border-left:4px solid #0891b2">
+    <p class="section-heading">
+        <i class="bi bi-camera-video-fill" style="color:#0891b2"></i>
+        Media and Communications
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'media_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">📸</span>
+            <div class="card-title">Media Manager Portal</div>
+            <div class="card-desc">Publish news articles, manage photo galleries and video content for the public MKJ website.</div>
+            <span class="card-badge badge-manage">Media Manager</span>
+        </a>
+
+        <a href="{% url 'scout_dashboard' %}" class="portal-card">
+            <div class="ro-strip">View Mode</div>
+            <span class="card-icon">🔭</span>
+            <div class="card-title">Scout Portal</div>
+            <div class="card-desc">Scout views team and player shortlists per discipline. Edit requests go to Director for approval.</div>
+            <span class="card-badge badge-view">Scout</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- ── DIRECTOR DIRECT OPERATIONS ─────────────────────────────────── -->
+<div class="card" style="padding:1.25rem 1.25rem 1.5rem;margin-bottom:1.5rem;border-left:4px solid #124491;background:#f8faff">
+    <p class="section-heading">
+        <i class="bi bi-shield-shaded" style="color:#124491"></i>
+        Director of Sports · Direct Operations
+        <span class="level-label" style="background:#dbeafe;color:#1e40af;margin-left:.5rem">Your Controls</span>
+    </p>
+    <div class="portal-grid">
+
+        <a href="{% url 'director_sports_verified_players' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">✅</span>
+            <div class="card-title">Final Player Approvals</div>
+            <div class="card-desc">Countersign players who have cleared all four verification steps. Your signature completes the process.</div>
+            <span class="card-badge badge-manage">Director · Action</span>
+        </a>
+
+        <a href="{% url 'director_bulk_upload_list' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">📤</span>
+            <div class="card-title">Bulk Upload Approvals</div>
+            <div class="card-desc">Review and approve or reject bulk player uploads from team managers and CSO.</div>
+            <span class="card-badge badge-manage">Director · Action</span>
+        </a>
+
+        <a href="{% url 'director_sports_shortlist_requests' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">📝</span>
+            <div class="card-title">Scout Edit Requests</div>
+            <div class="card-desc">Scouts request access to edit a shortlist — approve or reject here.</div>
+            <span class="card-badge badge-manage">Director · Action</span>
+        </a>
+
+        <a href="{% url 'ligi_settings' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">🪟</span>
+            <div class="card-title">Ligi Registration Windows</div>
+            <div class="card-desc">Open and close Ligi Mashinani registration and transfer windows across all sub counties.</div>
+            <span class="card-badge badge-manage">Director · Action</span>
+        </a>
+
+        <a href="{% url 'director_sports_audit' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">📖</span>
+            <div class="card-title">Audit Report</div>
+            <div class="card-desc">System-wide audit log — who did what, when, and what changed across all portals.</div>
+            <span class="card-badge badge-view">Director · Audit</span>
+        </a>
+
+        <a href="{% url 'director_sports_system_users' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">👤</span>
+            <div class="card-title">System Users and Roles</div>
+            <div class="card-desc">Read-only register of all users and their assigned roles, sub counties, and last login.</div>
+            <span class="card-badge badge-view">Director · Read Only</span>
+        </a>
+
+        <a href="{% url 'transfer_tracking' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">🔄</span>
+            <div class="card-title">Transfer Tracking</div>
+            <div class="card-desc">Full transfer audit trail — every player transfer request across all wards and sub counties.</div>
+            <span class="card-badge badge-view">Director · Audit</span>
+        </a>
+
+        <a href="{% url 'ligi_player_register' %}" class="portal-card" style="border-color:#93c5fd">
+            <span class="card-icon">📋</span>
+            <div class="card-title">Ligi Player Register</div>
+            <div class="card-desc">Full cross-county read-only register of every Ligi Mashinani player.</div>
+            <span class="card-badge badge-view">Director · Read Only</span>
+        </a>
+
+    </div>
+</div>
+
+<!-- Legend -->
+<div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.75rem 1rem;background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;font-size:.78rem;color:#6b7280;margin-bottom:1.5rem">
+    <strong style="color:#374151">Badge Key:</strong>
+    <span class="card-badge badge-view" style="margin:0">Read Only — view access for the Director</span>
+    <span class="card-badge badge-manage" style="margin:0">Manage — Director has direct action rights</span>
+    <span class="card-badge badge-ligi" style="margin:0">Role Portal — entry point to that role's operational area</span>
+    <span style="margin-left:.25rem">
+        <span style="background:#f0f4ff;color:#1e40af;font-size:.65rem;font-weight:800;padding:.15rem .45rem;border-radius:4px">View Mode</span>
+        = you are navigating into another role's portal as an observer
+    </span>
+</div>
+
+{% endblock %}

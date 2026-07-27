@@ -10332,6 +10332,36 @@ def director_sports_dashboard_view(request):
     })
 
 
+@role_required('director_sports', 'admin')
+def director_sports_system_overview_view(request):
+    """
+    Read-only walkthrough of every portal in the system.
+    Lets the Director of Sports navigate into any role's operational area
+    for testing, auditing, and system familiarisation without edit rights.
+    """
+    from competitions.models import CompetitionLevel
+    from teams.models import WardLonglist, WardLonglistStatus, LigiMashinaniRegistration
+    from referees.models import RefereeProfile
+    from appeals.models import Appeal
+
+    health = {
+        'ligi_pending':           LigiMashinaniRegistration.objects.filter(status='pending').count(),
+        'ligi_approved':          LigiMashinaniRegistration.objects.filter(status='approved').count(),
+        'longlists_pending':      WardLonglist.objects.filter(status=WardLonglistStatus.SUBMITTED).count(),
+        'players_pending_verify': CountyPlayer.objects.filter(verification_status='pending').count(),
+        'players_verified':       CountyPlayer.objects.filter(verification_status='verified').count(),
+        'referees_pending':       RefereeProfile.objects.filter(is_approved=False).count(),
+        'appeals_open':           Appeal.objects.exclude(status__in=['decided', 'withdrawn']).count(),
+        'county_competitions':    Competition.objects.filter(level=CompetitionLevel.COUNTY).count(),
+        'sc_competitions':        Competition.objects.filter(level=CompetitionLevel.SUBCOUNTY).count(),
+        'ward_competitions':      Competition.objects.filter(level=CompetitionLevel.WARD).count(),
+    }
+
+    return render(request, 'portal/director_sports/system_overview.html', {
+        'health': health,
+    })
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #   CHIEF SPORTS OFFICER PORTAL   (County-level sports oversight)
 # ══════════════════════════════════════════════════════════════════════════════

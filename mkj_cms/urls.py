@@ -210,6 +210,7 @@ from .web_views import (
     sc_verify_player_view,
     sc_promote_player_view,
     director_sports_dashboard_view,
+    director_sports_system_overview_view,
     chief_officer_sports_dashboard_view,
     chief_sports_officer_dashboard_view,
     governor_dashboard_view,
@@ -638,6 +639,7 @@ urlpatterns = [
 
     # ── DIRECTOR OF SPORTS PORTAL ─────────────────────────────────────────
     path("portal/director-sports/", director_sports_dashboard_view, name="director_sports_dashboard"),
+    path("portal/director-sports/system-overview/", director_sports_system_overview_view, name="director_sports_system_overview"),
     path("portal/director-sports/verified-players/", director_sports_verified_players_view, name="director_sports_verified_players"),
     path("portal/director-sports/verified-players/<int:pk>/approve/", director_sports_approve_player_view, name="director_sports_approve_player"),
     path("portal/director-sports/verified-players/<int:pk>/disapprove/", director_sports_disapprove_player_view, name="director_sports_disapprove_player"),
