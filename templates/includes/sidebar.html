@@ -1,4 +1,4 @@
-﻿<!-- Sidebar Navigation -->
+<!-- Sidebar Navigation -->
 <aside class="sidebar">
     {% if user.role == 'admin' %}
     <!-- ADMIN SIDEBAR -->
@@ -390,9 +390,9 @@
     </div>
 
     {% elif user.role == 'director_sports' %}
-    <!-- DIRECTOR OF SPORTS SIDEBAR -->
+    <!-- Director Sports SIDEBAR -->
     <div class="sidebar-section">
-        <div class="sidebar-section-toggle"><h4>Director of Sports</h4><span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></div>
+        <div class="sidebar-section-toggle"><h4>Director Sports</h4><span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></div>
         <div class="sidebar-section-body">
             <a href="{% url 'director_sports_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'director_sports_dashboard' %}active{% endif %}"><span class="icon"><i class="bi bi-shield-shaded"></i></span> Dashboard</a>
             <a href="{% url 'player_removal_requests' %}" class="sidebar-link {% if 'player_removal' in request.resolver_match.url_name %}active{% endif %}"><span class="icon"><i class="bi bi-person-dash"></i></span> Player Removal Requests</a>

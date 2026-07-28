@@ -1,5 +1,5 @@
-﻿{% extends 'base.html' %}
-{% block title %}My Shortlist - Scout Â· MKJ SUPA CUP Portal{% endblock %}
+{% extends 'base.html' %}
+{% block title %}My Shortlist - Scout · MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -20,7 +20,7 @@
                 {% if submission.status == 'submitted' %}
                 Your final shortlist for {{ discipline_label }} was submitted on {{ submission.final_submitted_at|date:"d M Y H:i" }}. It is locked until edit access is approved.
                 {% elif submission.status == 'edit_requested' %}
-                Your request for shortlist edit access is pending Director of Sports approval.
+                Your request for shortlist edit access is pending Director Sports approval.
                 {% elif submission.status == 'edit_approved' %}
                 Edit access has been approved. Make your updates, then resubmit your final shortlist.
                 {% elif submission.status == 'edit_denied' %}
@@ -57,11 +57,11 @@
         <select name="rating" class="form-control" style="width:auto;min-width:140px;" onchange="this.form.submit()">
             <option value="">All Ratings</option>
             {% for i in "54321" %}
-            <option value="{{ i }}" {% if rating_filter == i %}selected{% endif %}>{{ i }}★ &amp; above</option>
+            <option value="{{ i }}" {% if rating_filter == i %}selected{% endif %}>{{ i }}? &amp; above</option>
             {% endfor %}
         </select>
         {% if rating_filter %}
-        <a href="{% url 'scout_shortlist' %}" style="font-size:.85rem;color:#C62828;text-decoration:none;font-weight:600;">✕ Clear</a>
+        <a href="{% url 'scout_shortlist' %}" style="font-size:.85rem;color:#C62828;text-decoration:none;font-weight:600;">? Clear</a>
         {% endif %}
     </form>
 </div>
@@ -100,9 +100,9 @@
                         <td>
                             {% for i in "12345" %}
                                 {% if forloop.counter <= entry.rating %}
-                                <span style="color:#E65100">★</span>
+                                <span style="color:#E65100">?</span>
                                 {% else %}
-                                <span style="color:#ddd">★</span>
+                                <span style="color:#ddd">?</span>
                                 {% endif %}
                             {% endfor %}
                         </td>
@@ -139,10 +139,10 @@
 {% else %}
 <div class="card">
     <div class="card-body" style="padding:3rem;text-align:center;">
-        <div style="font-size:3rem">🔭</div>
+        <div style="font-size:3rem">??</div>
         <h3>Your shortlist is empty</h3>
         <p style="color:#888">Browse verified players and add them to your shortlist.</p>
-        <a href="{% url 'scout_players' %}" style="color:#124491;font-weight:600;text-decoration:none;">Browse Players →</a>
+        <a href="{% url 'scout_players' %}" style="color:#124491;font-weight:600;text-decoration:none;">Browse Players ?</a>
     </div>
 </div>
 {% endif %}

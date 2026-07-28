@@ -1,5 +1,5 @@
-﻿{% extends 'base.html' %}
-{% block title %}Browse Players - Scout Â· MKJ SUPA CUP Portal{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Browse Players - Scout · MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -15,7 +15,7 @@
 {% if submission.is_locked %}
 <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;background:#FFF8E1;border-left:4px solid #F9A825;">
     <strong style="display:block;margin-bottom:.25rem;">Shortlist Locked</strong>
-    <span style="font-size:.9rem;color:#666;">Your final shortlist has been submitted. You cannot add players until edit access is approved by the Director of Sports.</span>
+    <span style="font-size:.9rem;color:#666;">Your final shortlist has been submitted. You cannot add players until edit access is approved by the Director Sports.</span>
 </div>
 {% endif %}
 
@@ -37,7 +37,7 @@
         </div>
         <button type="submit" class="btn btn-outline btn-sm" style="padding:.45rem .9rem;">Search</button>
         {% if county_filter or search_query %}
-        <a href="{% url 'scout_players' %}" style="font-size:.85rem;color:#C62828;text-decoration:none;font-weight:600;">✕ Clear</a>
+        <a href="{% url 'scout_players' %}" style="font-size:.85rem;color:#C62828;text-decoration:none;font-weight:600;">? Clear</a>
         {% endif %}
     </form>
 </div>
@@ -73,7 +73,7 @@
                         <td>
                             {% if p.pk in shortlisted_ids %}
                             <span style="background:#e8f5ed;color:#124491;padding:.25rem .6rem;border-radius:12px;font-size:.78rem;font-weight:600;">
-                                ✓ Shortlisted
+                                ? Shortlisted
                             </span>
                             {% elif submission.is_locked %}
                             <span style="background:#f5f5f5;color:#757575;padding:.25rem .6rem;border-radius:12px;font-size:.78rem;font-weight:600;">Locked</span>
@@ -97,7 +97,7 @@
 {% else %}
 <div class="card">
     <div class="card-body" style="padding:3rem;text-align:center;">
-        <div style="font-size:3rem">📋</div>
+        <div style="font-size:3rem">??</div>
         <h3>No players found</h3>
         <p style="color:#888">No verified players match your filters.</p>
     </div>

@@ -1,5 +1,5 @@
-﻿{% extends 'base.html' %}
-{% block title %}Dashboard Â· MKJ SUPA CUP Portal{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Dashboard · MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -87,7 +87,7 @@
             </a>
             {% endif %}
 
-            {# â”€â”€ SYSTEM ADMIN FULL PORTAL HUB (testing convenience) â”€â”€ #}
+            {# ── SYSTEM ADMIN FULL PORTAL HUB (testing convenience) ── #}
             {% if user.role == 'admin' or user.is_superuser %}
             </div><!-- end quick-actions -->
             </div><!-- end card-body -->
@@ -131,7 +131,7 @@
                         <a href="{% url 'ligi_player_register' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-people-fill" style="color:#198754"></i></div>
                             <h4>Player Register</h4>
-                            <p>All ward players · age categories, all disciplines</p>
+                            <p>All ward players � age categories, all disciplines</p>
                         </a>
                         <a href="{% url 'scso_ligi_overview' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-map" style="color:#198754"></i></div>
@@ -335,7 +335,7 @@
                     <div class="quick-actions mb-3">
                         <a href="{% url 'director_sports_dashboard' %}" class="action-card">
                             <div class="action-icon"><i class="bi bi-bar-chart-line"></i></div>
-                            <h4>Director of Sports</h4>
+                            <h4>Director Sports</h4>
                             <p>Executive oversight</p>
                         </a>
                         <a href="{% url 'chief_sports_officer_dashboard' %}" class="action-card">
