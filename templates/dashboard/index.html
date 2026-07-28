@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard · MKJ SUPA CUP Portal{% endblock %}
+{% block title %}Dashboard Â· MKJ SUPA CUP Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -87,7 +87,7 @@
             </a>
             {% endif %}
 
-            {# ── SYSTEM ADMIN FULL PORTAL HUB (testing convenience) ── #}
+            {# ââ SYSTEM ADMIN FULL PORTAL HUB (testing convenience) ââ #}
             {% if user.role == 'admin' or user.is_superuser %}
             </div><!-- end quick-actions -->
             </div><!-- end card-body -->
@@ -131,7 +131,7 @@
                         <a href="{% url 'ligi_player_register' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-people-fill" style="color:#198754"></i></div>
                             <h4>Player Register</h4>
-                            <p>All ward players � age categories, all disciplines</p>
+                            <p>All ward players · age categories, all disciplines</p>
                         </a>
                         <a href="{% url 'scso_ligi_overview' %}" class="action-card" style="border-top:3px solid #198754">
                             <div class="action-icon" style="background:#d1e7dd"><i class="bi bi-map" style="color:#198754"></i></div>
