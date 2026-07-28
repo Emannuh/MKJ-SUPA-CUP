@@ -20,7 +20,7 @@
                 {% if submission.status == 'submitted' %}
                 Your final shortlist for {{ discipline_label }} was submitted on {{ submission.final_submitted_at|date:"d M Y H:i" }}. It is locked until edit access is approved.
                 {% elif submission.status == 'edit_requested' %}
-                Your request for shortlist edit access is pending Director Sports approval.
+                Your request for shortlist edit access is pending Director - Sports approval.
                 {% elif submission.status == 'edit_approved' %}
                 Edit access has been approved. Make your updates, then resubmit your final shortlist.
                 {% elif submission.status == 'edit_denied' %}

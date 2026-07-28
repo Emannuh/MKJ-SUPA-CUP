@@ -38,7 +38,7 @@
                 {% if bulk.cso_approved %}<span class="badge bg-success">Approved</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
             </div>
             <div class="col-md-3">
-                <strong>Director Sports:</strong>
+                <strong>Director - Sports:</strong>
                 {% if bulk.ds_approved %}<span class="badge bg-success">Approved</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
             </div>
         </div>
@@ -125,7 +125,7 @@
 {% elif bulk.cso_approved %}
 <div class="alert alert-success" style="font-size:.88rem;">
     <i class="bi bi-check-circle"></i> You have already approved this upload.
-    {% if not bulk.ds_approved %}Awaiting Director Sports approval.{% endif %}
+    {% if not bulk.ds_approved %}Awaiting Director - Sports approval.{% endif %}
 </div>
 {% endif %}
 

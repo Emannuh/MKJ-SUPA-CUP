@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <div class="breadcrumb">
-        <a href="{% url 'director_sports_dashboard' %}">Director Sports</a>
+        <a href="{% url 'director_sports_dashboard' %}">Director - Sports</a>
         <a href="{% url 'director_bulk_upload_list' %}">Bulk Uploads</a>
         <span>Review Coordinator Upload #{{ bulk.pk }}</span>
     </div>
@@ -38,7 +38,7 @@
                 {% if bulk.cso_approved %}<span class="badge bg-success">Approved</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
             </div>
             <div class="col-md-3">
-                <strong>Director Sports:</strong>
+                <strong>Director - Sports:</strong>
                 {% if bulk.ds_approved %}<span class="badge bg-success">Approved</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
             </div>
         </div>
@@ -94,7 +94,7 @@
         <form method="post" class="d-inline">
             {% csrf_token %}
             <input type="hidden" name="action" value="approve">
-            <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Approve (Director Sports)</button>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Approve (Director - Sports)</button>
         </form>
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#rejectModal">
             <i class="bi bi-x-lg"></i> Reject

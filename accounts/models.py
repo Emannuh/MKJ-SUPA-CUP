@@ -73,7 +73,7 @@ class UserRole(models.TextChoices):
     SCOUT               = "scout",               "Scout"
     SUBCOUNTY_SPORTS_OFFICER = "subcounty_sports_officer", "Sub County Sports Officer"
     CHIEF_SPORTS_OFFICER = "chief_sports_officer", "Chief Sports Officer"
-    DIRECTOR_SPORTS     = "director_sports",     "Director Sports"
+    DIRECTOR_SPORTS     = "director_sports",     "Director - Sports"
     CHIEF_OFFICER_SPORTS = "chief_officer_sports", "Chief Officer Sports"
     GOVERNOR            = "governor",            "Governor"
     WAZIRI_SPORTS       = "waziri_sports",       "Waziri Sports"
