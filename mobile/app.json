@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "MKJ Supa Cup",
+    "slug": "mkj-supacup",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "mkjsupacup",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#124491"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.makueni.mkjsupacup",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "MKJ SUPA CUP needs camera access to capture player photos.",
+        "NSPhotoLibraryUsageDescription": "MKJ SUPA CUP needs photo library access to upload player photos and documents."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#124491"
+      },
+      "package": "com.makueni.mkjsupacup",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MKJ SUPA CUP needs access to your photos to upload player photos and documents.",
+          "cameraPermission": "MKJ SUPA CUP needs access to your camera to take player photos."
+        }
+      ],
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "849ebcfa-38fc-4d53-bc49-e68c9a373376"
+      }
+    }
+  }
+}
