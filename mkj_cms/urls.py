@@ -101,10 +101,10 @@ from .web_views import (
     referee_dashboard_view, referee_edit_profile_view,
     # Appointment management
     referee_appointments_view, referee_appoint_view,
-    # Treasurer portal
-    treasurer_dashboard_view,
-    treasurer_teams_view,
-    treasurer_county_payments_view,
+    # Treasurer portal — disabled
+    # treasurer_dashboard_view,
+    # treasurer_teams_view,
+    # treasurer_county_payments_view,
     # Competition Manager specific views
     competition_standings_view,
     competition_reports_view,
@@ -163,14 +163,14 @@ from .web_views import (
     team_manager_file_appeal_view,
     # PDF download
     team_list_pdf_view,
-    # Secretary General portal
-    sg_dashboard_view,
-    sg_verifications_view,
-    sg_appeals_view,
-    sg_treasurer_actions_view,
-    sg_user_actions_view,
-    sg_exceptional_overrides_view,
-    sg_verified_players_view,
+    # Secretary General portal — disabled
+    # sg_dashboard_view,
+    # sg_verifications_view,
+    # sg_appeals_view,
+    # sg_treasurer_actions_view,
+    # sg_user_actions_view,
+    # sg_exceptional_overrides_view,
+    # sg_verified_players_view,
     cec_sports_portal_view,
     # Scout portal
     scout_dashboard_view,
@@ -462,10 +462,10 @@ urlpatterns = [
     path("portal/referee/",                               referee_dashboard_view,     name="referee_portal"),
     path("portal/referee/profile/",                       referee_edit_profile_view,  name="referee_edit_profile"),
 
-    # ── TREASURER PORTAL ────────────────────────────────────────────────────
-    path("portal/treasurer/",                treasurer_dashboard_view,       name="treasurer_dashboard"),
-    path("portal/treasurer/teams/",          treasurer_teams_view,           name="treasurer_teams"),
-    path("portal/treasurer/county-payments/", treasurer_county_payments_view, name="treasurer_county_payments"),
+    # ── TREASURER PORTAL — disabled ─────────────────────────────────────────
+    # path("portal/treasurer/",                treasurer_dashboard_view,       name="treasurer_dashboard"),
+    # path("portal/treasurer/teams/",          treasurer_teams_view,           name="treasurer_teams"),
+    # path("portal/treasurer/county-payments/", treasurer_county_payments_view, name="treasurer_county_payments"),
 
     # ── COUNTY SPORTS ADMIN PORTAL (REMOVED - merged into subcounty officer) ──
 
@@ -557,14 +557,14 @@ urlpatterns = [
     path("portal/coordinator/bulk-uploads/<int:pk>/delete/",             coordinator_bulk_upload_delete_view,  name="coordinator_bulk_upload_delete"),
     path("portal/coordinator/assign-team-manager/",                      coordinator_assign_team_manager_view, name="coordinator_assign_team_manager"),
 
-    # ── SECRETARY GENERAL PORTAL ─────────────────────────────────────────────
-    path("portal/sg/",                          sg_dashboard_view,          name="sg_dashboard"),
-    path("portal/sg/verifications/",             sg_verifications_view,      name="sg_verifications"),
-    path("portal/sg/appeals/",                   sg_appeals_view,            name="sg_appeals"),
-    path("portal/sg/treasurer-actions/",         sg_treasurer_actions_view,  name="sg_treasurer_actions"),
-    path("portal/sg/user-actions/",              sg_user_actions_view,       name="sg_user_actions"),
-    path("portal/sg/exceptional-overrides/",     sg_exceptional_overrides_view, name="sg_exceptional_overrides"),
-    path("portal/sg/verified-players/",          sg_verified_players_view,   name="sg_verified_players"),
+    # ── SECRETARY GENERAL PORTAL — disabled ──────────────────────────────────
+    # path("portal/sg/",                          sg_dashboard_view,          name="sg_dashboard"),
+    # path("portal/sg/verifications/",             sg_verifications_view,      name="sg_verifications"),
+    # path("portal/sg/appeals/",                   sg_appeals_view,            name="sg_appeals"),
+    # path("portal/sg/treasurer-actions/",         sg_treasurer_actions_view,  name="sg_treasurer_actions"),
+    # path("portal/sg/user-actions/",              sg_user_actions_view,       name="sg_user_actions"),
+    # path("portal/sg/exceptional-overrides/",     sg_exceptional_overrides_view, name="sg_exceptional_overrides"),
+    # path("portal/sg/verified-players/",          sg_verified_players_view,   name="sg_verified_players"),
 
     # ── MEDIA MANAGER PORTAL ─────────────────────────────────────────────────
     path("portal/media/",                          media_dashboard_view,          name="media_dashboard"),

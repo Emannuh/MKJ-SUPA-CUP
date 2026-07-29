@@ -66,10 +66,10 @@ class UserRole(models.TextChoices):
     REFEREE             = "referee",             "Referee"
     TEAM_MANAGER        = "team_manager",        "Team Manager"
     CEC_SPORTS_MEMBER = "cec_sports", "County CEC Member Sports"
-    TREASURER           = "treasurer",           "Treasurer"
+    # TREASURER           = "treasurer",           "Treasurer"  # portal disabled
     JURY_CHAIR          = "jury_chair",          "Chair of the Jury"
     MEDIA_MANAGER       = "media_manager",       "Media Manager"
-    SECRETARY_GENERAL   = "secretary_general",   "Secretary General"
+    # SECRETARY_GENERAL   = "secretary_general",   "Secretary General"  # portal disabled
     SCOUT               = "scout",               "Scout"
     SUBCOUNTY_SPORTS_OFFICER = "subcounty_sports_officer", "Sub County Sports Officer"
     CHIEF_SPORTS_OFFICER = "chief_sports_officer", "Chief Sports Officer"

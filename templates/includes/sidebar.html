@@ -185,6 +185,7 @@
         </div>
     </div>
     {% endif %}
+    {% comment %}TREASURER PORTAL — disabled
     {% elif user.role == 'treasurer' %}
     <!-- TREASURER SIDEBAR -->
     <div class="sidebar-section">
@@ -196,6 +197,7 @@
             <a href="{% url 'appeals_list' %}" class="sidebar-link"><span class="icon"><i class="bi bi-briefcase"></i></span> Appeal Fees</a>
         </div>
     </div>
+    {% endcomment %}
     {% elif user.role == 'jury_chair' %}
     <!-- JURY CHAIR SIDEBAR -->
     <div class="sidebar-section">
@@ -232,6 +234,7 @@
             </a>
         </div>
     </div>
+    {% comment %}SECRETARY GENERAL PORTAL — disabled
     {% elif user.role == 'secretary_general' %}
     <!-- SECRETARY GENERAL SIDEBAR -->
     <div class="sidebar-section">
@@ -271,6 +274,7 @@
             </a>
         </div>
     </div>
+    {% endcomment %}
     {% elif user.role == 'media_manager' %}
     <!-- MEDIA MANAGER SIDEBAR -->
     <div class="sidebar-section">

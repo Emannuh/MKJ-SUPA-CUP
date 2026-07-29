@@ -1550,12 +1550,114 @@ def public_competition_standings_view(request, pk):
 
 
 def contact_view(request):
-    """Public contact page with form."""
+    """Public contact page with form. Sends message to admin@mkjsupacup.com and logs to EmailLog."""
     contact_sent = False
     if request.method == 'POST':
-        # In production: send email, save to DB, etc.
-        contact_sent = True
-        messages.success(request, 'Thank you for your message! We will get back to you soon.')
+        first_name = request.POST.get('first_name', '').strip()
+        last_name  = request.POST.get('last_name',  '').strip()
+        sender_email = request.POST.get('email',   '').strip()
+        subject_key  = request.POST.get('subject', 'general').strip()
+        message      = request.POST.get('message', '').strip()
+
+        subject_labels = {
+            'general':     'General Enquiry',
+            'registration':'Team Registration',
+            'competition': 'Competition Information',
+            'referee':     'Referee Programme',
+            'partnership': 'Partnership / Sponsorship',
+        }
+        subject_label = subject_labels.get(subject_key, subject_key.title())
+        full_name = f'{first_name} {last_name}'.strip()
+        email_subject = f'[Contact Form] {subject_label} – {full_name}'
+        admin_email   = 'admin@mkjsupacup.com'
+
+        # ── Build plain-text body ───────────────────────────────────────────
+        plain_body = (
+            f"Name:    {full_name}\n"
+            f"Email:   {sender_email}\n"
+            f"Subject: {subject_label}\n\n"
+            f"{message}\n\n"
+            "---\nSent via the MKJ SUPA CUP contact form at mkjsupacup.com"
+        )
+
+        # ── Build HTML body ─────────────────────────────────────────────────
+        from accounts.notifications import _base_html
+        html_body = _base_html(
+            email_subject,
+            f"""
+<p style="font-size:15px;color:#333;line-height:1.7">
+  You have received a new contact form submission on <strong>mkjsupacup.com</strong>.
+</p>
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:1.25rem">
+  <tr style="background:#f0f4ff">
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491;width:120px">Name</td>
+    <td style="padding:.55rem .85rem">{full_name}</td>
+  </tr>
+  <tr>
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491">Email</td>
+    <td style="padding:.55rem .85rem"><a href="mailto:{sender_email}" style="color:#124491">{sender_email}</a></td>
+  </tr>
+  <tr style="background:#f0f4ff">
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491">Subject</td>
+    <td style="padding:.55rem .85rem">{subject_label}</td>
+  </tr>
+</table>
+<div style="background:#f8f9fa;border-left:4px solid #124491;padding:1rem 1.25rem;border-radius:0 6px 6px 0;font-size:14px;color:#333;line-height:1.8;white-space:pre-wrap">{message}</div>
+<p style="margin-top:1.25rem;font-size:13px;color:#888">
+  Reply directly to this email to respond to {full_name}.
+</p>
+"""
+        )
+
+        # ── Send email ──────────────────────────────────────────────────────
+        from django.core.mail import EmailMultiAlternatives
+        from admin_dashboard.models import EmailLog
+        from django.utils import timezone
+
+        try:
+            msg = EmailMultiAlternatives(
+                subject=email_subject,
+                body=plain_body,
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                to=[admin_email],
+                reply_to=[f'{full_name} <{sender_email}>'],
+            )
+            msg.attach_alternative(html_body, 'text/html')
+            msg.send()
+
+            # Log as outbound so it appears in the email dashboard
+            EmailLog.objects.create(
+                direction='OUT',
+                status='sent',
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                to_emails=admin_email,
+                subject=email_subject,
+                body_text=plain_body,
+                body_html=html_body,
+                sent_at=timezone.now(),
+            )
+
+            contact_sent = True
+            messages.success(request, 'Thank you for your message! We will get back to you soon.')
+
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error('Contact form send failed: %s', exc, exc_info=True)
+
+            # Log the failure too
+            EmailLog.objects.create(
+                direction='OUT',
+                status='failed',
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                to_emails=admin_email,
+                subject=email_subject,
+                body_text=plain_body,
+                body_html='',
+                sent_at=timezone.now(),
+                error_message=str(exc),
+            )
+            messages.error(request, 'Sorry, we could not send your message right now. Please email us directly at admin@mkjsupacup.com.')
+
     return render(request, 'public/contact.html', {
         'active_page': 'contact',
         'contact_sent': contact_sent,
@@ -1710,7 +1812,7 @@ def dashboard_view(request):
 
     # For most roles, redirect immediately  -  skip expensive queries
     role_redirects = {
-        'treasurer': 'treasurer_dashboard',
+        # 'treasurer': 'treasurer_dashboard',  # portal disabled
         'referee': 'referee_portal',
         'competition_manager': 'cm_dashboard',
         'verification_officer': 'vo_dashboard',
@@ -1718,7 +1820,7 @@ def dashboard_view(request):
         'cec_sports': 'dashboard',
         # team_manager handled below (ward TM → ligi dashboard, county TM → team_manager_dashboard)
         # 'team_manager': 'team_manager_dashboard',
-        'secretary_general': 'sg_dashboard',
+        # 'secretary_general': 'sg_dashboard',  # portal disabled
         'jury_chair': 'jury_dashboard',
         'media_manager': 'media_dashboard',
         'scout': 'scout_dashboard',

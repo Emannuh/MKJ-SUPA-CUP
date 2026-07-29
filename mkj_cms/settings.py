@@ -402,7 +402,7 @@ SEO_KEYWORDS = [
 IMAP_HOST     = env("IMAP_HOST",     default="mail.privateemail.com")
 IMAP_PORT     = env.int("IMAP_PORT",  default=993)
 IMAP_USE_SSL  = env.bool("IMAP_USE_SSL", default=True)
-IMAP_USER     = env("IMAP_USER",     default="info@mkjsupacup.com")
+IMAP_USER     = env("IMAP_USER",     default="admin@mkjsupacup.com")
 IMAP_PASSWORD = env("IMAP_PASSWORD", default="")
 
 # ── LOCALISATION ───────────────────────────────────────────────────────────────
