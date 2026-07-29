@@ -15006,7 +15006,7 @@ def sc_verification_dashboard_view(request):
     players = CountyPlayer.objects.filter(
         discipline__sub_county=sub_county,
         discipline__level='subcounty',
-    ).select_related('discipline', 'team').order_by('last_name', 'first_name')
+    ).select_related('discipline').order_by('last_name', 'first_name')
 
     fully_verified = players.filter(verification_status='verified')
     rejected = players.filter(verification_status='rejected')
