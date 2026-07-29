@@ -168,10 +168,8 @@
         </span>
     </div>
     <div class="card-body" style="padding:.75rem 1rem">
-        {% set ns = namespace(found=False) %}
         {% for ref in my_referees %}
         {% if ref.discipline == code %}
-        {% set ns.found = True %}
         <div class="ref-card">
             <div>
                 <h4>{{ ref.user.get_full_name }}</h4>
@@ -198,15 +196,15 @@
         {% endif %}
         {% endfor %}
 
-        <!-- Empty state for this discipline -->
-        {% set has_refs = false %}
-        {% for ref in my_referees %}{% if ref.discipline == code %}{% set has_refs = true %}{% endif %}{% endfor %}
-        {% if not has_refs %}
+        <!-- Empty state: use count from discipline_counts passed by the view -->
+        {% for d_code, d_data in discipline_counts.items %}
+        {% if d_code == code and d_data.count == 0 %}
         <div style="padding:1.25rem;text-align:center;color:#9ca3af">
             <i class="bi bi-person-x" style="font-size:1.5rem;display:block;margin-bottom:.4rem"></i>
             No {{ label }} officials registered yet
         </div>
         {% endif %}
+        {% endfor %}
     </div>
 </div>
 {% endfor %}

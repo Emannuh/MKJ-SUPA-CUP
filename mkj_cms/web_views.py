@@ -9738,18 +9738,22 @@ def subcounty_officer_referees_view(request):
 
             return redirect('subcounty_officer_referees')
 
-    # Tally per discipline
+    # Tally per discipline and group referees by discipline
     discipline_counts = {}
+    referees_by_discipline = {}
     for d_code, d_label in COORDINATOR_DISCIPLINE_CHOICES:
+        disc_refs = [r for r in my_referees if r.discipline == d_code]
         discipline_counts[d_code] = {
             'label': d_label,
-            'count': my_referees.filter(discipline=d_code).count(),
+            'count': len(disc_refs),
         }
+        referees_by_discipline[d_code] = disc_refs
 
     return render(request, 'portal/subcounty_officer/referees.html', {
         'my_referees': my_referees,
         'discipline_choices': COORDINATOR_DISCIPLINE_CHOICES,
         'discipline_counts': discipline_counts,
+        'referees_by_discipline': referees_by_discipline,
         'levels': RefereeLevel.choices,
         'referee_types': Specialisation.choices,
         'user_sub_county': user_sub_county,
