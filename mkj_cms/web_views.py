@@ -9307,6 +9307,9 @@ def leadership_scout_report_detail_view(request, pk):
 def subcounty_officer_dashboard_view(request):
     """Dashboard for sub-county sports officers."""
     from competitions.models import CompetitionLevel
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"subcounty_officer_dashboard_view called by user: {request.user.email} role: {request.user.role}")
     user = request.user
     sub_county = user.sub_county or 'Unassigned'
     county_reg = _get_primary_registration_for_user(user, auto_create=True)
