@@ -236,33 +236,7 @@
     </div>
     {% comment %}SECRETARY GENERAL PORTAL — disabled
     {% elif user.role == 'secretary_general' %}
-    <!-- SECRETARY GENERAL SIDEBAR -->
-    <div class="sidebar-section">
-        <div class="sidebar-section-toggle"><h4>Secretary General</h4><span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></div>
-        <div class="sidebar-section-body">
-            <a href="{% url 'sg_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_dashboard' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-speedometer2"></i></span> Dashboard
-            </a>
-            <a href="{% url 'sg_verifications' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_verifications' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-person-vcard"></i></span> Verifications
-            </a>
-            <a href="{% url 'sg_appeals' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_appeals' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-briefcase"></i></span> Appeals
-            </a>
-            <a href="{% url 'sg_treasurer_actions' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_treasurer_actions' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-cash-stack"></i></span> Treasurer Actions
-            </a>
-            <a href="{% url 'sg_user_actions' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_user_actions' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-journal-text"></i></span> User Activity
-            </a>
-            <a href="{% url 'sg_exceptional_overrides' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_exceptional_overrides' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-shield-exclamation"></i></span> Exceptional Overrides
-            </a>
-            <a href="{% url 'sg_verified_players' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_verified_players' %}active{% endif %}">
-                <span class="icon"><i class="bi bi-patch-check-fill"></i></span> Verified Players
-            </a>
-        </div>
-    </div>
+    {# SECRETARY GENERAL SIDEBAR — disabled #}
     <div class="sidebar-section">
         <div class="sidebar-section-toggle"><h4>Reports</h4><span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></div>
         <div class="sidebar-section-body">
