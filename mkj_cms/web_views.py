@@ -348,7 +348,21 @@ def _get_primary_registration_for_user(user, auto_create=False):
         return None
 
     if user.role == UserRole.DIRECTOR_SPORTS:
-        return get_object_or_404(CountyRegistration, user=user)
+        reg = CountyRegistration.objects.filter(user=user).first()
+        if reg:
+            return reg
+        # Director without registration - fall back to Makueni default
+        if auto_create:
+            return CountyRegistration.objects.create(
+                user=user,
+                county=user.county or "Makueni",
+                director_name=user.get_full_name() or user.email,
+                director_phone=user.phone or "+254700000000",
+                status=CountyRegStatus.APPROVED,
+                approved_by=user,
+                approved_at=timezone.now(),
+            )
+        return CountyRegistration.objects.filter(county__iexact="Makueni").first()
 
     county = (getattr(user, "county", "") or "").strip()
     if not county:
