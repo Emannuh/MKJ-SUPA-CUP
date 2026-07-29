@@ -9364,16 +9364,21 @@ def subcounty_officer_dashboard_view(request):
         team__in=teams
     ).select_related('pool__competition', 'team')
 
-    return render(request, 'portal/subcounty_officer/dashboard.html', {
-        'stats': stats,
-        'upcoming_fixtures': upcoming_fixtures,
-        'sub_county': sub_county,
-        'disciplines': disciplines,
-        'county_reg': county_reg,
-        'my_pool_teams': my_pool_teams,
-        'sc_competitions_count': sc_competitions_count,
-        'sc_recent_competitions': sc_recent_competitions,
-    })
+    logger.info(f"Rendering dashboard template for {user.email}")
+    try:
+        return render(request, 'portal/subcounty_officer/dashboard.html', {
+            'stats': stats,
+            'upcoming_fixtures': upcoming_fixtures,
+            'sub_county': sub_county,
+            'disciplines': disciplines,
+            'county_reg': county_reg,
+            'my_pool_teams': my_pool_teams,
+            'sc_competitions_count': sc_competitions_count,
+            'sc_recent_competitions': sc_recent_competitions,
+        })
+    except Exception as e:
+        logger.error(f"Error rendering subcounty_officer dashboard: {e}", exc_info=True)
+        raise
 
 
 @role_required('subcounty_sports_officer', 'admin')
