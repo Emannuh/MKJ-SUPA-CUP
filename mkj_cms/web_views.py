@@ -15679,26 +15679,29 @@ def ligi_registration_approve_view(request, pk):
         )
         return redirect('ligi_registration_detail', pk=pk)
 
-    if User.objects.filter(email__iexact=reg.manager_email).exists():
-        messages.error(request, f'An account for {reg.manager_email} already exists. Cannot re-approve.')
-        return redirect('ligi_registration_detail', pk=pk)
-
     temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+    existing_user = User.objects.filter(email__iexact=reg.manager_email).first()
 
     try:
         with transaction.atomic():
             phone_value = reg.manager_phone if reg.manager_phone.startswith('+') else None
-            user = User.objects.create_user(
-                email=reg.manager_email,
-                password=temp_password,
-                first_name=reg.manager_first_name,
-                last_name=reg.manager_last_name,
-                phone=phone_value,
-                role=UserRole.TEAM_MANAGER,
-                sub_county=reg.sub_county,
-                ward=reg.ward,
-                must_change_password=True,
-            )
+
+            if existing_user:
+                # Manager already has an account — reuse it, no new password
+                user = existing_user
+                temp_password = None  # no credentials email needed
+            else:
+                user = User.objects.create_user(
+                    email=reg.manager_email,
+                    password=temp_password,
+                    first_name=reg.manager_first_name,
+                    last_name=reg.manager_last_name,
+                    phone=phone_value,
+                    role=UserRole.TEAM_MANAGER,
+                    sub_county=reg.sub_county,
+                    ward=reg.ward,
+                    must_change_password=True,
+                )
 
             makueni_reg, _ = CountyRegistration.objects.get_or_create(
                 county='Makueni',
@@ -15711,21 +15714,17 @@ def ligi_registration_approve_view(request, pk):
                 },
             )
 
-            # Each team gets its own CountyDiscipline so players never bleed across teams
-            from teams.models import CountyDiscipline as _CD
-            discipline = _CD.objects.create(
-                registration=makueni_reg,
-                sport_type=reg.discipline,
-                sub_county=reg.sub_county,
-                level='ward',
-                ward=reg.ward,
-            )
-
+            # Ligi Mashinani: Team is created directly — NO CountyDiscipline.
+            # CountyDiscipline is only for MKJ Supa Cup county/subcounty finals.
+            # Team name must be unique — append ward to avoid collisions.
             from teams.models import County, get_or_create_county_record
             county_obj = get_or_create_county_record('Makueni')
+            team_name = reg.team_name
+            # Ensure uniqueness: if name taken, append ward
+            if Team.objects.filter(name__iexact=team_name).exists():
+                team_name = f"{reg.team_name} ({reg.ward})"
             team = Team.objects.create(
-                source_discipline=discipline,
-                name=reg.team_name,
+                name=team_name,
                 county=county_obj,
                 sub_county=reg.sub_county,
                 sport_type=reg.discipline,
@@ -15735,11 +15734,6 @@ def ligi_registration_approve_view(request, pk):
                 contact_email=reg.manager_email,
                 payment_confirmed=True,
                 payment_confirmed_at=timezone.now(),
-            )
-
-            WardLonglist.objects.get_or_create(
-                discipline=discipline,
-                defaults={'status': 'draft'},
             )
 
             reg.status = 'approved'
@@ -15759,12 +15753,13 @@ def ligi_registration_approve_view(request, pk):
         print(f"  Login URL: {site_url}/portal/login/")
         print("="*60 + "\n")
 
-        # Send credentials email outside the transaction
-        try:
-            notify_account_created(user, temp_password, 'Team Manager (Ligi Mashinani)')
-        except Exception as email_exc:
-            logger.error('Credentials email failed for %s: %s', user.email, email_exc)
-            messages.warning(request, f'Account created but email notification failed: {email_exc}')
+        # Send credentials email only for new accounts
+        if temp_password:
+            try:
+                notify_account_created(user, temp_password, 'Team Manager (Ligi Mashinani)')
+            except Exception as email_exc:
+                logger.error('Credentials email failed for %s: %s', user.email, email_exc)
+                messages.warning(request, f'Account created but email notification failed: {email_exc}')
 
         try:
             log_activity(
@@ -15772,14 +15767,18 @@ def ligi_registration_approve_view(request, pk):
                 action='ADMIN_ACTION',
                 description=(
                     f'Portal: Approved Ligi Mashinani registration for {reg.team_name} '
-                    f'({reg.ward}, {reg.sub_county})  -  account created for {user.email}'
+                    f'({reg.ward}, {reg.sub_county})  -  '
+                    f'{"existing" if existing_user else "new"} account for {user.email}'
                 ),
                 obj=reg,
             )
         except Exception:
             pass
 
-        messages.success(request, f'✅ "{reg.team_name}" approved. Portal account created for {user.email}.')
+        if existing_user:
+            messages.success(request, f'✅ "{reg.team_name}" approved. Linked to existing account {user.email}.')
+        else:
+            messages.success(request, f'✅ "{reg.team_name}" approved. Portal account created for {user.email}.')
 
     except Exception as exc:
         try:

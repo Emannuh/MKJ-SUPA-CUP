@@ -149,7 +149,6 @@ class CountyDiscipline(models.Model):
     )
 
     class Meta:
-        unique_together = ["registration", "sport_type", "sub_county", "level", "ward"]
         ordering = ["sub_county", "sport_type"]
 
     def __str__(self):
