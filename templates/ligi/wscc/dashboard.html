@@ -190,13 +190,21 @@
               <div style="margin-bottom:1rem">
                 <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">Payment Status</label>
                 <div style="display:flex;gap:.75rem">
-                  <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem">
-                    <input type="radio" name="payment_confirmed" value="1" {% if reg.payment_confirmed %}checked{% endif %}
-                      style="accent-color:#198754"> <span style="color:#198754;font-weight:600">✓ Paid</span>
+                  <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem;
+                      padding:.4rem .85rem;border-radius:20px;border:2px solid {% if reg.payment_confirmed %}#198754{% else %}#d1d5db{% endif %};
+                      background:{% if reg.payment_confirmed %}#f0fdf4{% else %}#fff{% endif %}">
+                    <input type="radio" name="payment_confirmed" value="1"
+                      {% if reg.payment_confirmed %}checked{% endif %}
+                      style="accent-color:#198754">
+                    <span style="color:#198754;font-weight:600">✓ Paid</span>
                   </label>
-                  <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem">
-                    <input type="radio" name="payment_confirmed" value="0" {% if not reg.payment_confirmed %}checked{% endif %}
-                      style="accent-color:#dc3545"> <span style="color:#dc3545;font-weight:600">✗ Unpaid</span>
+                  <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem;
+                      padding:.4rem .85rem;border-radius:20px;border:2px solid {% if not reg.payment_confirmed %}#dc3545{% else %}#d1d5db{% endif %};
+                      background:{% if not reg.payment_confirmed %}#fff5f5{% else %}#fff{% endif %}">
+                    <input type="radio" name="payment_confirmed" value="0"
+                      {% if not reg.payment_confirmed %}checked{% endif %}
+                      style="accent-color:#dc3545">
+                    <span style="color:#dc3545;font-weight:600">✗ Unpaid</span>
                   </label>
                 </div>
               </div>
@@ -207,9 +215,8 @@
                 <div style="display:flex;gap:.5rem;flex-wrap:wrap">
                   {% for val, label in payment_method_choices %}
                   <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.85rem;
-                      padding:.35rem .75rem;border:1px solid #d1d5db;border-radius:20px;
-                      background:#f9fafb;transition:all .15s"
-                      onclick="this.style.background='#e0f2fe';this.style.borderColor='#38bdf8'">
+                      padding:.35rem .75rem;border:2px solid {% if reg.payment_method == val %}#0369a1{% else %}#d1d5db{% endif %};
+                      border-radius:20px;background:{% if reg.payment_method == val %}#e0f2fe{% else %}#f9fafb{% endif %}">
                     <input type="radio" name="payment_method" value="{{ val }}"
                       {% if reg.payment_method == val %}checked{% endif %}
                       style="accent-color:#0369a1"> {{ label }}
