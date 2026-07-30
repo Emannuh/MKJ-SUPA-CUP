@@ -15683,24 +15683,6 @@ def ligi_registration_approve_view(request, pk):
         messages.error(request, f'An account for {reg.manager_email} already exists. Cannot re-approve.')
         return redirect('ligi_registration_detail', pk=pk)
 
-    # Gate: prevent two teams from the same ward + same sport being approved
-    # — they would share a CountyDiscipline record and bleed each other's players
-    from teams.models import CountyDiscipline as _CD
-    existing_discipline = _CD.objects.filter(
-        sub_county=reg.sub_county,
-        ward=reg.ward,
-        sport_type=reg.discipline,
-        level='ward',
-    ).first()
-    if existing_discipline:
-        messages.error(
-            request,
-            f'Cannot approve "{reg.team_name}" — a ward team for '
-            f'{reg.get_discipline_display()} already exists in {reg.ward} Ward '
-            f'({reg.sub_county}). Each ward can only have one team per discipline.'
-        )
-        return redirect('ligi_registration_detail', pk=pk)
-
     temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
 
     try:
@@ -15729,7 +15711,9 @@ def ligi_registration_approve_view(request, pk):
                 },
             )
 
-            discipline, _ = CountyDiscipline.objects.get_or_create(
+            # Each team gets its own CountyDiscipline so players never bleed across teams
+            from teams.models import CountyDiscipline as _CD
+            discipline = _CD.objects.create(
                 registration=makueni_reg,
                 sport_type=reg.discipline,
                 sub_county=reg.sub_county,
@@ -15739,25 +15723,19 @@ def ligi_registration_approve_view(request, pk):
 
             from teams.models import County, get_or_create_county_record
             county_obj = get_or_create_county_record('Makueni')
-            team, team_created = Team.objects.get_or_create(
+            team = Team.objects.create(
                 source_discipline=discipline,
-                defaults={
-                    'name': reg.team_name,
-                    'county': county_obj,
-                    'sub_county': reg.sub_county,
-                    'sport_type': reg.discipline,
-                    'manager': user,
-                    'status': TeamStatus.REGISTERED,
-                    'contact_phone': reg.manager_phone,
-                    'contact_email': reg.manager_email,
-                    'payment_confirmed': True,
-                    'payment_confirmed_at': timezone.now(),
-                },
+                name=reg.team_name,
+                county=county_obj,
+                sub_county=reg.sub_county,
+                sport_type=reg.discipline,
+                manager=user,
+                status=TeamStatus.REGISTERED,
+                contact_phone=reg.manager_phone,
+                contact_email=reg.manager_email,
+                payment_confirmed=True,
+                payment_confirmed_at=timezone.now(),
             )
-            if not team_created:
-                team.manager = user
-                team.status = TeamStatus.REGISTERED
-                team.save(update_fields=['manager', 'status', 'updated_at'])
 
             WardLonglist.objects.get_or_create(
                 discipline=discipline,
