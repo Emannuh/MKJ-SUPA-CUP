@@ -12938,7 +12938,7 @@ def ward_tm_dashboard_view(request):
         return redirect('dashboard')
 
     # Count players registered in this ward discipline
-    player_count = CountyPlayer.objects.filter(discipline=discipline).count()
+    player_count = _get_tm_player_qs(discipline, user).count()
 
     # Get the team name from the Ligi registration for this manager
     from teams.models import LigiMashinaniRegistration
@@ -12959,7 +12959,7 @@ def ward_tm_dashboard_view(request):
     if qualified_to_subcounty and longlist.status == WardLonglistStatus.WSCC_APPROVED:
         from django.utils import timezone as tz
         today = tz.now().date()
-        all_players = CountyPlayer.objects.filter(discipline=discipline)
+        all_players = _get_tm_player_qs(discipline, user)
         for p in all_players:
             if p.date_of_birth:
                 age = (
@@ -12992,7 +12992,7 @@ def _get_ward_tm_context(user, request=None):
     """
     Helper shared by all ward TM longlist views.
 
-    - For team_manager: scopes to user.sub_county + user.ward
+    - For team_manager: scopes to user.sub_county + user.ward + assigned_discipline
     - For admin/superuser: uses ?discipline=<pk> from the request, or
       falls back to sub_county+ward if set on the admin account.
 
@@ -13037,6 +13037,23 @@ def _get_ward_tm_context(user, request=None):
     return discipline, longlist
 
 
+def _get_tm_player_qs(discipline, user):
+    """
+    Return a scoped CountyPlayer queryset for the given discipline.
+
+    For team_managers: only players they personally registered (registered_by=user).
+    This prevents cross-team data bleed when two teams in the same ward+sport
+    share a CountyDiscipline record due to legacy approvals.
+
+    For admins/superusers: all players in the discipline.
+    """
+    is_admin = user.is_superuser or user.role == 'admin'
+    qs = CountyPlayer.objects.filter(discipline=discipline)
+    if not is_admin:
+        qs = qs.filter(registered_by=user)
+    return qs
+
+
 @role_required('team_manager', 'admin')
 def ward_tm_longlist_view(request):
     """
@@ -13058,7 +13075,7 @@ def ward_tm_longlist_view(request):
         return redirect('ward_tm_dashboard')
 
     sort = request.GET.get('sort', 'name').strip()
-    qs = CountyPlayer.objects.filter(discipline=discipline)
+    qs = _get_tm_player_qs(discipline, user)
 
     if sort == 'age':
         # Annotate with age for sorting: players with DOB first, then by age desc
@@ -13142,6 +13159,8 @@ def ward_tm_add_player_view(request):
             # Set ward/sub-county from the user's profile (not form input)
             player.sub_county = user.sub_county
             player.ward = user.ward
+            # Track which TM registered this player
+            player.registered_by = request.user
             # Normalise empty phone to default '0000000000' if model requires a value;
             # the model allows blank but has a validator  -  store empty string directly.
             if not player.phone:
@@ -13407,7 +13426,7 @@ def ward_tm_submit_longlist_view(request):
         return redirect('ward_tm_longlist')
 
     # Zero-player guard (Req 3.7)
-    player_count = CountyPlayer.objects.filter(discipline=discipline).count()
+    player_count = _get_tm_player_qs(discipline, user).count()
     if player_count == 0:
         messages.error(
             request,
@@ -15633,6 +15652,24 @@ def ligi_registration_approve_view(request, pk):
         messages.error(request, f'An account for {reg.manager_email} already exists. Cannot re-approve.')
         return redirect('ligi_registration_detail', pk=pk)
 
+    # Gate: prevent two teams from the same ward + same sport being approved
+    # — they would share a CountyDiscipline record and bleed each other's players
+    from teams.models import CountyDiscipline as _CD
+    existing_discipline = _CD.objects.filter(
+        sub_county=reg.sub_county,
+        ward=reg.ward,
+        sport_type=reg.discipline,
+        level='ward',
+    ).first()
+    if existing_discipline:
+        messages.error(
+            request,
+            f'Cannot approve "{reg.team_name}" — a ward team for '
+            f'{reg.get_discipline_display()} already exists in {reg.ward} Ward '
+            f'({reg.sub_county}). Each ward can only have one team per discipline.'
+        )
+        return redirect('ligi_registration_detail', pk=pk)
+
     temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
 
     try:
@@ -16556,7 +16593,7 @@ def ward_tm_request_transfer_view(request):
         return err
 
     # Players on this ward's longlist
-    my_players = CountyPlayer.objects.filter(discipline=discipline).order_by('last_name', 'first_name')
+    my_players = _get_tm_player_qs(discipline, user).order_by('last_name', 'first_name')
 
     # ── Step 1: Player lookup (GET with ?q=name_or_id) ────────────────────
     search_q    = request.GET.get('q', '').strip()

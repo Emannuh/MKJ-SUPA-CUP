@@ -442,10 +442,17 @@ class CountyPlayer(models.Model):
     )
     director_locked = models.BooleanField(
         default=False,
-        help_text="Locked by Director of Sports - no further edits except by Director",
+        help_text="Locked by Director - Sports - no further edits except by Director",
     )
     director_locked_at = models.DateTimeField(null=True, blank=True)
 
+    registered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="registered_players",
+        help_text="Team manager who registered this player",
+    )
     registered_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
