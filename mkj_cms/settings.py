@@ -315,11 +315,11 @@ else:
     SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
     SESSION_CACHE_ALIAS = "default"
 
-SESSION_COOKIE_AGE = 60 * 60 * 2
-SESSION_SAVE_EVERY_REQUEST = False
+SESSION_COOKIE_AGE       = 60 * 15      # 15 minutes — server-side session expiry
+SESSION_SAVE_EVERY_REQUEST = True       # Slide the window on every request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_HTTPONLY = True
-AUTO_LOGOUT_IDLE_MINUTES = 30
+SESSION_COOKIE_HTTPONLY  = True
+AUTO_LOGOUT_IDLE_MINUTES = 15           # JS idle timer (must match SESSION_COOKIE_AGE)
 
 # ── CELERY ─────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL        = env("REDIS_URL", default="redis://127.0.0.1:6379/0")
