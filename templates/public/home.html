@@ -2608,7 +2608,10 @@ a.hero-feat--link {
                     <!-- Phone (WhatsApp) -->
                     <div class="ligi-field">
                         <label for="ligiPhone">WhatsApp Phone (must be WhatsApp-enabled)</label>
-                        <input type="tel" id="ligiPhone" class="ligi-select" placeholder="0712345678 or +254712345678" maxlength="15" autocomplete="tel">
+                        <div style="display:flex;align-items:stretch;gap:0">
+                            <span style="display:flex;align-items:center;padding:0 .75rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-right:none;border-radius:8px 0 0 8px;font-size:.9rem;font-weight:600;color:#e2e8f0;white-space:nowrap;letter-spacing:.02em">+254</span>
+                            <input type="tel" id="ligiPhone" class="ligi-select" placeholder="712345678" maxlength="12" autocomplete="tel" style="border-radius:0 8px 8px 0;flex:1">
+                        </div>
                         <span class="ligi-field-error" id="errPhone"></span>
                     </div>
 
@@ -3243,7 +3246,9 @@ a.hero-feat--link {
                 var firstName  = (document.getElementById('ligiFirstName')  || {}).value || '';
                 var lastName   = (document.getElementById('ligiLastName')   || {}).value || '';
                 var email      = (document.getElementById('ligiEmail')      || {}).value || '';
-                var phone      = (document.getElementById('ligiPhone')      || {}).value || '';
+                var phoneRaw   = (document.getElementById('ligiPhone')      || {}).value || '';
+                // Prepend +254 prefix (user types digits only after the prefix)
+                var phone      = '+254' + phoneRaw.trim().replace(/^\+?254/, '').replace(/^0/, '');
 
                 /* Basic client-side validation */
                 var hasErr = false;
@@ -3252,7 +3257,7 @@ a.hero-feat--link {
                 if (!firstName.trim())  { showError('errFirstName',   'First name is required.'); hasErr = true; }
                 if (!lastName.trim())   { showError('errLastName',    'Last name is required.'); hasErr = true; }
                 if (!email.trim() || email.indexOf('@') < 1) { showError('errEmail', 'Enter a valid email address.'); hasErr = true; }
-                if (!phone.trim())      { showError('errPhone',       'Phone number is required.'); hasErr = true; }
+                if (!phoneRaw.trim())   { showError('errPhone',       'Phone number is required.'); hasErr = true; }
                 if (hasErr) return;
 
                 /* Show spinner, disable button */

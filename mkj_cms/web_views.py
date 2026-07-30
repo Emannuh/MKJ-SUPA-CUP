@@ -15751,7 +15751,10 @@ def ligi_registration_approve_view(request, pk):
 @require_POST
 def ligi_registration_reject_view(request, pk):
     """
-    Reject a Ligi Mashinani registration and email the manager with the reason.
+    Reject a Ligi Mashinani registration:
+    - Emails the manager with the reason
+    - Deletes the registration record entirely so they can re-register afresh
+      (manager_email is unique, so the record must be removed for re-submission)
     """
     from teams.models import LigiMashinaniRegistration
     from admin_dashboard.activity_logger import log_activity
@@ -15767,68 +15770,91 @@ def ligi_registration_reject_view(request, pk):
         messages.error(request, 'A rejection reason is required.')
         return redirect('ligi_registration_detail', pk=pk)
 
-    reg.rejection_reason = reason
-    reg.status = 'rejected'
-    reg.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    # Capture details before deletion
+    team_name     = reg.team_name
+    manager_name  = f'{reg.manager_first_name} {reg.manager_last_name}'.strip()
+    manager_email = reg.manager_email
+    ward          = reg.ward
+    sub_county    = reg.sub_county
 
-    # Email the manager
+    # ── Email the manager first (before deletion) ─────────────────────────
     email_sent = False
     email_error = ''
-    if reg.manager_email:
+    if manager_email:
         try:
             from django.core.mail import EmailMultiAlternatives
             from django.conf import settings as _conf
             from accounts.notifications import _base_html, _html_to_plain
-            site_url = getattr(_conf, 'SITE_URL', 'https://mkjsupacup.com')
             ligi_from = getattr(_conf, 'LIGI_FROM_EMAIL', getattr(_conf, 'DEFAULT_FROM_EMAIL', ''))
 
             body = f"""
-<p>Dear <strong>{reg.manager_first_name} {reg.manager_last_name}</strong>,</p>
-<p>Thank you for registering <strong>{reg.team_name}</strong> for Ligi Mashinani ({reg.ward} Ward, {reg.sub_county} Sub-County).</p>
-<p>Unfortunately, your registration has been <strong style="color:#dc3545">declined</strong> for the following reason:</p>
-<div class="alert"><strong>Reason:</strong> {reason}</div>
-<p>If you believe this is an error or have questions, please contact the MKJ SUPA CUP administration.</p>
+<p>Dear <strong>{manager_name}</strong>,</p>
+<p>Thank you for registering <strong>{team_name}</strong> for Ligi Mashinani
+({ward} Ward, {sub_county} Sub-County).</p>
+<p>Unfortunately, your registration has been <strong style="color:#dc3545">declined</strong>
+for the following reason:</p>
+<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:.85rem 1rem;
+border-radius:0 6px 6px 0;margin:1rem 0">
+<strong>Reason:</strong> {reason}
+</div>
+<p>You are welcome to <strong>submit a new application</strong> once the issue has been resolved.
+Your previous registration has been cleared from the system so you can register afresh.</p>
+<p>If you have any questions, please contact the MKJ SUPA CUP administration.</p>
 <a href="mailto:info@mkjsupacup.com" class="btn">Contact Administration</a>"""
 
             html_body = _base_html('Ligi Mashinani Registration - Declined', body)
-            plain = _html_to_plain(html_body)
+            plain     = _html_to_plain(html_body)
 
             msg = EmailMultiAlternatives(
                 subject='Ligi Mashinani Registration - Declined',
                 body=plain,
                 from_email=ligi_from,
-                to=[reg.manager_email],
+                to=[manager_email],
             )
             msg.attach_alternative(html_body, 'text/html')
             msg.send(fail_silently=False)
             email_sent = True
-            logger.info('Rejection email sent to %s for team %s', reg.manager_email, reg.team_name)
+            logger.info('Rejection email sent to %s for team %s', manager_email, team_name)
         except Exception as email_exc:
             email_error = str(email_exc)
-            logger.error('Rejection email FAILED for %s: %s', reg.manager_email, email_exc)
+            logger.error('Rejection email FAILED for %s: %s', manager_email, email_exc)
     else:
         email_error = 'No email address on registration'
-        logger.warning('Cannot send rejection email — no manager_email for reg #%d (%s)', reg.pk, reg.team_name)
+        logger.warning('Cannot send rejection email — no manager_email for reg #%d (%s)', reg.pk, team_name)
 
+    # ── Log activity before deletion (while reg object still exists) ──────
     try:
         log_activity(
             user=request.user,
             action='ADMIN_ACTION',
             description=(
-                f'Portal: Rejected Ligi Mashinani registration for {reg.team_name} '
-                f'({reg.ward}, {reg.sub_county}). Reason: {reason}. '
-                f'Email: {"sent to " + reg.manager_email if email_sent else "FAILED - " + email_error}'
+                f'Portal: Rejected and cleared Ligi Mashinani registration for {team_name} '
+                f'({ward}, {sub_county}). Reason: {reason}. '
+                f'Email: {"sent to " + manager_email if email_sent else "FAILED - " + email_error}'
             ),
             obj=reg,
         )
     except Exception:
         pass
 
+    # ── Delete the registration so the manager can re-register afresh ─────
+    reg.delete()
+
     if email_sent:
-        messages.success(request, f'"{reg.team_name}" rejected. Notification email sent to {reg.manager_email}.')
+        messages.success(
+            request,
+            f'"{team_name}" rejected and cleared. '
+            f'Notification email sent to {manager_email}. They can now re-register.'
+        )
     else:
-        messages.warning(request, f'"{reg.team_name}" rejected but email notification failed: {email_error}. Please notify the manager manually.')
-    return redirect('ligi_registration_detail', pk=pk)
+        messages.warning(
+            request,
+            f'"{team_name}" rejected and cleared, but email notification failed: {email_error}. '
+            f'Please notify {manager_email} manually.'
+        )
+
+    # Redirect to list — the detail record no longer exists
+    return redirect('ligi_registrations_list')
 
 
 @role_required('admin')
