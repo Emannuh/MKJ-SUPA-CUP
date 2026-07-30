@@ -147,14 +147,12 @@
           </td>
           <td style="padding:.6rem .9rem">
             <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-              <!-- Payment button — opens modal regardless of paid/unpaid -->
               <button type="button"
                 onclick="document.getElementById('pay-modal-{{ reg.pk }}').style.display='flex'"
                 style="padding:.28rem .7rem;background:{% if reg.payment_confirmed %}#0d6efd{% else %}#198754{% endif %};color:#fff;border:none;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap">
                 <i class="bi bi-{% if reg.payment_confirmed %}pencil-square{% else %}cash-coin{% endif %}"></i>
                 {% if reg.payment_confirmed %}Edit Payment{% else %}Confirm Payment{% endif %}
               </button>
-              <!-- Ward Verify — only if paid and still pending -->
               {% if reg.payment_confirmed and reg.status == 'pending' %}
               <form method="post" action="{% url 'wscc_registration_action' reg.pk %}" style="margin:0">
                 {% csrf_token %}
@@ -167,94 +165,90 @@
             </div>
           </td>
         </tr>
-
-        <!-- ── Payment Confirmation Modal for {{ reg.team_name }} ── -->
-        <div id="pay-modal-{{ reg.pk }}"
-             style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:1rem">
-          <div style="background:#fff;border-radius:14px;padding:2rem;max-width:460px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem">
-              <h3 style="font-size:1.05rem;color:#124491;margin:0"><i class="bi bi-cash-coin"></i> Payment Confirmation</h3>
-              <button type="button" onclick="document.getElementById('pay-modal-{{ reg.pk }}').style.display='none'"
-                style="background:none;border:none;font-size:1.3rem;color:#6b7280;cursor:pointer;line-height:1">&times;</button>
-            </div>
-
-            <div style="background:#f0f4ff;border-radius:8px;padding:.7rem .9rem;margin-bottom:1.1rem;font-size:.85rem">
-              <strong>{{ reg.team_name }}</strong> &nbsp;·&nbsp; {{ reg.get_discipline_display }}
-              <br><span style="color:#6b7280">{{ reg.manager_full_name }} · {{ reg.manager_phone }}</span>
-            </div>
-
-            <form method="post" action="{% url 'wscc_confirm_payment' reg.pk %}">
-              {% csrf_token %}
-
-              <!-- Payment Status -->
-              <div style="margin-bottom:1rem">
-                <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">Payment Status</label>
-                <div style="display:flex;gap:.75rem">
-                  <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem;
-                      padding:.4rem .85rem;border-radius:20px;border:2px solid {% if reg.payment_confirmed %}#198754{% else %}#d1d5db{% endif %};
-                      background:{% if reg.payment_confirmed %}#f0fdf4{% else %}#fff{% endif %}">
-                    <input type="radio" name="payment_confirmed" value="1"
-                      {% if reg.payment_confirmed %}checked{% endif %}
-                      style="accent-color:#198754">
-                    <span style="color:#198754;font-weight:600">✓ Paid</span>
-                  </label>
-                  <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem;
-                      padding:.4rem .85rem;border-radius:20px;border:2px solid {% if not reg.payment_confirmed %}#dc3545{% else %}#d1d5db{% endif %};
-                      background:{% if not reg.payment_confirmed %}#fff5f5{% else %}#fff{% endif %}">
-                    <input type="radio" name="payment_confirmed" value="0"
-                      {% if not reg.payment_confirmed %}checked{% endif %}
-                      style="accent-color:#dc3545">
-                    <span style="color:#dc3545;font-weight:600">✗ Unpaid</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Payment Method -->
-              <div style="margin-bottom:1rem">
-                <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">Payment Method</label>
-                <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-                  {% for val, label in payment_method_choices %}
-                  <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.85rem;
-                      padding:.35rem .75rem;border:2px solid {% if reg.payment_method == val %}#0369a1{% else %}#d1d5db{% endif %};
-                      border-radius:20px;background:{% if reg.payment_method == val %}#e0f2fe{% else %}#f9fafb{% endif %}">
-                    <input type="radio" name="payment_method" value="{{ val }}"
-                      {% if reg.payment_method == val %}checked{% endif %}
-                      style="accent-color:#0369a1"> {{ label }}
-                  </label>
-                  {% endfor %}
-                </div>
-              </div>
-
-              <!-- Payment Notes / Reference -->
-              <div style="margin-bottom:1.25rem">
-                <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">
-                  Reference / Notes <span style="font-weight:400;color:#9ca3af">(M-Pesa code, receipt no., etc.)</span>
-                </label>
-                <textarea name="payment_notes" rows="2"
-                  style="width:100%;border:1px solid #d1d5db;border-radius:7px;padding:.5rem .75rem;font-size:.85rem;resize:vertical;box-sizing:border-box"
-                  placeholder="e.g. QF5X3K2... or Bank slip #001">{{ reg.payment_notes }}</textarea>
-              </div>
-
-              <div style="display:flex;gap:.75rem;justify-content:flex-end">
-                <button type="button" onclick="document.getElementById('pay-modal-{{ reg.pk }}').style.display='none'"
-                  style="padding:.45rem 1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.86rem">
-                  Cancel
-                </button>
-                <button type="submit"
-                  style="padding:.45rem 1.2rem;background:#124491;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.86rem;font-weight:700">
-                  <i class="bi bi-check-lg"></i> Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 {% endif %}
+
+<!-- ══ Payment Modals — rendered OUTSIDE table to avoid invalid HTML ══ -->
+{% for reg in pending_registrations %}
+<div id="pay-modal-{{ reg.pk }}"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;border-radius:14px;padding:2rem;max-width:460px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem">
+      <h3 style="font-size:1.05rem;color:#124491;margin:0"><i class="bi bi-cash-coin"></i> Payment Confirmation</h3>
+      <button type="button" onclick="document.getElementById('pay-modal-{{ reg.pk }}').style.display='none'"
+        style="background:none;border:none;font-size:1.3rem;color:#6b7280;cursor:pointer;line-height:1">&times;</button>
+    </div>
+
+    <div style="background:#f0f4ff;border-radius:8px;padding:.7rem .9rem;margin-bottom:1.1rem;font-size:.85rem">
+      <strong>{{ reg.team_name }}</strong> &nbsp;·&nbsp; {{ reg.get_discipline_display }}
+      <br><span style="color:#6b7280">{{ reg.manager_full_name }} · {{ reg.manager_phone }}</span>
+    </div>
+
+    <form method="post" action="{% url 'wscc_confirm_payment' reg.pk %}">
+      {% csrf_token %}
+
+      <!-- Payment Status -->
+      <div style="margin-bottom:1rem">
+        <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">Payment Status</label>
+        <div style="display:flex;gap:.75rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem;
+              padding:.4rem .85rem;border-radius:20px;border:2px solid {% if reg.payment_confirmed %}#198754{% else %}#d1d5db{% endif %};
+              background:{% if reg.payment_confirmed %}#f0fdf4{% else %}#fff{% endif %}">
+            <input type="radio" name="payment_confirmed" value="1" {% if reg.payment_confirmed %}checked{% endif %} style="accent-color:#198754">
+            <span style="color:#198754;font-weight:600">✓ Paid</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.88rem;
+              padding:.4rem .85rem;border-radius:20px;border:2px solid {% if not reg.payment_confirmed %}#dc3545{% else %}#d1d5db{% endif %};
+              background:{% if not reg.payment_confirmed %}#fff5f5{% else %}#fff{% endif %}">
+            <input type="radio" name="payment_confirmed" value="0" {% if not reg.payment_confirmed %}checked{% endif %} style="accent-color:#dc3545">
+            <span style="color:#dc3545;font-weight:600">✗ Unpaid</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Payment Method -->
+      <div style="margin-bottom:1rem">
+        <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">Payment Method</label>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          {% for val, label in payment_method_choices %}
+          <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;font-size:.85rem;
+              padding:.35rem .75rem;border:2px solid {% if reg.payment_method == val %}#0369a1{% else %}#d1d5db{% endif %};
+              border-radius:20px;background:{% if reg.payment_method == val %}#e0f2fe{% else %}#f9fafb{% endif %}">
+            <input type="radio" name="payment_method" value="{{ val }}" {% if reg.payment_method == val %}checked{% endif %} style="accent-color:#0369a1">
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Reference / Notes -->
+      <div style="margin-bottom:1.25rem">
+        <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem">
+          Reference / Notes <span style="font-weight:400;color:#9ca3af">(M-Pesa code, receipt no., etc.)</span>
+        </label>
+        <textarea name="payment_notes" rows="2"
+          style="width:100%;border:1px solid #d1d5db;border-radius:7px;padding:.5rem .75rem;font-size:.85rem;resize:vertical;box-sizing:border-box"
+          placeholder="e.g. QF5X3K2... or Bank slip #001">{{ reg.payment_notes }}</textarea>
+      </div>
+
+      <div style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button type="button" onclick="document.getElementById('pay-modal-{{ reg.pk }}').style.display='none'"
+          style="padding:.45rem 1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.86rem">
+          Cancel
+        </button>
+        <button type="submit"
+          style="padding:.45rem 1.2rem;background:#124491;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.86rem;font-weight:700">
+          <i class="bi bi-check-lg"></i> Save
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
 
 
 <!-- ══════════════════════════════════════════════════════════════════════════
