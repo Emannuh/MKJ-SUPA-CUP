@@ -120,7 +120,8 @@
           <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Manager</th>
           <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Phone</th>
           <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Status</th>
-          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Submitted</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Payment</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -132,12 +133,40 @@
           <td style="padding:.6rem .9rem;font-size:.82rem;color:#6b7280">{{ reg.manager_phone }}</td>
           <td style="padding:.6rem .9rem">
             {% if reg.status == 'pending' %}
-            <span style="background:#fef3c7;color:#92400e;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700">Pending Verification</span>
+            <span style="background:#fef3c7;color:#92400e;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700">Pending</span>
             {% else %}
             <span style="background:#dbeafe;color:#1e40af;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700">Ward Verified</span>
             {% endif %}
           </td>
-          <td style="padding:.6rem .9rem;font-size:.82rem;color:#9ca3af">{{ reg.submitted_at|date:"d M Y" }}</td>
+          <td style="padding:.6rem .9rem">
+            {% if reg.payment_confirmed %}
+            <span style="background:#d1fae5;color:#065f46;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700"><i class="bi bi-check-circle-fill"></i> Paid</span>
+            {% else %}
+            <span style="background:#fee2e2;color:#991b1b;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700"><i class="bi bi-x-circle-fill"></i> Unpaid</span>
+            {% endif %}
+          </td>
+          <td style="padding:.6rem .9rem">
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+              {% if not reg.payment_confirmed %}
+              <form method="post" action="{% url 'wscc_registration_action' reg.pk %}" style="margin:0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm_payment">
+                <button type="submit" style="padding:.28rem .7rem;background:#198754;color:#fff;border:none;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap">
+                  <i class="bi bi-cash-coin"></i> Confirm Payment
+                </button>
+              </form>
+              {% endif %}
+              {% if reg.payment_confirmed and reg.status == 'pending' %}
+              <form method="post" action="{% url 'wscc_registration_action' reg.pk %}" style="margin:0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ward_verify">
+                <button type="submit" style="padding:.28rem .7rem;background:#124491;color:#fff;border:none;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap">
+                  <i class="bi bi-shield-check"></i> Ward Verify
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

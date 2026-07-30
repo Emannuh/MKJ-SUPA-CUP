@@ -18538,6 +18538,70 @@ Please contact your Ward Sports Council Chair if you have any questions.</p>"""
 # ══════════════════════════════════════════════════════════════════════════════
 
 @role_required('ward_sports_council_chair', 'admin')
+@require_POST
+def wscc_registration_action_view(request, pk):
+    """
+    WSCC: Confirm payment and/or ward-verify a pending Ligi Mashinani registration.
+    Actions available via POST field 'action':
+      - 'confirm_payment'  → mark payment_confirmed=True
+      - 'ward_verify'      → mark status='ward_verified' (requires payment confirmed)
+    URL: /ligi/wscc/registrations/<pk>/action/
+    """
+    from teams.models import LigiMashinaniRegistration
+    from admin_dashboard.activity_logger import log_activity
+
+    reg = get_object_or_404(
+        LigiMashinaniRegistration,
+        pk=pk,
+        sub_county=request.user.sub_county,
+        ward=request.user.ward,
+    )
+
+    if reg.status not in ('pending', 'ward_verified'):
+        messages.warning(request, f'"{reg.team_name}" is already {reg.get_status_display()} — no action needed.')
+        return redirect('wscc_dashboard')
+
+    action = request.POST.get('action', '').strip()
+    notes  = request.POST.get('notes', '').strip()
+
+    if action == 'confirm_payment':
+        if reg.payment_confirmed:
+            messages.info(request, f'Payment for "{reg.team_name}" is already confirmed.')
+        else:
+            reg.payment_confirmed = True
+            reg.payment_confirmed_by_role  = request.user.role
+            reg.payment_confirmed_by_email = request.user.email
+            reg.payment_notes = notes or f'Confirmed by WSCC {request.user.get_full_name()} ({request.user.email})'
+            reg.save(update_fields=['payment_confirmed', 'payment_confirmed_by_role',
+                                    'payment_confirmed_by_email', 'payment_notes', 'updated_at'])
+            try:
+                log_activity(user=request.user, action='ADMIN_ACTION',
+                             description=f'WSCC confirmed payment for "{reg.team_name}" ({reg.ward}, {reg.sub_county})', obj=reg)
+            except Exception:
+                pass
+            messages.success(request, f'Payment confirmed for "{reg.team_name}". You can now ward-verify.')
+
+    elif action == 'ward_verify':
+        if not reg.payment_confirmed:
+            messages.error(request, f'Cannot verify "{reg.team_name}" — confirm payment first.')
+        elif reg.status == 'ward_verified':
+            messages.info(request, f'"{reg.team_name}" is already ward-verified.')
+        else:
+            reg.status = 'ward_verified'
+            reg.save(update_fields=['status', 'updated_at'])
+            try:
+                log_activity(user=request.user, action='ADMIN_ACTION',
+                             description=f'WSCC ward-verified registration for "{reg.team_name}" ({reg.ward}, {reg.sub_county})', obj=reg)
+            except Exception:
+                pass
+            messages.success(request, f'"{reg.team_name}" marked as Ward Verified. Awaiting admin approval.')
+    else:
+        messages.error(request, 'Invalid action.')
+
+    return redirect('wscc_dashboard')
+
+
+@role_required('ward_sports_council_chair', 'admin')
 def wscc_confirm_payment_view(request, team_pk):
     """
     WSCC confirms that a team has paid the registration fee.

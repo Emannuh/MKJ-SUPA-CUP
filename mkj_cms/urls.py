@@ -282,6 +282,7 @@ from .web_views import (
     wscc_teams_list_view,
     wscc_confirm_payment_view,
     wscc_delete_team_view,
+    wscc_registration_action_view,
     # SCSO: team deletion endorsement
     scso_team_deletion_requests_view,
     scso_team_deletion_review_view,
@@ -386,6 +387,8 @@ urlpatterns = [
     path("ligi/wscc/teams/<int:team_pk>/confirm-payment/",  wscc_confirm_payment_view,     name="wscc_confirm_payment"),
     path("ligi/wscc/teams/<int:team_pk>/delete/",           wscc_delete_team_view,         name="wscc_delete_team"),
     path("ligi/wscc/mark-ligi-complete/",                   wscc_mark_ligi_complete_view,  name="wscc_mark_ligi_complete"),
+    # WSCC: confirm payment + ward-verify a pending registration
+    path("ligi/wscc/registrations/<int:pk>/action/",        wscc_registration_action_view, name="wscc_registration_action"),
     path("sitemap.xml",                   sitemap_xml_view,               name="sitemap_xml"),
     path("",                              home_view,                      name="home"),
     path("about/",                        about_view,                     name="about"),
