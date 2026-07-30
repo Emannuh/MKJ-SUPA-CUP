@@ -24,7 +24,7 @@
         <div class="sidebar-section-toggle"><h4>Approvals</h4><span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></div>
         <div class="sidebar-section-body">
             <a href="{% url 'pending_referees' %}" class="sidebar-link"><span class="icon"><i class="bi bi-pencil-square"></i></span> Pending Referees</a>
-            <a href="{% url 'sg_verified_players' %}" class="sidebar-link {% if request.resolver_match.url_name == 'sg_verified_players' %}active{% endif %}"><span class="icon"><i class="bi bi-patch-check-fill"></i></span> Verified Players</a>
+            {# sg_verified_players disabled #}
             <a href="{% url 'squad_review_list' %}" class="sidebar-link"><span class="icon"><i class="bi bi-clipboard-check"></i></span> Team List Approval</a>
         </div>
     </div>
