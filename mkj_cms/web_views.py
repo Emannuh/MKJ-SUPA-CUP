@@ -14402,6 +14402,7 @@ def wscc_dashboard_view(request):
             ward=user.ward,
             status__in=['pending', 'ward_verified'],
         ).order_by('-submitted_at') if (hasattr(user, 'ward') and user.ward) else [],
+        'payment_method_choices': LigiMashinaniRegistration.PAYMENT_METHOD_CHOICES,
     }
     return render(request, 'ligi/wscc/dashboard.html', context)
 
@@ -18621,17 +18622,19 @@ def wscc_confirm_payment_view(request, team_pk):
             return redirect('wscc_dashboard')
 
     if request.method == 'POST':
-        payment_notes = request.POST.get('payment_notes', '').strip()
-        confirmed = request.POST.get('payment_confirmed') == '1'
+        payment_notes  = request.POST.get('payment_notes', '').strip()
+        payment_method = request.POST.get('payment_method', '').strip()
+        confirmed      = request.POST.get('payment_confirmed') == '1'
         is_admin_override = (user.is_superuser or user.role == 'admin') and user.role != 'ward_sports_council_chair'
 
         team.payment_confirmed = confirmed
-        team.payment_notes = payment_notes
-        # Track who confirmed and whether it was an admin override
+        team.payment_notes     = payment_notes
+        team.payment_method    = payment_method
         if confirmed:
-            team.payment_confirmed_by_role = user.role
+            team.payment_confirmed_by_role  = user.role
             team.payment_confirmed_by_email = user.email
-        team.save(update_fields=['payment_confirmed', 'payment_notes', 'payment_confirmed_by_role', 'payment_confirmed_by_email', 'updated_at'])
+        team.save(update_fields=['payment_confirmed', 'payment_notes', 'payment_method',
+                                  'payment_confirmed_by_role', 'payment_confirmed_by_email', 'updated_at'])
 
         status_label = 'confirmed' if confirmed else 'unconfirmed'
         override_note = ' (Admin Override)' if is_admin_override else ''

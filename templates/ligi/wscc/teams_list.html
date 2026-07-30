@@ -77,12 +77,10 @@
                     </td>
                     <td style="padding:.6rem 1rem">
                         <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-                            <!-- Confirm Payment -->
-                            <button onclick="document.getElementById('payModal{{ team.pk }}').style.display='flex'"
-                                style="padding:.3rem .7rem;font-size:.78rem;background:#0d6efd;color:#fff;border:none;border-radius:4px;cursor:pointer">
-                                <i class="bi bi-cash"></i> Payment
-                            </button>
-
+                            <a href="{% url 'wscc_team_players' team.pk %}"
+                               style="padding:.3rem .7rem;font-size:.78rem;background:#124491;color:#fff;border-radius:4px;text-decoration:none">
+                                <i class="bi bi-person-lines-fill"></i> Players
+                            </a>
                             {% if team.pk in pending_deletions %}
                             <span style="padding:.3rem .7rem;font-size:.78rem;background:#fff3cd;color:#856404;border-radius:4px;border:1px solid #ffecb5">
                                 <i class="bi bi-hourglass"></i> Pending Deletion
@@ -96,37 +94,6 @@
                         </div>
                     </td>
                 </tr>
-
-                <!-- Payment Modal -->
-                <div id="payModal{{ team.pk }}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
-                    <div style="background:#fff;border-radius:10px;padding:1.5rem;max-width:440px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,.15)">
-                        <h3 style="font-size:1rem;margin:0 0 1rem">Confirm Payment – {{ team.team_name }}</h3>
-                        {% if request.user.role == 'admin' or request.user.is_superuser %}
-                        <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.82rem">
-                            <i class="bi bi-shield-lock" style="color:#856404"></i>
-                            <strong>Admin Override</strong> - You are confirming payment on behalf of the Ward Sports Council Chair.
-                            The Sub County Sports Officer for <strong>{{ team.sub_county }}</strong> will be notified automatically.
-                        </div>
-                        {% endif %}
-                        <form method="post" action="{% url 'wscc_confirm_payment' team.pk %}">
-                            {% csrf_token %}
-                            <label style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;cursor:pointer">
-                                <input type="checkbox" name="payment_confirmed" value="1"
-                                    {% if team.payment_confirmed %}checked{% endif %}
-                                    style="width:18px;height:18px">
-                                <span style="font-size:.9rem;font-weight:600">Payment confirmed (team has paid)</span>
-                            </label>
-                            <textarea name="payment_notes" placeholder="M-Pesa ref, receipt number, notes (optional)"
-                                style="width:100%;padding:.6rem;border:1px solid #dee2e6;border-radius:6px;font-size:.85rem;resize:vertical;min-height:70px">{{ team.payment_notes }}</textarea>
-                            <div style="display:flex;gap:.75rem;margin-top:1rem;justify-content:flex-end">
-                                <button type="button" onclick="document.getElementById('payModal{{ team.pk }}').style.display='none'"
-                                    style="padding:.45rem 1rem;background:#f3f4f6;color:#374151;border:1px solid #dee2e6;border-radius:6px;cursor:pointer">Cancel</button>
-                                <button type="submit"
-                                    style="padding:.45rem 1rem;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Save</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
                 {% empty %}
                 <tr>
                     <td colspan="6" style="padding:2rem;text-align:center;color:#9ca3af">

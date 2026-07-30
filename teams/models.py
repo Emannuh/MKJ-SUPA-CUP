@@ -1876,6 +1876,16 @@ class LigiMashinaniRegistration(models.Model):
         blank=True, default="",
         help_text="Optional notes on payment (M-Pesa ref, receipt, etc.)"
     )
+    PAYMENT_METHOD_CHOICES = [
+        ('mpesa',     'M-Pesa'),
+        ('cash',      'Cash'),
+        ('bank_slip', 'Bank Slip'),
+    ]
+    payment_method = models.CharField(
+        max_length=20, blank=True, default="",
+        choices=PAYMENT_METHOD_CHOICES,
+        help_text="How the team paid (M-Pesa, Cash, Bank Slip)",
+    )
     payment_confirmed_by_role = models.CharField(
         max_length=40, blank=True, default="",
         help_text="Role of the user who confirmed payment (wscc, admin, etc.)",
