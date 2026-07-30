@@ -87,6 +87,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "accounts.middleware.AutoLogoutMiddleware",
     "accounts.middleware.ForcePasswordChangeMiddleware",
+    "accounts.middleware.SingleSessionMiddleware",
     "admin_dashboard.activity_middleware.ActivityLoggingMiddleware",
 ]
 

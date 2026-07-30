@@ -1690,7 +1690,24 @@ def web_login_view(request):
                     'error': 'Your account has been suspended. Please contact the administrator.',
                     'email': email,
                 })
+
+            # ── Single-session enforcement ─────────────────────────────────
+            # If this user already has an active session on another tab/device,
+            # invalidate it before creating the new one.
+            if user.current_session_key:
+                try:
+                    from django.contrib.sessions.backends.db import SessionStore
+                    old_session = SessionStore(session_key=user.current_session_key)
+                    old_session.delete()
+                except Exception:
+                    pass  # Session may have already expired — safe to ignore
+
             login(request, user)
+
+            # Store the new session key on the user
+            user.current_session_key = request.session.session_key
+            user.save(update_fields=['current_session_key'])
+
             if getattr(user, 'must_change_password', False):
                 messages.warning(request, 'You must change your password before continuing.')
                 return redirect('force_change_password')
@@ -1742,6 +1759,13 @@ def force_change_password_view(request):
 
 def web_logout_view(request):
     """Logout and redirect to home page."""
+    # Clear the single-session key so the account is free to log in fresh
+    if request.user.is_authenticated:
+        try:
+            request.user.current_session_key = ''
+            request.user.save(update_fields=['current_session_key'])
+        except Exception:
+            pass
     logout(request)
     messages.info(request, 'You have been logged out.')
     return redirect('home')
@@ -14372,6 +14396,12 @@ def wscc_dashboard_view(request):
         'all_ligi_complete': all_complete,
         'sub_county': user.sub_county if not user.is_superuser else 'All',
         'ward': user.ward if not user.is_superuser else 'All',
+        # Pending ward-verification registrations (teams waiting WSCC action)
+        'pending_registrations': LigiMashinaniRegistration.objects.filter(
+            sub_county=user.sub_county,
+            ward=user.ward,
+            status__in=['pending', 'ward_verified'],
+        ).order_by('-submitted_at') if (hasattr(user, 'ward') and user.ward) else [],
     }
     return render(request, 'ligi/wscc/dashboard.html', context)
 

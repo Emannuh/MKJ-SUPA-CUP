@@ -2,302 +2,326 @@
 {% block title %}WSCC Dashboard · Ligi Mashinani{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="breadcrumb">
-        <span>Ligi Mashinani</span>
-        <span>WSCC Dashboard</span>
-    </div>
-    <h1><i class="bi bi-shield-check"></i> Ward Sports Council Chair · Dashboard</h1>
-    <p>{{ sub_county|title }} Sub County {% if ward and ward != 'All' %}<span style="font-weight:700;color:#198754"> · {{ ward|title }} Ward</span>{% endif %}</p>
+
+<!-- ── Page header ────────────────────────────────────────────────────────── -->
+<div class="page-header" style="margin-bottom:1.25rem">
+  <div class="breadcrumb"><span>Ligi Mashinani</span><span>WSCC Dashboard</span></div>
+  <h1 style="font-size:1.5rem;margin:.2rem 0 .1rem"><i class="bi bi-shield-check"></i> Ward Sports Council Chair</h1>
+  <p style="color:#6b7280;font-size:.9rem;margin:0">
+    {{ sub_county|title }} Sub County{% if ward and ward != 'All' %} &nbsp;·&nbsp; <strong style="color:#124491">{{ ward|title }} Ward</strong>{% endif %}
+  </p>
 </div>
 
 {% if messages %}
-<div style="margin-bottom:1rem">
-    {% for msg in messages %}
-    <div class="alert alert--{{ msg.tags }}" style="padding:.75rem 1rem;border-radius:6px;margin-bottom:.5rem;
-        {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;border:1px solid #f5c2c7;
-        {% elif 'success' in msg.tags %}background:#d1e7dd;color:#0a3622;border:1px solid #badbcc;
-        {% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;border:1px solid #ffecb5;
-        {% else %}background:#cfe2ff;color:#084298;border:1px solid #b6d4fe;{% endif %}">
-        {{ msg }}
-    </div>
-    {% endfor %}
-</div>
+{% for msg in messages %}
+<div style="padding:.75rem 1rem;border-radius:8px;margin-bottom:.75rem;font-size:.88rem;
+  {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;border:1px solid #f5c2c7;
+  {% elif 'success' in msg.tags %}background:#d1e7dd;color:#0a3622;border:1px solid #badbcc;
+  {% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;border:1px solid #ffecb5;
+  {% else %}background:#cfe2ff;color:#084298;border:1px solid #b6d4fe;{% endif %}">{{ msg }}</div>
+{% endfor %}
 {% endif %}
 
-<!-- Compact stat pills -->
-<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.5rem">
-    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
-        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Awaiting</span>
-        <span style="font-size:1.1rem;font-weight:800;color:#b45309">{{ counts.submitted }}</span>
-    </div>
-    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <div style="width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0"></div>
-        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Approved</span>
-        <span style="font-size:1.1rem;font-weight:800;color:#065f46">{{ counts.approved }}</span>
-    </div>
-    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
-        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Returned</span>
-        <span style="font-size:1.1rem;font-weight:800;color:#b91c1c">{{ counts.returned }}</span>
-    </div>
-    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <div style="width:8px;height:8px;border-radius:50%;background:#9ca3af;flex-shrink:0"></div>
-        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Draft</span>
-        <span style="font-size:1.1rem;font-weight:800;color:#374151">{{ counts.draft }}</span>
-    </div>
-    <div style="display:inline-flex;align-items:center;gap:.5rem;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;flex-shrink:0"></div>
-        <span style="font-size:.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px">Total</span>
-        <span style="font-size:1.1rem;font-weight:800;color:#4338ca">{{ counts.total }}</span>
-    </div>
-</div>
 
-<!-- Longlists Awaiting Review -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
-        <h2 style="font-size:1.1rem;color:#333;margin:0">
-            <i class="bi bi-hourglass-split"></i> Awaiting Review
-        </h2>
-        <a href="{% url 'wscc_longlists' %}" style="font-size:.85rem;color:#124491;text-decoration:none">
-            View All Longlists <i class="bi bi-arrow-right"></i>
-        </a>
-    </div>
-
-    {% if submitted_longlists %}
-    <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
-            <thead>
-                <tr style="background:#f0f4ff;text-align:left">
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Ward</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Discipline</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Players</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Submitted</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ll in submitted_longlists %}
-                <tr style="border-bottom:1px solid #dee2e6{% if forloop.last %};border-bottom:none{% endif %}">
-                    <td style="padding:.65rem 1rem;font-weight:500">{{ ll.discipline.ward|title }}</td>
-                    <td style="padding:.65rem 1rem">{{ ll.discipline.get_sport_type_display }}</td>
-                    <td style="padding:.65rem 1rem">{{ ll.discipline.players.count }}</td>
-                    <td style="padding:.65rem 1rem;color:#888;font-size:.85rem">
-                        {% if ll.submitted_at %}{{ ll.submitted_at|date:"d M Y, H:i" }}{% else %}Not submitted{% endif %}
-                    </td>
-                    <td style="padding:.65rem 1rem">
-                        <a href="{% url 'wscc_longlist_detail' ll.pk %}"
-                           style="padding:.3rem .75rem;font-size:.82rem;background:#124491;color:#fff;border-radius:4px;text-decoration:none">
-                            <i class="bi bi-eye"></i> Review
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<!-- ══════════════════════════════════════════════════════════════════════════
+     1. QUICK ACTIONS  (top, always visible)
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="card" style="padding:1.1rem 1.25rem;margin-bottom:1.25rem">
+  <h2 style="font-size:.88rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:0 0 .85rem">
+    <i class="bi bi-lightning-charge-fill" style="color:#f59e0b"></i> Quick Actions
+  </h2>
+  <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+    <a href="{% url 'wscc_longlists' %}?status=submitted" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#124491;color:#fff;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-hourglass-split"></i> Review Longlists{% if counts.submitted > 0 %} <span style="background:rgba(255,255,255,.25);border-radius:10px;padding:.05rem .45rem;font-size:.75rem">{{ counts.submitted }}</span>{% endif %}
+    </a>
+    <a href="{% url 'wscc_longlists' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-list-ul"></i> All Longlists
+    </a>
+    <a href="{% url 'wscc_transfers' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-arrow-left-right"></i> Transfers
+    </a>
+    <a href="{% url 'wscc_ward_competition_setup' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#0a3622;border:1px solid #6ee7b7;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-trophy"></i> Ward Competition
+    </a>
+    {% if all_ligi_complete %}
+    <a href="{% url 'wscc_select_ward_tm' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#4c1d95;border:1px solid #c4b5fd;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-person-badge-fill"></i> Select Ward TM
+    </a>
     {% else %}
-    <div style="padding:2rem;text-align:center;color:#888">
-        <i class="bi bi-check-circle" style="font-size:2rem;display:block;margin-bottom:.75rem;color:#198754"></i>
-        <p style="margin:0">No longlists are currently awaiting review.</p>
-    </div>
+    <span title="Mark Ligi complete first" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#f9fafb;color:#9ca3af;border:1px solid #e5e7eb;border-radius:8px;font-size:.85rem;font-weight:600;cursor:not-allowed">
+      <i class="bi bi-lock-fill"></i> Select Ward TM
+    </span>
     {% endif %}
+    <a href="{% url 'wscc_allstars_dashboard' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#92400e;border:1px solid #fcd34d;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-star-fill"></i> All Stars
+    </a>
+    <a href="{% url 'ligi_player_register' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+      <i class="bi bi-people-fill"></i> Player Register
+    </a>
+  </div>
 </div>
 
-<!-- Quick navigation -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
-    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
-        <i class="bi bi-people-fill"></i> Registered Teams in {{ ward|title }} Ward
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     2. STAT CARDS
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin-bottom:1.25rem">
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid #f59e0b;border-radius:10px;padding:.9rem 1rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+    <div style="font-size:1.8rem;font-weight:800;color:#b45309;line-height:1">{{ counts.submitted }}</div>
+    <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem">Awaiting Review</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid #10b981;border-radius:10px;padding:.9rem 1rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+    <div style="font-size:1.8rem;font-weight:800;color:#065f46;line-height:1">{{ counts.approved }}</div>
+    <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem">Approved</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid #ef4444;border-radius:10px;padding:.9rem 1rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+    <div style="font-size:1.8rem;font-weight:800;color:#b91c1c;line-height:1">{{ counts.returned }}</div>
+    <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem">Returned</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid #9ca3af;border-radius:10px;padding:.9rem 1rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+    <div style="font-size:1.8rem;font-weight:800;color:#374151;line-height:1">{{ counts.draft }}</div>
+    <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem">Draft</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid #6366f1;border-radius:10px;padding:.9rem 1rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+    <div style="font-size:1.8rem;font-weight:800;color:#4338ca;line-height:1">{{ counts.total }}</div>
+    <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem">Total Teams</div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid #f97316;border-radius:10px;padding:.9rem 1rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+    <div style="font-size:1.8rem;font-weight:800;color:#c2410c;line-height:1">{{ pending_registrations|length }}</div>
+    <div style="font-size:.72rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:.25rem">Pending Reg.</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     3. PENDING TEAM REGISTRATIONS  (teams waiting ward verification)
+═══════════════════════════════════════════════════════════════════════════ -->
+{% if pending_registrations %}
+<div class="card" style="padding:1.25rem;margin-bottom:1.25rem;border-left:4px solid #f97316">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+    <h2 style="font-size:1rem;font-weight:700;color:#c2410c;margin:0">
+      <i class="bi bi-exclamation-circle-fill"></i> Team Registrations Awaiting Ward Verification
+      <span style="background:#fee2e2;color:#c2410c;border-radius:12px;padding:.1rem .6rem;font-size:.8rem;font-weight:700;margin-left:.5rem">{{ pending_registrations|length }}</span>
     </h2>
-    
-    {% if registered_teams %}
-    <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
-            <thead>
-                <tr style="background:#f0f4ff;text-align:left">
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Team Name</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Discipline</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Manager</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Phone</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Players</th>
-                    <th style="padding:.65rem 1rem;border-bottom:2px solid #dee2e6">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for team in registered_teams %}
-                <tr style="border-bottom:1px solid #dee2e6{% if forloop.last %};border-bottom:none{% endif %}">
-                    <td style="padding:.65rem 1rem;font-weight:500">{{ team.team_name }}</td>
-                    <td style="padding:.65rem 1rem">{{ team.discipline|title }}</td>
-                    <td style="padding:.65rem 1rem">{{ team.manager_name }}</td>
-                    <td style="padding:.65rem 1rem;font-size:.85rem">{{ team.manager_phone }}</td>
-                    <td style="padding:.65rem 1rem">
-                        <span style="display:inline-block;padding:.2rem .6rem;background:#e8f5e9;color:#1b5e20;border-radius:12px;font-size:.8rem;font-weight:600">
-                            {{ team.player_count }} players
-                        </span>
-                    </td>
-                    <td style="padding:.65rem 1rem">
-                        <a href="{% url 'wscc_team_players' team.pk %}"
-                           style="padding:.3rem .75rem;font-size:.82rem;background:#198754;color:#fff;border-radius:4px;text-decoration:none;display:inline-block">
-                            <i class="bi bi-person-plus"></i> Manage Players
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="padding:2rem;text-align:center;color:#888">
-        <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.75rem"></i>
-        <p style="margin:0">No registered teams found in {{ ward|title }} Ward.</p>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Ligi Mashinani Completion Status -->
-{% if ward_longlists %}
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem;border-left:4px solid {% if all_ligi_complete %}#198754{% else %}#f59e0b{% endif %}">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem">
-        <h2 style="font-size:1.1rem;color:#333;margin:0">
-            <i class="bi bi-flag-fill" style="color:{% if all_ligi_complete %}#198754{% else %}#f59e0b{% endif %}"></i>
-            Ligi Mashinani Completion
-        </h2>
-        {% if all_ligi_complete %}
-        <span style="display:inline-flex;align-items:center;gap:.4rem;background:#d1fae5;color:#065f46;padding:.3rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;border:1px solid #6ee7b7">
-            <i class="bi bi-check-circle-fill"></i> All Disciplines Complete
-        </span>
-        {% else %}
-        <span style="display:inline-flex;align-items:center;gap:.4rem;background:#fef3c7;color:#92400e;padding:.3rem .9rem;border-radius:20px;font-size:.82rem;font-weight:700;border:1px solid #fcd34d">
-            <i class="bi bi-hourglass-split"></i> Pending Completion
-        </span>
-        {% endif %}
-    </div>
-
-    <div style="display:grid;gap:.65rem">
-        {% for wl in ward_longlists %}
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;
-                    padding:.85rem 1rem;border-radius:8px;border:1px solid #e5e7eb;
-                    background:{% if wl.ligi_mashinani_complete %}#f0fdf4{% else %}#fffdf5{% endif %}">
-            <div style="display:flex;align-items:center;gap:.75rem">
-                <div style="width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;
-                            background:{% if wl.ligi_mashinani_complete %}#d1fae5{% else %}#fef3c7{% endif %}">
-                    {% if wl.ligi_mashinani_complete %}✅{% else %}⏳{% endif %}
-                </div>
-                <div>
-                    <div style="font-weight:700;font-size:.92rem;color:#111827">
-                        {{ wl.discipline.get_sport_type_display }}
-                    </div>
-                    {% if wl.ligi_mashinani_complete %}
-                    <div style="font-size:.75rem;color:#6b7280">
-                        Marked complete by {{ wl.ligi_complete_by.get_full_name|default:wl.ligi_complete_by.email }}
-                        on {{ wl.ligi_complete_at|date:"d M Y, H:i" }}
-                    </div>
-                    {% else %}
-                    <div style="font-size:.75rem;color:#92400e">
-                        Not yet marked complete — required before selecting Ward TM
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if not wl.ligi_mashinani_complete %}
-            <button type="button"
-                    onclick="document.getElementById('complete-modal-{{ wl.pk }}').style.display='flex'"
-                    style="padding:.45rem 1rem;background:#124491;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:600;cursor:pointer;white-space:nowrap">
-                <i class="bi bi-flag-fill"></i> Mark Complete
-            </button>
+  </div>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+      <thead>
+        <tr style="background:#fff7ed;text-align:left">
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Team</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Discipline</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Manager</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Phone</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Status</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #fed7aa;font-weight:700;color:#9a3412">Submitted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for reg in pending_registrations %}
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:.6rem .9rem;font-weight:600">{{ reg.team_name }}</td>
+          <td style="padding:.6rem .9rem">{{ reg.get_discipline_display }}</td>
+          <td style="padding:.6rem .9rem">{{ reg.manager_full_name }}</td>
+          <td style="padding:.6rem .9rem;font-size:.82rem;color:#6b7280">{{ reg.manager_phone }}</td>
+          <td style="padding:.6rem .9rem">
+            {% if reg.status == 'pending' %}
+            <span style="background:#fef3c7;color:#92400e;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700">Pending Verification</span>
             {% else %}
-            <span style="display:inline-flex;align-items:center;gap:.35rem;color:#065f46;font-size:.82rem;font-weight:600">
-                <i class="bi bi-check-circle-fill"></i> Done
-            </span>
+            <span style="background:#dbeafe;color:#1e40af;padding:.2rem .55rem;border-radius:10px;font-size:.75rem;font-weight:700">Ward Verified</span>
             {% endif %}
-        </div>
-
-        {% if not wl.ligi_mashinani_complete %}
-        <div id="complete-modal-{{ wl.pk }}"
-             style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
-            <div style="background:#fff;border-radius:14px;padding:2rem;max-width:440px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
-                <h3 style="font-size:1.1rem;color:#124491;margin:0 0 .75rem">
-                    <i class="bi bi-flag-fill"></i> Mark Ligi Mashinani Complete?
-                </h3>
-                <p style="font-size:.9rem;color:#374151;margin:0 0 .5rem">
-                    You are about to mark the <strong>{{ wl.discipline.get_sport_type_display }}</strong>
-                    Ligi Mashinani for <strong>{{ ward|title }} Ward</strong> as complete.
-                </p>
-                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;padding:.75rem .9rem;margin-bottom:1.25rem;font-size:.85rem;color:#92400e">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <strong>This cannot be undone.</strong> Make sure all ward fixtures have been
-                    played and the winner is determined before proceeding.
-                    This will unlock the <em>Select Ward TM</em> action.
-                </div>
-                <div style="display:flex;gap:.75rem;justify-content:flex-end">
-                    <button type="button"
-                            onclick="document.getElementById('complete-modal-{{ wl.pk }}').style.display='none'"
-                            style="padding:.5rem 1.1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.88rem">
-                        Cancel
-                    </button>
-                    <form method="post" action="{% url 'wscc_mark_ligi_complete' %}" style="margin:0">
-                        {% csrf_token %}
-                        <input type="hidden" name="longlist_pk" value="{{ wl.pk }}">
-                        <input type="hidden" name="confirm" value="1">
-                        <button type="submit"
-                                style="padding:.5rem 1.25rem;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:700">
-                            <i class="bi bi-flag-fill"></i> Yes, Mark Complete
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        {% endif %}
+          </td>
+          <td style="padding:.6rem .9rem;font-size:.82rem;color:#9ca3af">{{ reg.submitted_at|date:"d M Y" }}</td>
+        </tr>
         {% endfor %}
-    </div>
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endif %}
 
-<!-- Quick navigation -->
-<div class="card" style="padding:1.5rem">
-    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
-        <i class="bi bi-lightning"></i> Quick Actions
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     4. LONGLISTS AWAITING REVIEW
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="card" style="padding:1.25rem;margin-bottom:1.25rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+    <h2 style="font-size:1rem;font-weight:700;color:#333;margin:0">
+      <i class="bi bi-hourglass-split" style="color:#f59e0b"></i> Longlists Awaiting Review
     </h2>
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-        <a href="{% url 'wscc_longlists' %}" class="btn btn--primary">
-            <i class="bi bi-list-ul"></i> All Longlists
-        </a>
-        <a href="{% url 'wscc_longlists' %}?status=submitted" class="btn btn--secondary">
-            <i class="bi bi-hourglass-split"></i> Submitted Only
-        </a>
-        <a href="{% url 'wscc_longlists' %}?status=wscc_approved" class="btn btn--secondary">
-            <i class="bi bi-check-circle"></i> Approved
-        </a>
-        <a href="{% url 'wscc_transfers' %}" class="btn btn--secondary">
-            <i class="bi bi-arrow-left-right"></i> Transfer Requests
-        </a>
-        <a href="{% url 'ligi_player_register' %}" class="btn btn--secondary">
-            <i class="bi bi-people-fill"></i> Player Register
-        </a>
-        <a href="{% url 'wscc_ward_competition_setup' %}" class="btn btn--secondary" style="border:2px solid #198754;color:#0a3622">
-            <i class="bi bi-trophy"></i> Ward Competition
-        </a>
-        {% if all_ligi_complete %}
-        <a href="{% url 'wscc_select_ward_tm' %}" class="btn btn--secondary" style="border:2px solid #6d28d9;color:#4c1d95">
-            <i class="bi bi-person-badge-fill"></i> Select Ward TM
-        </a>
-        {% else %}
-        <span title="Mark Ligi Mashinani as complete for all disciplines first"
-              style="display:inline-flex;align-items:center;gap:.5rem;padding:.55rem 1rem;border:2px solid #d1d5db;color:#9ca3af;border-radius:8px;font-size:.9rem;font-weight:600;cursor:not-allowed;background:#f9fafb">
-            <i class="bi bi-lock-fill"></i> Select Ward TM
-        </span>
-        {% endif %}
-        <a href="{% url 'wscc_allstars_dashboard' %}" class="btn btn--secondary" style="border:2px solid #e67e22;color:#7d3c00">
-            <i class="bi bi-trophy-fill"></i> Ward All Stars
-        </a>
-        <a href="{% url 'wscc_dashboard' %}" class="btn btn--secondary" style="border:2px solid #dc3545;color:#7f1d1d">
-            <i class="bi bi-flag"></i> Referee Appointments
-        </a>
-        <a href="{% url 'wscc_dashboard' %}" class="btn btn--secondary" style="border:2px solid #0d6efd;color:#084298">
-            <i class="bi bi-file-earmark-text"></i> Match Reports
-        </a>
-    </div>
+    <a href="{% url 'wscc_longlists' %}" style="font-size:.83rem;color:#124491;text-decoration:none">View All <i class="bi bi-arrow-right"></i></a>
+  </div>
+
+  {% if submitted_longlists %}
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+      <thead>
+        <tr style="background:#f0f4ff;text-align:left">
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #dee2e6">Ward</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #dee2e6">Discipline</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #dee2e6">Players</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #dee2e6">Submitted</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #dee2e6">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ll in submitted_longlists %}
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:.6rem .9rem;font-weight:600">{{ ll.discipline.ward|title }}</td>
+          <td style="padding:.6rem .9rem">{{ ll.discipline.get_sport_type_display }}</td>
+          <td style="padding:.6rem .9rem">
+            <span style="background:#e0f2fe;color:#0369a1;padding:.2rem .55rem;border-radius:10px;font-size:.78rem;font-weight:700">{{ ll.discipline.players.count }}</span>
+          </td>
+          <td style="padding:.6rem .9rem;color:#9ca3af;font-size:.82rem">
+            {% if ll.submitted_at %}{{ ll.submitted_at|date:"d M Y, H:i" }}{% else %}—{% endif %}
+          </td>
+          <td style="padding:.6rem .9rem">
+            <a href="{% url 'wscc_longlist_detail' ll.pk %}" style="display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .8rem;background:#124491;color:#fff;border-radius:6px;font-size:.8rem;font-weight:600;text-decoration:none">
+              <i class="bi bi-eye"></i> Review
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:1.75rem;text-align:center;color:#9ca3af">
+    <i class="bi bi-check-circle-fill" style="font-size:2rem;display:block;margin-bottom:.6rem;color:#10b981"></i>
+    No longlists awaiting review.
+  </div>
+  {% endif %}
 </div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     5. REGISTERED TEAMS
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="card" style="padding:1.25rem;margin-bottom:1.25rem">
+  <h2 style="font-size:1rem;font-weight:700;color:#333;margin:0 0 1rem">
+    <i class="bi bi-people-fill" style="color:#10b981"></i> Registered Teams — {{ ward|title }} Ward
+  </h2>
+
+  {% if registered_teams %}
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+      <thead>
+        <tr style="background:#f0fdf4;text-align:left">
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #bbf7d0">Team</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #bbf7d0">Discipline</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #bbf7d0">Manager</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #bbf7d0">Phone</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #bbf7d0">Players</th>
+          <th style="padding:.6rem .9rem;border-bottom:2px solid #bbf7d0">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for team in registered_teams %}
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:.6rem .9rem;font-weight:600">{{ team.team_name }}</td>
+          <td style="padding:.6rem .9rem">{{ team.discipline }}</td>
+          <td style="padding:.6rem .9rem">{{ team.manager_name }}</td>
+          <td style="padding:.6rem .9rem;font-size:.82rem;color:#6b7280">{{ team.manager_phone }}</td>
+          <td style="padding:.6rem .9rem">
+            <span style="background:#d1fae5;color:#065f46;padding:.2rem .55rem;border-radius:10px;font-size:.78rem;font-weight:700">{{ team.player_count }}</span>
+          </td>
+          <td style="padding:.6rem .9rem">
+            <a href="{% url 'wscc_team_players' team.pk %}" style="display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .8rem;background:#198754;color:#fff;border-radius:6px;font-size:.8rem;font-weight:600;text-decoration:none">
+              <i class="bi bi-person-lines-fill"></i> Players
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:1.75rem;text-align:center;color:#9ca3af">
+    <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.6rem"></i>
+    No registered teams in {{ ward|title }} Ward yet.
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     6. LIGI MASHINANI COMPLETION
+═══════════════════════════════════════════════════════════════════════════ -->
+{% if ward_longlists %}
+<div class="card" style="padding:1.25rem;margin-bottom:1.25rem;border-left:4px solid {% if all_ligi_complete %}#10b981{% else %}#f59e0b{% endif %}">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem">
+    <h2 style="font-size:1rem;font-weight:700;color:#333;margin:0">
+      <i class="bi bi-flag-fill" style="color:{% if all_ligi_complete %}#10b981{% else %}#f59e0b{% endif %}"></i> Ligi Mashinani Completion
+    </h2>
+    {% if all_ligi_complete %}
+    <span style="background:#d1fae5;color:#065f46;padding:.3rem .9rem;border-radius:20px;font-size:.8rem;font-weight:700;border:1px solid #6ee7b7"><i class="bi bi-check-circle-fill"></i> All Complete</span>
+    {% else %}
+    <span style="background:#fef3c7;color:#92400e;padding:.3rem .9rem;border-radius:20px;font-size:.8rem;font-weight:700;border:1px solid #fcd34d"><i class="bi bi-hourglass-split"></i> In Progress</span>
+    {% endif %}
+  </div>
+
+  <div style="display:grid;gap:.6rem">
+    {% for wl in ward_longlists %}
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;
+        padding:.85rem 1rem;border-radius:8px;border:1px solid {% if wl.ligi_mashinani_complete %}#6ee7b7{% else %}#fcd34d{% endif %};
+        background:{% if wl.ligi_mashinani_complete %}#f0fdf4{% else %}#fffdf5{% endif %}">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;
+            background:{% if wl.ligi_mashinani_complete %}#d1fae5{% else %}#fef3c7{% endif %}">
+          {% if wl.ligi_mashinani_complete %}✅{% else %}⏳{% endif %}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:.9rem">{{ wl.discipline.get_sport_type_display }}</div>
+          <div style="font-size:.75rem;color:#6b7280">
+            {% if wl.ligi_mashinani_complete %}Completed by {{ wl.ligi_complete_by.get_full_name|default:wl.ligi_complete_by.email }} · {{ wl.ligi_complete_at|date:"d M Y" }}
+            {% else %}Pending — mark complete to unlock Ward TM selection{% endif %}
+          </div>
+        </div>
+      </div>
+      {% if not wl.ligi_mashinani_complete %}
+      <button type="button" onclick="document.getElementById('cm-{{ wl.pk }}').style.display='flex'"
+          style="padding:.4rem .9rem;background:#124491;color:#fff;border:none;border-radius:7px;font-size:.83rem;font-weight:600;cursor:pointer;white-space:nowrap">
+        <i class="bi bi-flag-fill"></i> Mark Complete
+      </button>
+      {% else %}
+      <span style="color:#065f46;font-size:.82rem;font-weight:600"><i class="bi bi-check-circle-fill"></i> Done</span>
+      {% endif %}
+    </div>
+
+    {% if not wl.ligi_mashinani_complete %}
+    <div id="cm-{{ wl.pk }}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:14px;padding:2rem;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
+        <h3 style="font-size:1.05rem;color:#124491;margin:0 0 .75rem"><i class="bi bi-flag-fill"></i> Mark Ligi Mashinani Complete?</h3>
+        <p style="font-size:.88rem;color:#374151;margin:0 0 .75rem">
+          Mark <strong>{{ wl.discipline.get_sport_type_display }}</strong> — <strong>{{ ward|title }} Ward</strong> as complete.
+        </p>
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;padding:.7rem .9rem;margin-bottom:1.25rem;font-size:.83rem;color:#92400e">
+          <i class="bi bi-exclamation-triangle-fill"></i> <strong>Cannot be undone.</strong> Ensure all fixtures are played and winner confirmed.
+        </div>
+        <div style="display:flex;gap:.75rem;justify-content:flex-end">
+          <button type="button" onclick="document.getElementById('cm-{{ wl.pk }}').style.display='none'"
+              style="padding:.45rem 1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.86rem">Cancel</button>
+          <form method="post" action="{% url 'wscc_mark_ligi_complete' %}" style="margin:0">
+            {% csrf_token %}
+            <input type="hidden" name="longlist_pk" value="{{ wl.pk }}">
+            <input type="hidden" name="confirm" value="1">
+            <button type="submit" style="padding:.45rem 1.1rem;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.86rem;font-weight:700">
+              <i class="bi bi-flag-fill"></i> Confirm
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

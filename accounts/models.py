@@ -193,6 +193,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     date_joined = models.DateTimeField(default=timezone.now)
     last_login  = models.DateTimeField(null=True, blank=True)
+    current_session_key = models.CharField(
+        max_length=40, blank=True, default="",
+        help_text="Session key of the currently active login session (enforces single-session)",
+    )
 
     objects = UserManager()
 

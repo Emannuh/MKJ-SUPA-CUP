@@ -150,3 +150,39 @@ class ForcePasswordChangeMiddleware:
             return redirect("force_change_password")
 
         return self.get_response(request)
+
+
+class SingleSessionMiddleware:
+    """
+    Enforces one active session per user account.
+
+    On every authenticated request, compare the current session key with
+    the one stored on the user's ``current_session_key`` field.
+    If they differ, the session has been superseded by a login on another
+    tab or device — flush this session and redirect to the login page
+    with a message explaining why.
+
+    Exemptions: static/media/API paths are never checked.
+    """
+
+    _EXEMPT_PREFIXES = ("/static/", "/media/", "/admin/", "/api/", "/health/")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from django.contrib.auth import logout
+        from django.shortcuts import redirect
+
+        if request.user.is_authenticated:
+            # Skip exempt paths
+            if not request.path.startswith(self._EXEMPT_PREFIXES):
+                stored_key = getattr(request.user, 'current_session_key', '')
+                current_key = request.session.session_key
+
+                if stored_key and current_key and stored_key != current_key:
+                    # This session has been superseded — log out and redirect
+                    logout(request)
+                    return redirect('/portal/login/?displaced=1')
+
+        return self.get_response(request)
