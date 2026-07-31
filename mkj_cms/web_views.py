@@ -17986,22 +17986,29 @@ def wscc_ward_comp_pools_view(request, comp_pk):
     seen_pks = set()
     for reg in approved_regs:
         cd = reg.county_discipline
-        if not cd:
-            continue
-        # Find Team linked via source_discipline to this exact CountyDiscipline
-        team = Team.objects.filter(source_discipline=cd).first()
+        team = None
+
+        if cd:
+            # Try via source_discipline FK first (new teams)
+            team = Team.objects.filter(source_discipline=cd).first()
+
         if not team:
-            # No Team record yet — show registration name as placeholder
-            # Create a simple object with pk and name for the template
+            # Fallback: match by this registration's manager email exactly
+            # This covers legacy teams approved before source_discipline was set
+            team = Team.objects.filter(
+                contact_email__iexact=reg.manager_email,
+            ).order_by('-pk').first()  # most recent if duplicates exist
+
+        if team and team.pk not in seen_pks:
+            seen_pks.add(team.pk)
+            available_teams.append(team)
+        elif not team:
+            # No Team record at all — show registration name as placeholder
             class _FakeTeam:
                 def __init__(self, r):
                     self.pk = f"reg_{r.pk}"
                     self.name = r.team_name
             available_teams.append(_FakeTeam(reg))
-            continue
-        if team.pk not in seen_pks:
-            seen_pks.add(team.pk)
-            available_teams.append(team)
 
     if request.method == 'POST':
         action = request.POST.get('action', '')

@@ -33,14 +33,26 @@ class Command(BaseCommand):
             source_discipline_id__in=approved_cds
         )
 
-        count = stale.count()
+        # Also catch teams with no source_discipline but named with Ligi patterns
+        # whose contact_email is not in any approved registration
+        stale_no_disc = Team.objects.filter(
+            source_discipline__isnull=True,
+            contact_email__isnull=False,
+        ).exclude(
+            contact_email__in=approved_emails
+        ).exclude(
+            contact_email=''
+        )
+
+        count = stale.count() + stale_no_disc.count()
         if count == 0:
             self.stdout.write(self.style.SUCCESS('No stale ward Team records found. Nothing to do.'))
             return
 
         self.stdout.write(f'Found {count} stale ward Team record(s):')
-        for t in stale:
-            self.stdout.write(f'  - {t.name} (email: {t.contact_email})')
+        for t in list(stale) + list(stale_no_disc):
+            self.stdout.write(f'  - {t.name} (email: {t.contact_email}, source_disc: {t.source_discipline_id})')
 
         stale.delete()
+        stale_no_disc.delete()
         self.stdout.write(self.style.SUCCESS(f'Deleted {count} stale ward Team record(s).'))
