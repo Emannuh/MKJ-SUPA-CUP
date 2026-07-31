@@ -12934,7 +12934,7 @@ def ward_tm_dashboard_view(request):
         from teams.models import LigiMashinaniRegistration as _LMR
         try:
             ligi_reg = _LMR.objects.select_related(
-                'county_discipline__ward_longlist'
+                'county_discipline'
             ).get(manager_email__iexact=user.email, status='approved')
         except _LMR.DoesNotExist:
             ligi_reg = None
@@ -13070,7 +13070,7 @@ def _get_ward_tm_context(user, request=None):
     from teams.models import LigiMashinaniRegistration as _LMR
     try:
         ligi_reg = _LMR.objects.select_related(
-            'county_discipline__ward_longlist'
+            'county_discipline'
         ).get(manager_email__iexact=user.email, status='approved')
     except _LMR.DoesNotExist:
         ligi_reg = None

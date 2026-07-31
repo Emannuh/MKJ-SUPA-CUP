@@ -7,6 +7,9 @@ python manage.py collectstatic --noinput
 echo "=== Running migrations ==="
 python manage.py migrate --noinput
 
+echo "=== Backfilling Ligi Mashinani county_discipline FK ==="
+python manage.py backfill_ligi_county_discipline || echo "Backfill skipped or already done"
+
 echo "=== Clearing cache ==="
 python manage.py shell -c "from django.core.cache import cache; cache.clear(); print('Cache cleared.')" || echo "Cache clear skipped (no Redis yet)"
 
