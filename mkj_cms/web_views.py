@@ -14406,7 +14406,12 @@ def wscc_dashboard_view(request):
         'approved': all_longlists.filter(status=WardLonglistStatus.WSCC_APPROVED).count(),
         'returned': all_longlists.filter(status=WardLonglistStatus.RETURNED).count(),
         'draft': all_longlists.filter(status=WardLonglistStatus.DRAFT).count(),
-        'total': all_longlists.count(),
+        # Total registered (approved) teams in this ward — from LigiMashinaniRegistration
+        'total': LigiMashinaniRegistration.objects.filter(
+            sub_county=user.sub_county,
+            ward=user.ward,
+            status='approved',
+        ).count() if (not user.is_superuser and not user.role == 'admin') else LigiMashinaniRegistration.objects.filter(status='approved').count(),
     }
     
     # Get registered teams in WSCC's ward
