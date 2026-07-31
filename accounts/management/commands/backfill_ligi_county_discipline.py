@@ -34,13 +34,14 @@ class Command(BaseCommand):
 
         for reg in regs:
             # Try to find an existing CountyDiscipline that matches this reg
-            # but is not already linked to another registration
+            # but is not already linked to another registration via the reverse OneToOne
             existing_cd = CountyDiscipline.objects.filter(
                 level='ward',
                 ward=reg.ward,
                 sub_county=reg.sub_county,
                 sport_type=reg.discipline,
-                ligi_registration__isnull=True,  # not yet linked
+            ).exclude(
+                ligi_registration__isnull=False  # exclude any already linked
             ).first()
 
             if existing_cd:

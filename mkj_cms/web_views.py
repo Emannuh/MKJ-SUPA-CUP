@@ -12923,7 +12923,7 @@ def ward_tm_dashboard_view(request):
         if discipline_pk:
             discipline = CountyDiscipline.objects.filter(
                 pk=discipline_pk, level='ward',
-            ).select_related('registration', 'ward_longlist').first()
+            ).select_related('registration').first()
             if not discipline:
                 messages.error(request, 'Ward discipline not found.')
                 return redirect('ligi_admin_overview')
@@ -12941,7 +12941,7 @@ def ward_tm_dashboard_view(request):
         except _LMR.MultipleObjectsReturned:
             ligi_reg = _LMR.objects.filter(
                 manager_email__iexact=user.email, status='approved'
-            ).select_related('county_discipline__ward_longlist').first()
+            ).select_related('county_discipline').first()
 
         discipline = None
         if ligi_reg and ligi_reg.county_discipline:
@@ -12952,7 +12952,7 @@ def ward_tm_dashboard_view(request):
                 sub_county=user.sub_county,
                 ward=user.ward,
                 level='ward',
-            ).select_related('registration', 'ward_longlist')
+            ).select_related('registration')
             if user.assigned_discipline:
                 discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
             if not discipline:
@@ -12971,7 +12971,7 @@ def ward_tm_dashboard_view(request):
 
     # Fetch the linked WardLonglist (created atomically on approval)
     try:
-        longlist = discipline.ward_longlist
+        longlist = discipline.ward_longlists.first()
     except WardLonglist.DoesNotExist:
         longlist = None
 
@@ -13057,11 +13057,11 @@ def _get_ward_tm_context(user, request=None):
         if discipline_pk:
             discipline = CountyDiscipline.objects.filter(
                 pk=discipline_pk, level='ward',
-            ).select_related('registration', 'ward_longlist').first()
+            ).select_related('registration').first()
             if discipline is None:
                 return None, None
             try:
-                longlist = discipline.ward_longlist
+                longlist = discipline.ward_longlists.first()
             except WardLonglist.DoesNotExist:
                 longlist = None
             return discipline, longlist
@@ -13078,12 +13078,12 @@ def _get_ward_tm_context(user, request=None):
         # Should never happen — manager_email is unique — but handle gracefully
         ligi_reg = _LMR.objects.filter(
             manager_email__iexact=user.email, status='approved'
-        ).select_related('county_discipline__ward_longlist').first()
+        ).select_related('county_discipline').first()
 
     if ligi_reg and ligi_reg.county_discipline:
         discipline = ligi_reg.county_discipline
         try:
-            longlist = discipline.ward_longlist
+            longlist = discipline.ward_longlists.first()
         except WardLonglist.DoesNotExist:
             longlist = None
         return discipline, longlist
@@ -13093,7 +13093,7 @@ def _get_ward_tm_context(user, request=None):
         sub_county=user.sub_county,
         ward=user.ward,
         level='ward',
-    ).select_related('registration', 'ward_longlist')
+    ).select_related('registration')
     if user.assigned_discipline:
         discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
     else:
@@ -13103,7 +13103,7 @@ def _get_ward_tm_context(user, request=None):
         return None, None
 
     try:
-        longlist = discipline.ward_longlist
+        longlist = discipline.ward_longlists.first()
     except WardLonglist.DoesNotExist:
         longlist = None
 
@@ -13112,7 +13112,7 @@ def _get_ward_tm_context(user, request=None):
         sub_county=user.sub_county,
         ward=user.ward,
         level='ward',
-    ).select_related('registration', 'ward_longlist')
+    ).select_related('registration')
     if user.assigned_discipline:
         discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
     else:
@@ -13122,7 +13122,7 @@ def _get_ward_tm_context(user, request=None):
         return None, None
 
     try:
-        longlist = discipline.ward_longlist
+        longlist = discipline.ward_longlists.first()
     except WardLonglist.DoesNotExist:
         longlist = None
 
@@ -14429,17 +14429,41 @@ def wscc_dashboard_view(request):
             })
 
     # Ligi completion state per discipline in this ward
+    # Now that WardLonglist is ForeignKey (one per team), we need to group by discipline
+    # and show completion status = all teams complete for that discipline
     from teams.models import WardLonglist
+    from collections import defaultdict
     ward_longlists = []
     all_complete = False
     if hasattr(user, 'ward') and user.ward:
-        wl_qs = WardLonglist.objects.filter(
+        all_wls = WardLonglist.objects.filter(
             discipline__ward=user.ward,
             discipline__sub_county=user.sub_county,
             discipline__level='ward',
         ).select_related('discipline', 'ligi_complete_by')
-        ward_longlists = list(wl_qs)
-        all_complete = bool(ward_longlists) and all(wl.ligi_mashinani_complete for wl in ward_longlists)
+        
+        # Group longlists by discipline sport_type
+        discipline_groups = defaultdict(list)
+        for wl in all_wls:
+            discipline_groups[wl.discipline.sport_type].append(wl)
+        
+        # Create one representative entry per discipline
+        for sport_type, longlists in discipline_groups.items():
+            # Pick the first discipline as representative
+            representative = longlists[0]
+            # Mark complete only if ALL teams for this discipline are complete
+            all_teams_complete = all(wl.ligi_mashinani_complete for wl in longlists)
+            # Create a synthetic entry for the template
+            ward_longlists.append({
+                'pk': representative.pk,
+                'discipline': representative.discipline,
+                'ligi_mashinani_complete': all_teams_complete,
+                'ligi_complete_by': representative.ligi_complete_by if all_teams_complete else None,
+                'ligi_complete_at': representative.ligi_complete_at if all_teams_complete else None,
+                'team_count': len(longlists),
+            })
+        
+        all_complete = bool(ward_longlists) and all(wl['ligi_mashinani_complete'] for wl in ward_longlists)
 
     context = {
         'submitted_longlists': submitted_longlists,
@@ -16191,7 +16215,7 @@ def ligi_admin_overview_view(request):
 
     qs = CountyDiscipline.objects.filter(
         level='ward',
-    ).select_related('registration', 'ward_longlist', 'linked_team').order_by(
+    ).select_related('registration', 'linked_team').order_by(
         'sub_county', 'ward', 'sport_type'
     )
 
@@ -16208,7 +16232,7 @@ def ligi_admin_overview_view(request):
     for d in qs:
         player_count = CountyPlayer.objects.filter(discipline=d).count()
         try:
-            longlist = d.ward_longlist
+            longlist = d.ward_longlists.first()
             longlist_status = longlist.get_status_display()
         except Exception:
             longlist = None
@@ -19338,13 +19362,13 @@ def scso_ligi_overview_view(request):
         wards_qs = wards_qs.filter(ward=ward_filter)
     if discipline_filter:
         wards_qs = wards_qs.filter(sport_type=discipline_filter)
-    wards_qs = wards_qs.select_related('ward_longlist').order_by('ward', 'sport_type')
+    wards_qs = wards_qs.select_related('registration').order_by('ward', 'sport_type')
 
     # Build ward discipline summary
     ward_discipline_data = []
     for cd in wards_qs:
         try:
-            ll = cd.ward_longlist
+            ll = cd.ward_longlists.first()
             ll_status = ll.status
             player_count = CountyPlayer.objects.filter(discipline=cd).count()
         except Exception:
@@ -19481,7 +19505,7 @@ def scso_ligi_ward_detail_view(request, ward, discipline):
         players.append({'player': p, 'age': age, 'eligible': eligible})
 
     try:
-        longlist = cd.ward_longlist
+        longlist = cd.ward_longlists.first()
     except Exception:
         longlist = None
 

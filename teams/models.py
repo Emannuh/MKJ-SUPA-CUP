@@ -647,12 +647,13 @@ class WardVenue(models.Model):
 class WardLonglist(models.Model):
     """
     Ward-level player longlist for Ligi Mashinani competitions.
-    Created when a ward team manager is approved and linked to a ward discipline.
+    One longlist per team (per CountyDiscipline). Each approved Ligi Mashinani
+    team gets its own CountyDiscipline and therefore its own WardLonglist.
     """
-    discipline = models.OneToOneField(
+    discipline = models.ForeignKey(
         CountyDiscipline,
         on_delete=models.CASCADE,
-        related_name="ward_longlist",
+        related_name="ward_longlists",
         limit_choices_to={"level": "ward"},
         help_text="Ward discipline this longlist belongs to",
     )

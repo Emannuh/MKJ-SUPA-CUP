@@ -266,7 +266,7 @@
 
         <!-- Longlist status -->
         <td style="padding:.5rem .8rem">
-          {% with ll=player.discipline.ward_longlist %}
+          {% with ll=player.discipline.ward_longlists.first %}
           {% if ll %}
             {% if ll.status == 'wscc_approved' %}
               <span style="background:#d1e7dd;color:#0a3622;padding:.1rem .45rem;border-radius:10px;font-size:.72rem">Approved</span>
