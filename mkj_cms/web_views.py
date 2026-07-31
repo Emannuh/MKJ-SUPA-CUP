@@ -17537,19 +17537,19 @@ def ligi_player_register_view(request):
 
 
 @role_required('ward_sports_council_chair', 'subcounty_sports_officer', 'chief_sports_officer', 'director_sports', 'admin')
-def ligi_player_register_csv_view(request):
+def ligi_player_register_download_view(request):
     """
-    CSV download of the ward player register, scoped by the same filters
-    as ligi_player_register_view.  WSCC is auto-scoped to their ward.
+    Download the ward player register as PDF or Excel.
+    WSCC auto-scoped to their ward. Format determined by ?format=pdf|excel
     URL: /ligi/player-register/download/
     """
-    import csv
-    from django.http import StreamingHttpResponse
+    import io
+    from django.utils import timezone as _tz
     from teams.models import CountyPlayer
     from django.db.models import Q
-    from django.utils import timezone as _tz
 
     user = request.user
+    fmt = request.GET.get('format', 'excel').lower()
 
     role_locked_sub_county = None
     role_locked_ward = None
@@ -17564,17 +17564,14 @@ def ligi_player_register_csv_view(request):
         'discipline__sub_county', 'discipline__ward',
         'discipline__sport_type', 'last_name', 'first_name',
     )
-
     if role_locked_sub_county:
         qs = qs.filter(discipline__sub_county=role_locked_sub_county)
     if role_locked_ward:
         qs = qs.filter(discipline__ward=role_locked_ward)
 
-    # Apply same GET filters
     f_ward   = request.GET.get('ward', '').strip()
     f_sport  = request.GET.get('sport_type', '').strip()
     f_search = request.GET.get('q', '').strip()
-
     if f_ward and not role_locked_ward:
         qs = qs.filter(discipline__ward=f_ward)
     if f_sport:
@@ -17595,57 +17592,178 @@ def ligi_player_register_csv_view(request):
         return p.age_value or ''
 
     def _age_band(age):
-        if age == '':
-            return 'Unknown'
-        if age < 18:
-            return 'Under 18'
-        if age <= 23:
-            return 'Eligible (18-23)'
+        if age == '': return 'Unknown'
+        if age < 18: return 'Under 18'
+        if age <= 23: return 'Eligible (18-23)'
         return 'Over 23'
 
-    def generate_rows():
-        yield [
-            'No.', 'First Name', 'Last Name', 'National ID', 'Date of Birth',
-            'Age', 'Age Band', 'Position', 'Phone',
-            'Ward', 'Sub County', 'Discipline',
-            'Doc Status', 'Age Verified', 'Higher League Status',
+    players = list(qs)
+    for p in players:
+        p.age_computed = _calc_age(p)
+
+    ward_label = (role_locked_ward or f_ward or 'All Wards')
+    sport_label = f_sport.replace('_', ' ').title() if f_sport else 'All Disciplines'
+    title_line = f'Ligi Mashinani Player Register — {ward_label} Ward · {sport_label}'
+    safe_name  = f"ligi_players_{ward_label.replace(' ','_').lower()}_{today}"
+
+    headers = [
+        '#', 'First Name', 'Last Name', 'National ID', 'Date of Birth',
+        'Age', 'Age Band', 'Position', 'Phone',
+        'Ward', 'Sub County', 'Discipline',
+        'Docs', 'Age Verified', 'Higher League',
+    ]
+
+    def _row(i, p):
+        return [
+            i,
+            p.first_name, p.last_name,
+            p.national_id_number or '',
+            p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
+            p.age_computed if p.age_computed != '' else 'N/A',
+            _age_band(p.age_computed),
+            p.position or '',
+            p.phone or '',
+            p.discipline.ward,
+            p.discipline.sub_county,
+            p.discipline.get_sport_type_display(),
+            p.doc_status,
+            p.iprs_age_status,
+            p.higher_league_status,
         ]
-        for i, p in enumerate(qs, 1):
-            age = _calc_age(p)
-            yield [
-                i,
-                p.first_name,
-                p.last_name,
-                p.national_id_number or '',
-                p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
-                age,
-                _age_band(age),
-                p.position or '',
-                p.phone or '',
-                p.discipline.ward,
-                p.discipline.sub_county,
-                p.discipline.get_sport_type_display(),
-                p.get_doc_status_display() if hasattr(p, 'get_doc_status_display') else p.doc_status,
-                p.get_iprs_age_status_display() if hasattr(p, 'get_iprs_age_status_display') else p.iprs_age_status,
-                p.get_higher_league_status_display() if hasattr(p, 'get_higher_league_status_display') else p.higher_league_status,
-            ]
 
-    class EchoBuffer:
-        def write(self, value):
-            return value
+    # ── EXCEL ────────────────────────────────────────────────────────────
+    if fmt == 'excel':
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from django.http import HttpResponse
 
-    pseudo_buffer = EchoBuffer()
-    writer = csv.writer(pseudo_buffer)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Players'
 
-    ward_label = (role_locked_ward or f_ward or 'all-wards').replace(' ', '_').lower()
-    sport_label = f_sport or 'all-disciplines'
-    filename = f"ligi_players_{ward_label}_{sport_label}_{today}.csv"
+        # Title row
+        ws.merge_cells(f'A1:{chr(64+len(headers))}1')
+        title_cell = ws['A1']
+        title_cell.value = title_line
+        title_cell.font = Font(bold=True, size=13, color='FFFFFF')
+        title_cell.fill = PatternFill('solid', fgColor='124491')
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 22
 
-    response = StreamingHttpResponse(
-        (writer.writerow(row) for row in generate_rows()),
-        content_type='text/csv',
+        # Sub-title
+        ws.merge_cells(f'A2:{chr(64+len(headers))}2')
+        sub = ws['A2']
+        sub.value = f'Generated: {today}  |  Total players: {len(players)}'
+        sub.font = Font(italic=True, size=10)
+        sub.alignment = Alignment(horizontal='center')
+        ws.row_dimensions[2].height = 16
+
+        # Header row
+        hdr_fill = PatternFill('solid', fgColor='1D6FAE')
+        thin = Side(style='thin', color='CCCCCC')
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = Font(bold=True, color='FFFFFF', size=9)
+            cell.fill = hdr_fill
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
+            cell.border = border
+        ws.row_dimensions[3].height = 18
+
+        # Data rows
+        age_band_colors = {
+            'Under 18':      'FFF3CD',
+            'Eligible (18-23)': 'D1FAE5',
+            'Over 23':       'FEE2E2',
+            'Unknown':       'F3F4F6',
+        }
+        for i, p in enumerate(players, 1):
+            row_data = _row(i, p)
+            band = _age_band(p.age_computed)
+            fill_color = age_band_colors.get(band, 'FFFFFF')
+            row_fill = PatternFill('solid', fgColor=fill_color)
+            for col, val in enumerate(row_data, 1):
+                cell = ws.cell(row=i + 3, column=col, value=val)
+                cell.fill = row_fill
+                cell.font = Font(size=9)
+                cell.border = border
+                cell.alignment = Alignment(wrap_text=False)
+
+        # Column widths
+        col_widths = [4, 14, 14, 14, 13, 5, 16, 12, 13, 14, 14, 18, 10, 12, 14]
+        for col, width in enumerate(col_widths, 1):
+            ws.column_dimensions[chr(64 + col)].width = width
+
+        ws.freeze_panes = 'A4'
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        response = HttpResponse(
+            buf.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{safe_name}.xlsx"'
+        return response
+
+    # ── PDF ──────────────────────────────────────────────────────────────
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors as rl_colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm, mm
+    from django.http import HttpResponse
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=landscape(A4),
+        topMargin=1.2*cm, bottomMargin=1.2*cm,
+        leftMargin=1.2*cm, rightMargin=1.2*cm,
     )
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title_style = ParagraphStyle('title', parent=styles['Heading1'], fontSize=13, spaceAfter=4)
+    sub_style   = ParagraphStyle('sub',   parent=styles['Normal'],   fontSize=9,  spaceAfter=6, textColor=rl_colors.grey)
+
+    elements.append(Paragraph(title_line, title_style))
+    elements.append(Paragraph(f'Generated: {today}  |  Total players: {len(players)}', sub_style))
+    elements.append(Spacer(1, 4*mm))
+
+    # Table data
+    col_headers = ['#', 'First Name', 'Last Name', 'Nat. ID', 'DOB', 'Age', 'Age Band',
+                   'Position', 'Ward', 'Sub County', 'Discipline', 'Docs', 'Age Ver.', 'H.League']
+    table_data = [col_headers]
+    for i, p in enumerate(players, 1):
+        r = _row(i, p)
+        # Remove Phone col for PDF (too wide)
+        r.pop(8)
+        table_data.append([str(v) for v in r])
+
+    col_widths_pdf = [0.6*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2*cm, 0.9*cm, 2.4*cm,
+                      1.8*cm, 2*cm, 2.2*cm, 2.4*cm, 1.5*cm, 1.5*cm, 1.5*cm]
+
+    tbl = Table(table_data, colWidths=col_widths_pdf, repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ('BACKGROUND',  (0, 0), (-1, 0), rl_colors.HexColor('#124491')),
+        ('TEXTCOLOR',   (0, 0), (-1, 0), rl_colors.white),
+        ('FONTNAME',    (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE',    (0, 0), (-1, 0), 7.5),
+        ('FONTNAME',    (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',    (0, 1), (-1, -1), 7),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [rl_colors.white, rl_colors.HexColor('#f0f4ff')]),
+        ('GRID',        (0, 0), (-1, -1), 0.35, rl_colors.HexColor('#dee2e6')),
+        ('VALIGN',      (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN',       (0, 0), (0, -1), 'CENTER'),
+        ('TOPPADDING',  (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    elements.append(tbl)
+
+    doc.build(elements)
+    buf.seek(0)
+    response = HttpResponse(buf.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{safe_name}.pdf"'
     return response
 #  Ward TM requests a substitution → WSCC / SCSO / referee action
 # ══════════════════════════════════════════════════════════════════════════════
