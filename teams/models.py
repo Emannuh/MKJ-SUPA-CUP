@@ -1863,6 +1863,15 @@ class LigiMashinaniRegistration(models.Model):
     updated_at   = models.DateTimeField(auto_now=True)
     notes        = models.TextField(blank=True, default="", help_text="Internal admin notes")
 
+    # ── Link to the CountyDiscipline created on approval ────────────────────
+    county_discipline = models.OneToOneField(
+        'CountyDiscipline',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='ligi_registration',
+        help_text="The ward-level CountyDiscipline record created when this registration was approved.",
+    )
+
     # ── Payment confirmation ─────────────────────────────────────────────
     payment_confirmed = models.BooleanField(
         default=False,

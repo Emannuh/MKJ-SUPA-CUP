@@ -14750,14 +14750,9 @@ def wscc_team_players_view(request, team_pk):
             messages.error(request, 'You can only manage teams in your assigned ward.')
             return redirect('wscc_dashboard')
     
-    # Resolve the actual CountyDiscipline FK object
-    cd = CountyDiscipline.objects.filter(
-        level='ward',
-        ward=team.ward,
-        sub_county=team.sub_county,
-        sport_type=team.discipline,
-    ).first()
-    
+    # Resolve the exact CountyDiscipline for THIS team via the FK on the registration
+    cd = team.county_discipline
+
     if not cd:
         messages.error(request, 'No ward discipline found for this team. Contact admin.')
         return redirect('wscc_dashboard')
@@ -15714,7 +15709,22 @@ def ligi_registration_approve_view(request, pk):
                 },
             )
 
-            # Ligi Mashinani: Team is created directly — NO CountyDiscipline.
+            # Each Ligi Mashinani team gets its OWN CountyDiscipline for player isolation.
+            # This prevents players from bleeding across teams in the same ward+discipline.
+            discipline = CountyDiscipline.objects.create(
+                registration=makueni_reg,
+                sport_type=reg.discipline,
+                sub_county=reg.sub_county,
+                level='ward',
+                ward=reg.ward,
+            )
+
+            # Link discipline back to registration so wscc_team_players_view
+            # can resolve the exact discipline for THIS team.
+            reg.county_discipline = discipline
+            reg.save(update_fields=['county_discipline'])
+
+            # Ligi Mashinani: Team is created directly — NO CountyDiscipline sharing.
             # CountyDiscipline is only for MKJ Supa Cup county/subcounty finals.
             # Team name must be unique — append ward to avoid collisions.
             from teams.models import County, get_or_create_county_record
