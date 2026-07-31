@@ -13016,7 +13016,8 @@ def _get_ward_tm_context(user, request=None):
     """
     Helper shared by all ward TM longlist views.
 
-    - For team_manager: scopes to user.sub_county + user.ward + assigned_discipline
+    - For team_manager: resolves CountyDiscipline via LigiMashinaniRegistration.county_discipline FK
+      so each team manager sees ONLY their own team's players, venues, and longlist.
     - For admin/superuser: uses ?discipline=<pk> from the request, or
       falls back to sub_county+ward if set on the admin account.
 
@@ -13038,27 +13039,23 @@ def _get_ward_tm_context(user, request=None):
                 longlist = None
             return discipline, longlist
 
-    # Standard TM lookup by ward+sub_county+assigned_discipline
-    discipline_qs = CountyDiscipline.objects.filter(
-        sub_county=user.sub_county,
-        ward=user.ward,
-        level='ward',
-    ).select_related('registration', 'ward_longlist')
+    # For team managers: resolve via LigiMashinaniRegistration FK — each manager
+    # gets ONLY their own team's CountyDiscipline, not any shared ward record.
+    from teams.models import LigiMashinaniRegistration as _LMR
+    ligi_reg = _LMR.objects.filter(
+        manager_email__iexact=user.email,
+        status='approved',
+    ).select_related('county_discipline__ward_longlist').first()
 
-    if user.assigned_discipline:
-        discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
-    else:
-        discipline = discipline_qs.first()
+    if ligi_reg and ligi_reg.county_discipline:
+        discipline = ligi_reg.county_discipline
+        try:
+            longlist = discipline.ward_longlist
+        except WardLonglist.DoesNotExist:
+            longlist = None
+        return discipline, longlist
 
-    if discipline is None:
-        return None, None
-
-    try:
-        longlist = discipline.ward_longlist
-    except WardLonglist.DoesNotExist:
-        longlist = None
-
-    return discipline, longlist
+    return None, None
 
 
 def _get_tm_player_qs(discipline, user):
@@ -13066,15 +13063,14 @@ def _get_tm_player_qs(discipline, user):
     Return a scoped CountyPlayer queryset for the given discipline.
 
     For team_managers: only players they personally registered (registered_by=user).
-    This prevents cross-team data bleed when two teams in the same ward+sport
-    share a CountyDiscipline record due to legacy approvals.
+    """
+    Each team manager now resolves their OWN CountyDiscipline via the
+    LigiMashinaniRegistration FK — so all players in that discipline
+    belong exclusively to their team. No filter by registered_by needed.
 
     For admins/superusers: all players in the discipline.
     """
-    is_admin = user.is_superuser or user.role == 'admin'
     qs = CountyPlayer.objects.filter(discipline=discipline)
-    if not is_admin:
-        qs = qs.filter(registered_by=user)
     return qs
 
 
@@ -14349,23 +14345,13 @@ def wscc_dashboard_view(request):
     # Get registered teams in WSCC's ward
     registered_teams = []
     if hasattr(user, 'ward') and user.ward:
-        from teams.models import CountyDiscipline
         teams_qs = LigiMashinaniRegistration.objects.filter(
             sub_county=user.sub_county,
             ward=user.ward,
             status='approved'
-        )
-        # Build a lookup of CountyDiscipline records for this ward to get player counts
-        cd_map = {
-            cd.sport_type: cd
-            for cd in CountyDiscipline.objects.filter(
-                level='ward',
-                ward=user.ward,
-                sub_county=user.sub_county,
-            )
-        }
+        ).select_related('county_discipline')
         for team in teams_qs:
-            cd = cd_map.get(team.discipline)
+            cd = team.county_discipline
             registered_teams.append({
                 'pk': team.pk,
                 'team_name': team.team_name,
