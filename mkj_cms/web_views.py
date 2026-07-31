@@ -13060,12 +13060,8 @@ def _get_ward_tm_context(user, request=None):
 
 def _get_tm_player_qs(discipline, user):
     """
-    Return a scoped CountyPlayer queryset for the given discipline.
-
-    For team_managers: only players they personally registered (registered_by=user).
-    """
     Each team manager now resolves their OWN CountyDiscipline via the
-    LigiMashinaniRegistration FK — so all players in that discipline
+    LigiMashinaniRegistration FK - so all players in that discipline
     belong exclusively to their team. No filter by registered_by needed.
 
     For admins/superusers: all players in the discipline.
