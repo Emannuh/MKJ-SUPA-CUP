@@ -1863,12 +1863,20 @@ def dashboard_view(request):
 
     # ── Team Manager: route to Ligi dashboard if ward TM, else MKJ dashboard ──
     if user.role == 'team_manager':
-        # A ward TM has ward, sub_county, and assigned_discipline set on their account.
+        # Check if this manager has an approved Ligi Mashinani registration
+        from teams.models import LigiMashinaniRegistration as _LMR
+        ligi_reg = _LMR.objects.filter(
+            manager_email__iexact=user.email,
+            status='approved',
+        ).first()
+
+        if ligi_reg:
+            # Ligi Mashinani TM — send to ligi dashboard always
+            return redirect('ward_tm_longlist')
+
+        # Legacy ward TM check (assigned_discipline set on account)
         is_ward_tm = bool(user.ward and user.sub_county and user.assigned_discipline)
         if is_ward_tm:
-            # Check if WSCC has marked Ligi Mashinani complete for this discipline.
-            # If complete → ward TM dashboard (sub-county squad management).
-            # If not yet complete → Ligi dashboard (longlist management still active).
             from teams.models import WardLonglist
             ligi_complete = WardLonglist.objects.filter(
                 discipline__ward=user.ward,
@@ -12922,18 +12930,24 @@ def ward_tm_dashboard_view(request):
         else:
             return redirect('ligi_admin_overview')
     else:
-        # Resolve via LigiMashinaniRegistration FK for proper per-team isolation
+        # Team manager: one email -> one registration -> one discipline
         from teams.models import LigiMashinaniRegistration as _LMR
-        ligi_reg = _LMR.objects.filter(
-            manager_email__iexact=user.email,
-            status='approved',
-        ).select_related('county_discipline__ward_longlist').first()
+        try:
+            ligi_reg = _LMR.objects.select_related(
+                'county_discipline__ward_longlist'
+            ).get(manager_email__iexact=user.email, status='approved')
+        except _LMR.DoesNotExist:
+            ligi_reg = None
+        except _LMR.MultipleObjectsReturned:
+            ligi_reg = _LMR.objects.filter(
+                manager_email__iexact=user.email, status='approved'
+            ).select_related('county_discipline__ward_longlist').first()
 
         discipline = None
         if ligi_reg and ligi_reg.county_discipline:
             discipline = ligi_reg.county_discipline
         else:
-            # Fallback for legacy teams approved before FK was added
+            # Legacy fallback for teams approved before the county_discipline FK was added
             discipline_qs = CountyDiscipline.objects.filter(
                 sub_county=user.sub_county,
                 ward=user.ward,
@@ -13025,10 +13039,14 @@ def _get_ward_tm_context(user, request=None):
     """
     Helper shared by all ward TM longlist views.
 
-    - For team_manager: resolves CountyDiscipline via LigiMashinaniRegistration.county_discipline FK
-      so each team manager sees ONLY their own team's players, venues, and longlist.
-    - For admin/superuser: uses ?discipline=<pk> from the request, or
-      falls back to sub_county+ward if set on the admin account.
+    Each team manager has exactly ONE team and ONE discipline (manager_email is
+    unique on LigiMashinaniRegistration).  We resolve their CountyDiscipline via
+    the county_discipline FK on the registration so players, venues, and longlists
+    are fully isolated per team.
+
+    - For team_manager: looks up approved registration by manager_email, then
+      follows county_discipline FK directly.
+    - For admin/superuser: uses ?discipline=<pk> from the request.
 
     Returns (discipline, longlist) or (None, None).
     """
@@ -13048,13 +13066,19 @@ def _get_ward_tm_context(user, request=None):
                 longlist = None
             return discipline, longlist
 
-    # For team managers: resolve via LigiMashinaniRegistration FK — each manager
-    # gets ONLY their own team's CountyDiscipline, not any shared ward record.
+    # Team manager: one email -> one registration -> one discipline
     from teams.models import LigiMashinaniRegistration as _LMR
-    ligi_reg = _LMR.objects.filter(
-        manager_email__iexact=user.email,
-        status='approved',
-    ).select_related('county_discipline__ward_longlist').first()
+    try:
+        ligi_reg = _LMR.objects.select_related(
+            'county_discipline__ward_longlist'
+        ).get(manager_email__iexact=user.email, status='approved')
+    except _LMR.DoesNotExist:
+        ligi_reg = None
+    except _LMR.MultipleObjectsReturned:
+        # Should never happen — manager_email is unique — but handle gracefully
+        ligi_reg = _LMR.objects.filter(
+            manager_email__iexact=user.email, status='approved'
+        ).select_related('county_discipline__ward_longlist').first()
 
     if ligi_reg and ligi_reg.county_discipline:
         discipline = ligi_reg.county_discipline
@@ -13064,7 +13088,26 @@ def _get_ward_tm_context(user, request=None):
             longlist = None
         return discipline, longlist
 
-    # Fallback for legacy teams approved before the county_discipline FK was added
+    # Legacy fallback: teams approved before the county_discipline FK was added
+    discipline_qs = CountyDiscipline.objects.filter(
+        sub_county=user.sub_county,
+        ward=user.ward,
+        level='ward',
+    ).select_related('registration', 'ward_longlist')
+    if user.assigned_discipline:
+        discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
+    else:
+        discipline = discipline_qs.first()
+
+    if discipline is None:
+        return None, None
+
+    try:
+        longlist = discipline.ward_longlist
+    except WardLonglist.DoesNotExist:
+        longlist = None
+
+    return discipline, longlist    # Fallback for legacy teams approved before the county_discipline FK was added
     discipline_qs = CountyDiscipline.objects.filter(
         sub_county=user.sub_county,
         ward=user.ward,
