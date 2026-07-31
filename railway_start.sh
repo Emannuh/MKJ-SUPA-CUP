@@ -10,6 +10,9 @@ python manage.py migrate --noinput
 echo "=== Backfilling Ligi Mashinani county_discipline FK ==="
 python manage.py backfill_ligi_county_discipline || echo "Backfill skipped or already done"
 
+echo "=== Cleaning up stale ward Team records ==="
+python manage.py cleanup_stale_ward_teams || echo "Cleanup skipped"
+
 echo "=== Clearing cache ==="
 python manage.py shell -c "from django.core.cache import cache; cache.clear(); print('Cache cleared.')" || echo "Cache clear skipped (no Redis yet)"
 
