@@ -403,34 +403,38 @@
       {% endif %}
     </div>
 
-    {% if not wl.ligi_mashinani_complete %}
-    <div id="cm-{{ wl.pk }}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
-      <div style="background:#fff;border-radius:14px;padding:2rem;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
-        <h3 style="font-size:1.05rem;color:#124491;margin:0 0 .75rem"><i class="bi bi-flag-fill"></i> Mark Ligi Mashinani Complete?</h3>
-        <p style="font-size:.88rem;color:#374151;margin:0 0 .75rem">
-          Mark <strong>{{ wl.discipline.get_sport_type_display }}</strong> — <strong>{{ ward|title }} Ward</strong> as complete.
-        </p>
-        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;padding:.7rem .9rem;margin-bottom:1.25rem;font-size:.83rem;color:#92400e">
-          <i class="bi bi-exclamation-triangle-fill"></i> <strong>Cannot be undone.</strong> Ensure all fixtures are played and winner confirmed.
-        </div>
-        <div style="display:flex;gap:.75rem;justify-content:flex-end">
-          <button type="button" onclick="document.getElementById('cm-{{ wl.pk }}').style.display='none'"
-              style="padding:.45rem 1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.86rem">Cancel</button>
-          <form method="post" action="{% url 'wscc_mark_ligi_complete' %}" style="margin:0">
-            {% csrf_token %}
-            <input type="hidden" name="longlist_pk" value="{{ wl.pk }}">
-            <input type="hidden" name="confirm" value="1">
-            <button type="submit" style="padding:.45rem 1.1rem;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.86rem;font-weight:700">
-              <i class="bi bi-flag-fill"></i> Confirm
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-    {% endif %}
     {% endfor %}
   </div>
 </div>
 {% endif %}
+
+<!-- ══ Ligi Complete Modals — outside card to prevent button clipping ══ -->
+{% for wl in ward_longlists %}
+{% if not wl.ligi_mashinani_complete %}
+<div id="cm-{{ wl.pk }}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:2rem;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.22)">
+    <h3 style="font-size:1.05rem;color:#124491;margin:0 0 .75rem"><i class="bi bi-flag-fill"></i> Mark Ligi Mashinani Complete?</h3>
+    <p style="font-size:.88rem;color:#374151;margin:0 0 .75rem">
+      Mark <strong>{{ wl.discipline.get_sport_type_display }}</strong> &mdash; <strong>{{ ward|title }} Ward</strong> as complete.
+    </p>
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;padding:.7rem .9rem;margin-bottom:1.25rem;font-size:.83rem;color:#92400e">
+      <i class="bi bi-exclamation-triangle-fill"></i> <strong>Cannot be undone.</strong> Ensure all fixtures are played and winner confirmed.
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end">
+      <button type="button" onclick="document.getElementById('cm-{{ wl.pk }}').style.display='none'"
+          style="padding:.45rem 1rem;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;color:#495057;cursor:pointer;font-size:.86rem">Cancel</button>
+      <form method="post" action="{% url 'wscc_mark_ligi_complete' %}" style="margin:0">
+        {% csrf_token %}
+        <input type="hidden" name="longlist_pk" value="{{ wl.pk }}">
+        <input type="hidden" name="confirm" value="1">
+        <button type="submit" style="padding:.45rem 1.1rem;background:#198754;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.86rem;font-weight:700">
+          <i class="bi bi-flag-fill"></i> Confirm
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
 
 {% endblock %}
