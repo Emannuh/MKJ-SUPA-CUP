@@ -17972,36 +17972,33 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
     pools = comp.pools.prefetch_related('pool_teams__team').all()
 
-    from teams.models import CountyDiscipline, Team, LigiMashinaniRegistration
-    # Get all approved Ligi Mashinani teams in this ward+sport — one Team per registration
-    approved_reg_pks = LigiMashinaniRegistration.objects.filter(
+    from teams.models import LigiMashinaniRegistration, Team
+    # Get ONLY teams from approved registrations for this exact ward + sport
+    # Use the county_discipline → source_discipline link for accuracy
+    approved_regs = LigiMashinaniRegistration.objects.filter(
         ward=comp.ward,
         sub_county=comp.sub_county,
         discipline=comp.sport_type,
         status='approved',
-    ).values_list('pk', flat=True)
-    # Teams are matched by manager email from the registration
-    available_teams = list(
-        Team.objects.filter(
-            source_discipline__ward=comp.ward,
-            source_discipline__sub_county=comp.sub_county,
-            source_discipline__sport_type=comp.sport_type,
-            source_discipline__level='ward',
-        ).select_related('source_discipline') |
-        Team.objects.filter(
-            contact_email__in=LigiMashinaniRegistration.objects.filter(
-                pk__in=approved_reg_pks
-            ).values_list('manager_email', flat=True)
-        )
-    )
-    # Deduplicate
-    seen = set()
-    unique_teams = []
-    for t in available_teams:
-        if t.pk not in seen:
-            seen.add(t.pk)
-            unique_teams.append(t)
-    available_teams = unique_teams
+    ).select_related('county_discipline')
+
+    # Build available_teams from the Team records linked to these registrations
+    available_teams = []
+    for reg in approved_regs:
+        cd = reg.county_discipline
+        if cd:
+            # Get the Team that has this discipline as source_discipline
+            team = Team.objects.filter(source_discipline=cd).first()
+            if team:
+                available_teams.append(team)
+        else:
+            # Fallback: match by manager email + ward to avoid picking up wrong teams
+            team = Team.objects.filter(
+                contact_email__iexact=reg.manager_email,
+                sub_county=reg.sub_county,
+            ).first()
+            if team:
+                available_teams.append(team)
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
