@@ -13224,7 +13224,22 @@ def ward_tm_add_player_view(request):
 
     if request.method == 'POST':
         form = WardLonglistPlayerForm(request.POST, request.FILES)
-        if form.is_valid():
+
+        # ── Validate file sizes before hitting Cloudinary (max 10 MB) ────
+        MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+        size_error = None
+        for field in ['passport_photo', 'national_id_copy', 'birth_certificate']:
+            f = request.FILES.get(field)
+            if f and f.size > MAX_UPLOAD_BYTES:
+                size_error = (
+                    f'"{f.name}" is too large ({round(f.size / (1024*1024), 1)} MB). '
+                    f'Maximum is 10 MB. Please compress the image and try again.'
+                )
+                break
+
+        if size_error:
+            messages.error(request, size_error)
+        elif form.is_valid():
             player = form.save(commit=False)
             player.discipline = discipline
             # Set ward/sub-county from the user's profile (not form input)
