@@ -17974,7 +17974,7 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
     from teams.models import LigiMashinaniRegistration, Team
     # Get ONLY teams from approved registrations for this exact ward + sport
-    # Use the county_discipline → source_discipline link for accuracy
+    # via the county_discipline FK — the only reliable link
     approved_regs = LigiMashinaniRegistration.objects.filter(
         ward=comp.ward,
         sub_county=comp.sub_county,
@@ -17982,23 +17982,26 @@ def wscc_ward_comp_pools_view(request, comp_pk):
         status='approved',
     ).select_related('county_discipline')
 
-    # Build available_teams from the Team records linked to these registrations
     available_teams = []
+    seen_pks = set()
     for reg in approved_regs:
         cd = reg.county_discipline
-        if cd:
-            # Get the Team that has this discipline as source_discipline
-            team = Team.objects.filter(source_discipline=cd).first()
-            if team:
-                available_teams.append(team)
-        else:
-            # Fallback: match by manager email + ward to avoid picking up wrong teams
-            team = Team.objects.filter(
-                contact_email__iexact=reg.manager_email,
-                sub_county=reg.sub_county,
-            ).first()
-            if team:
-                available_teams.append(team)
+        if not cd:
+            continue
+        # Find Team linked via source_discipline to this exact CountyDiscipline
+        team = Team.objects.filter(source_discipline=cd).first()
+        if not team:
+            # No Team record yet — show registration name as placeholder
+            # Create a simple object with pk and name for the template
+            class _FakeTeam:
+                def __init__(self, r):
+                    self.pk = f"reg_{r.pk}"
+                    self.name = r.team_name
+            available_teams.append(_FakeTeam(reg))
+            continue
+        if team.pk not in seen_pks:
+            seen_pks.add(team.pk)
+            available_teams.append(team)
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
