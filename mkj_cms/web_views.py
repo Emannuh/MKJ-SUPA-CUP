@@ -17369,10 +17369,13 @@ def ligi_player_register_view(request):
     user = request.user
 
     # ── Scope by role ─────────────────────────────────────────────────────
-    # WSCC and SCSO are limited to their own sub-county
+    # WSCC is limited to their own sub-county AND ward
     role_locked_sub_county = None
+    role_locked_ward = None
     if user.role in ('ward_sports_council_chair', 'subcounty_sports_officer') and not user.is_superuser:
         role_locked_sub_county = user.sub_county
+    if user.role == 'ward_sports_council_chair' and not user.is_superuser:
+        role_locked_ward = user.ward
 
     # ── Base queryset: only ward-level players ────────────────────────────
     qs = CountyPlayer.objects.filter(
@@ -17387,6 +17390,8 @@ def ligi_player_register_view(request):
 
     if role_locked_sub_county:
         qs = qs.filter(discipline__sub_county=role_locked_sub_county)
+    if role_locked_ward:
+        qs = qs.filter(discipline__ward=role_locked_ward)
 
     # ── Filters from GET params ───────────────────────────────────────────
     f_sub_county  = request.GET.get('sub_county', '').strip()
@@ -17398,8 +17403,10 @@ def ligi_player_register_view(request):
 
     if f_sub_county and not role_locked_sub_county:
         qs = qs.filter(discipline__sub_county=f_sub_county)
-    if f_ward:
+    if f_ward and not role_locked_ward:
         qs = qs.filter(discipline__ward=f_ward)
+    elif not f_ward and role_locked_ward:
+        f_ward = role_locked_ward
     if f_sport:
         qs = qs.filter(discipline__sport_type=f_sport)
     if f_longlist_status:
@@ -17523,13 +17530,123 @@ def ligi_player_register_view(request):
         'unknown_count':  len(unknown),
         # role scope
         'role_locked_sub_county': role_locked_sub_county,
+        'role_locked_ward': role_locked_ward,
         'user_role': user.role,
     }
     return render(request, 'ligi/player_register.html', context)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  LIGI MASHINANI  -  WARD SUBSTITUTION SYSTEM
+@role_required('ward_sports_council_chair', 'subcounty_sports_officer', 'chief_sports_officer', 'director_sports', 'admin')
+def ligi_player_register_csv_view(request):
+    """
+    CSV download of the ward player register, scoped by the same filters
+    as ligi_player_register_view.  WSCC is auto-scoped to their ward.
+    URL: /ligi/player-register/download/
+    """
+    import csv
+    from django.http import StreamingHttpResponse
+    from teams.models import CountyPlayer
+    from django.db.models import Q
+    from django.utils import timezone as _tz
+
+    user = request.user
+
+    role_locked_sub_county = None
+    role_locked_ward = None
+    if user.role in ('ward_sports_council_chair', 'subcounty_sports_officer') and not user.is_superuser:
+        role_locked_sub_county = user.sub_county
+    if user.role == 'ward_sports_council_chair' and not user.is_superuser:
+        role_locked_ward = user.ward
+
+    qs = CountyPlayer.objects.filter(
+        discipline__level='ward',
+    ).select_related('discipline').order_by(
+        'discipline__sub_county', 'discipline__ward',
+        'discipline__sport_type', 'last_name', 'first_name',
+    )
+
+    if role_locked_sub_county:
+        qs = qs.filter(discipline__sub_county=role_locked_sub_county)
+    if role_locked_ward:
+        qs = qs.filter(discipline__ward=role_locked_ward)
+
+    # Apply same GET filters
+    f_ward   = request.GET.get('ward', '').strip()
+    f_sport  = request.GET.get('sport_type', '').strip()
+    f_search = request.GET.get('q', '').strip()
+
+    if f_ward and not role_locked_ward:
+        qs = qs.filter(discipline__ward=f_ward)
+    if f_sport:
+        qs = qs.filter(discipline__sport_type=f_sport)
+    if f_search:
+        qs = qs.filter(
+            Q(first_name__icontains=f_search) |
+            Q(last_name__icontains=f_search) |
+            Q(national_id_number__icontains=f_search)
+        )
+
+    today = _tz.now().date()
+
+    def _calc_age(p):
+        if p.date_of_birth:
+            dob = p.date_of_birth
+            return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        return p.age_value or ''
+
+    def _age_band(age):
+        if age == '':
+            return 'Unknown'
+        if age < 18:
+            return 'Under 18'
+        if age <= 23:
+            return 'Eligible (18-23)'
+        return 'Over 23'
+
+    def generate_rows():
+        yield [
+            'No.', 'First Name', 'Last Name', 'National ID', 'Date of Birth',
+            'Age', 'Age Band', 'Position', 'Phone',
+            'Ward', 'Sub County', 'Discipline',
+            'Doc Status', 'Age Verified', 'Higher League Status',
+        ]
+        for i, p in enumerate(qs, 1):
+            age = _calc_age(p)
+            yield [
+                i,
+                p.first_name,
+                p.last_name,
+                p.national_id_number or '',
+                p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
+                age,
+                _age_band(age),
+                p.position or '',
+                p.phone or '',
+                p.discipline.ward,
+                p.discipline.sub_county,
+                p.discipline.get_sport_type_display(),
+                p.get_doc_status_display() if hasattr(p, 'get_doc_status_display') else p.doc_status,
+                p.get_iprs_age_status_display() if hasattr(p, 'get_iprs_age_status_display') else p.iprs_age_status,
+                p.get_higher_league_status_display() if hasattr(p, 'get_higher_league_status_display') else p.higher_league_status,
+            ]
+
+    class EchoBuffer:
+        def write(self, value):
+            return value
+
+    pseudo_buffer = EchoBuffer()
+    writer = csv.writer(pseudo_buffer)
+
+    ward_label = (role_locked_ward or f_ward or 'all-wards').replace(' ', '_').lower()
+    sport_label = f_sport or 'all-disciplines'
+    filename = f"ligi_players_{ward_label}_{sport_label}_{today}.csv"
+
+    response = StreamingHttpResponse(
+        (writer.writerow(row) for row in generate_rows()),
+        content_type='text/csv',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 #  Ward TM requests a substitution → WSCC / SCSO / referee action
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -17710,26 +17827,47 @@ def wscc_ward_competition_setup_view(request):
     Allows creating/selecting a ward-level Competition with a chosen format.
     URL: /ligi/wscc/ward-competition/
     """
-    from teams.models import CountyDiscipline
+    from teams.models import CountyDiscipline, LigiMashinaniRegistration
     from competitions.models import Competition, CompetitionLevel, CompetitionFormat
 
     user = request.user
     sub_county = user.sub_county if not user.is_superuser else None
+    ward = user.ward if not user.is_superuser else None
 
-    # All ward disciplines in this WSCC's sub-county
-    disciplines_qs = CountyDiscipline.objects.filter(level='ward')
+    # Get unique ward+sport combinations from approved Ligi Mashinani registrations
+    # instead of CountyDiscipline (which has one record per team)
+    reg_qs = LigiMashinaniRegistration.objects.filter(status='approved')
     if sub_county:
-        disciplines_qs = disciplines_qs.filter(sub_county=sub_county)
+        reg_qs = reg_qs.filter(sub_county=sub_county)
+    if ward:
+        reg_qs = reg_qs.filter(ward=ward)
 
-    # Attach existing ward Competition if any
+    # Deduplicate by ward+sport
+    seen_combos = set()
     discipline_data = []
-    for disc in disciplines_qs.order_by('ward', 'sport_type'):
+    for reg in reg_qs.order_by('ward', 'discipline'):
+        key = (reg.ward, reg.discipline)
+        if key in seen_combos:
+            continue
+        seen_combos.add(key)
+        # Count teams for this ward+sport
+        team_count = reg_qs.filter(ward=reg.ward, discipline=reg.discipline).count()
         comp = Competition.objects.filter(
             level=CompetitionLevel.WARD,
-            ward=disc.ward,
-            sport_type=disc.sport_type,
+            ward=reg.ward,
+            sport_type=reg.discipline,
         ).first()
-        discipline_data.append({'discipline': disc, 'competition': comp})
+        # Use representative CountyDiscipline for display
+        disc = CountyDiscipline.objects.filter(
+            level='ward', ward=reg.ward, sub_county=reg.sub_county, sport_type=reg.discipline
+        ).first()
+        discipline_data.append({
+            'discipline': disc,
+            'competition': comp,
+            'team_count': team_count,
+            'ward': reg.ward,
+            'sport_type': reg.discipline,
+        })
 
     if request.method == 'POST':
         disc_pk     = request.POST.get('discipline_pk')
@@ -17834,11 +17972,36 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
     pools = comp.pools.prefetch_related('pool_teams__team').all()
 
-    from teams.models import CountyDiscipline, Team
-    disc = CountyDiscipline.objects.filter(
-        level='ward', ward=comp.ward, sport_type=comp.sport_type
-    ).first()
-    available_teams = list(Team.objects.filter(source_discipline=disc)) if disc else []
+    from teams.models import CountyDiscipline, Team, LigiMashinaniRegistration
+    # Get all approved Ligi Mashinani teams in this ward+sport — one Team per registration
+    approved_reg_pks = LigiMashinaniRegistration.objects.filter(
+        ward=comp.ward,
+        sub_county=comp.sub_county,
+        discipline=comp.sport_type,
+        status='approved',
+    ).values_list('pk', flat=True)
+    # Teams are matched by manager email from the registration
+    available_teams = list(
+        Team.objects.filter(
+            source_discipline__ward=comp.ward,
+            source_discipline__sub_county=comp.sub_county,
+            source_discipline__sport_type=comp.sport_type,
+            source_discipline__level='ward',
+        ).select_related('source_discipline') |
+        Team.objects.filter(
+            contact_email__in=LigiMashinaniRegistration.objects.filter(
+                pk__in=approved_reg_pks
+            ).values_list('manager_email', flat=True)
+        )
+    )
+    # Deduplicate
+    seen = set()
+    unique_teams = []
+    for t in available_teams:
+        if t.pk not in seen:
+            seen.add(t.pk)
+            unique_teams.append(t)
+    available_teams = unique_teams
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
