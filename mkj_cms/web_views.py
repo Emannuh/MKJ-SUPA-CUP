@@ -12012,19 +12012,12 @@ def admin_clear_team_view(request, team_pk):
     OR delete the entire team registration entirely.
     URL: /portal/admin/teams/<int:team_pk>/clear/
     """
-    from teams.models import LigiMashinaniRegistration, CountyDiscipline
+    from teams.models import LigiMashinaniRegistration
 
-    # LigiMashinaniRegistration.discipline is a CharField (sport type), NOT a FK.
-    # The linked CountyDiscipline is found via the ward + sub_county + discipline fields.
     team = get_object_or_404(LigiMashinaniRegistration, pk=team_pk)
 
-    # Resolve the actual CountyDiscipline record for this registration
-    cd = CountyDiscipline.objects.filter(
-        level='ward',
-        ward=team.ward,
-        sub_county=team.sub_county,
-        sport_type=team.discipline,
-    ).first()
+    # Use county_discipline FK directly for correct per-team isolation
+    cd = team.county_discipline
 
     if request.method == 'POST':
         action = request.POST.get('action', 'clear_players')
@@ -12055,31 +12048,21 @@ def admin_clear_team_view(request, team_pk):
             return redirect('ligi_registrations_list')
 
         elif action == 'delete_team':
-            team_name = team.team_name
-            ward = team.ward
-            if cd:
-                cd.players.all().delete()
-                try:
-                    from teams.models import WardLonglist
-                    WardLonglist.objects.filter(discipline=cd).delete()
-                except Exception:
-                    pass
-                cd.delete()
-            team.delete()
+            team_name = _delete_ligi_team_fully(team)
             try:
                 from admin_dashboard.activity_logger import log_activity, get_client_ip
                 log_activity(
                     user=request.user,
                     action='DELETE',
                     description=(
-                        f'Admin deleted entire team "{team_name}" from {ward} Ward '
-                        f'including all players and longlist. Reason: {reason}'
+                        f'Admin deleted entire team "{team_name}" including players, '
+                        f'longlist and manager account. Reason: {reason}'
                     ),
                     ip_address=get_client_ip(request),
                 )
             except Exception:
                 pass
-            messages.success(request, f'Team "{team_name}" and all associated data deleted.')
+            messages.success(request, f'Team "{team_name}" and all associated data (including manager account) deleted.')
             return redirect('ligi_registrations_list')
 
     player_count = cd.players.count() if cd else 0
@@ -12097,17 +12080,12 @@ def director_clear_team_view(request, team_pk):
     Director of Sports: clear all players from a ward team's longlist.
     URL: /portal/director/teams/<int:team_pk>/clear/
     """
-    from teams.models import LigiMashinaniRegistration, CountyDiscipline
+    from teams.models import LigiMashinaniRegistration
 
     team = get_object_or_404(LigiMashinaniRegistration, pk=team_pk)
 
-    # Resolve the actual CountyDiscipline — discipline field on the reg is a CharField
-    cd = CountyDiscipline.objects.filter(
-        level='ward',
-        ward=team.ward,
-        sub_county=team.sub_county,
-        sport_type=team.discipline,
-    ).first()
+    # Use county_discipline FK directly for correct per-team isolation
+    cd = team.county_discipline
 
     if request.method == 'POST':
         confirm = request.POST.get('confirm', '').strip().lower()
@@ -14375,6 +14353,45 @@ def ward_sub_approve_view(request, sub_pk):
 # Ligi Mashinani  -  Ward Sports Council Chair (WSCC) Portal
 # ═════════════════════════════════════════════════════════════════════════════
 
+def _delete_ligi_team_fully(reg):
+    """
+    Fully delete a LigiMashinaniRegistration and ALL associated data:
+    - CountyDiscipline (via county_discipline FK) + players + WardLonglist
+    - The Team record linked to the manager user
+    - The manager's User account (if it was created for this registration)
+
+    Returns the deleted team_name for use in success messages.
+    """
+    from teams.models import WardLonglist, Team as _Team
+    from django.contrib.auth import get_user_model as _get_user_model
+
+    team_name = reg.team_name
+    manager_email = reg.manager_email
+
+    # 1. Delete via county_discipline FK (preferred — exact match)
+    cd = reg.county_discipline
+    if cd:
+        WardLonglist.objects.filter(discipline=cd).delete()
+        cd.players.all().delete()
+        cd.delete()
+
+    # 2. Delete the Team record (matched by manager email)
+    _Team.objects.filter(contact_email__iexact=manager_email).delete()
+
+    # 3. Delete the manager's User account
+    _User = _get_user_model()
+    try:
+        manager_user = _User.objects.get(email__iexact=manager_email)
+        manager_user.delete()
+    except _User.DoesNotExist:
+        pass
+
+    # 4. Delete the registration itself
+    reg.delete()
+
+    return team_name
+
+
 def _get_wscc_sub_county(user):
     """Return the sub-county to scope all WSCC queries.
     Superusers/admins get None (no scoping restriction).
@@ -15838,13 +15855,15 @@ def ligi_registration_approve_view(request, pk):
 
             # Ligi Mashinani: Team is created directly — NO CountyDiscipline sharing.
             # CountyDiscipline is only for MKJ Supa Cup county/subcounty finals.
-            # Team name must be unique — append ward to avoid collisions.
+            # Ensure globally unique team name with suffix loop.
             from teams.models import County, get_or_create_county_record
             county_obj = get_or_create_county_record('Makueni')
-            team_name = reg.team_name
-            # Ensure uniqueness: if name taken, append ward
-            if Team.objects.filter(name__iexact=team_name).exists():
-                team_name = f"{reg.team_name} ({reg.ward})"
+            base_name = reg.team_name.strip()
+            team_name = base_name
+            suffix = 1
+            while Team.objects.filter(name__iexact=team_name).exists():
+                team_name = f"{base_name} ({reg.ward}) #{suffix}"
+                suffix += 1
             team = Team.objects.create(
                 name=team_name,
                 county=county_obj,
@@ -18896,16 +18915,7 @@ def wscc_delete_team_view(request, team_pk):
 
             team_name = team.team_name
             ward_name = team.ward
-            # Delete linked CountyDiscipline + WardLonglist + players
-            from teams.models import CountyDiscipline, WardLonglist
-            cd = CountyDiscipline.objects.filter(
-                level='ward', ward=team.ward, sub_county=team.sub_county, sport_type=team.discipline
-            ).first()
-            if cd:
-                WardLonglist.objects.filter(discipline=cd).delete()
-                cd.players.all().delete()
-                cd.delete()
-            team.delete()
+            team_name = _delete_ligi_team_fully(team)
 
             try:
                 from admin_dashboard.activity_logger import log_activity, get_client_ip
@@ -18914,14 +18924,14 @@ def wscc_delete_team_view(request, team_pk):
                     action='DELETE',
                     description=(
                         f'WSCC deleted team "{team_name}" from {ward_name} Ward '
-                        f'(window open). Reason: [{reason_category}] {reason_detail}'
+                        f'(window open) including manager account. Reason: [{reason_category}] {reason_detail}'
                     ),
                     ip_address=get_client_ip(request),
                 )
             except Exception:
                 pass
 
-            messages.success(request, f'Team "{team_name}" deleted successfully.')
+            messages.success(request, f'Team "{team_name}" and manager account deleted successfully.')
             return redirect('wscc_teams_list')
 
         else:
@@ -19216,20 +19226,8 @@ def cso_team_deletion_review_view(request, request_pk):
             del_req.cso_notes = cso_notes
             del_req.save()
 
-            # Delete team + players + longlist
-            # team.registration.discipline is a CharField; resolve CountyDiscipline FK
-            from teams.models import CountyDiscipline, WardLonglist as _WardLonglist
-            cd = CountyDiscipline.objects.filter(
-                level='ward',
-                ward=team.ward,
-                sub_county=team.sub_county,
-                sport_type=team.discipline,
-            ).first()
-            if cd:
-                _WardLonglist.objects.filter(discipline=cd).delete()
-                cd.players.all().delete()
-                cd.delete()
-            team.delete()
+            # Delete team + players + longlist + manager account via helper
+            team_name = _delete_ligi_team_fully(team)
 
             log_msg = (
                 f'[POST-WINDOW] CSO approved deletion of team "{team_name}" '

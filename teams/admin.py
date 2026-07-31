@@ -33,13 +33,13 @@ class TeamAdmin(admin.ModelAdmin):
     actions = ["approve_teams"]
 
     def team_level_badge(self, obj):
-        from django.utils.html import format_html
+        from django.utils.html import format_html, mark_safe
         level = getattr(obj.source_discipline, 'level', None) if obj.source_discipline else None
         if level == 'ward':
-            return format_html('<span style="background:#d1e7dd;color:#0a3622;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:700">Ligi Mashinani</span>')
+            return mark_safe('<span style="background:#d1e7dd;color:#0a3622;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:700">Ligi Mashinani</span>')
         elif level == 'subcounty':
-            return format_html('<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:700">Sub-County Finals</span>')
-        return format_html('<span style="background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:700">MKJ Supa Cup</span>')
+            return mark_safe('<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:700">Sub-County Finals</span>')
+        return mark_safe('<span style="background:#e5e7eb;color:#374151;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:700">MKJ Supa Cup</span>')
     team_level_badge.short_description = "Level"
     team_level_badge.admin_order_field = "source_discipline__level"
 
