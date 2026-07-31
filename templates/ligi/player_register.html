@@ -14,17 +14,37 @@
     {% if role_locked_ward %}<strong style="color:#124491">Scoped to: {{ role_locked_ward|title }} Ward</strong>
     {% elif role_locked_sub_county %}<strong>Scoped to: {{ role_locked_sub_county|title }}</strong>{% endif %}
   </p>
-  <!-- Download buttons — preserves current filters -->
-  <div style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-    <a href="{% url 'ligi_player_register_csv' %}?format=excel&{% if f_ward %}ward={{ f_ward }}&{% endif %}{% if f_sport %}sport_type={{ f_sport }}&{% endif %}{% if f_search %}q={{ f_search }}{% endif %}"
-       style="display:inline-flex;align-items:center;gap:.45rem;padding:.5rem 1.1rem;background:#1d7a3e;color:#fff;border-radius:7px;font-size:.85rem;font-weight:600;text-decoration:none">
-      <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
-    </a>
-    <a href="{% url 'ligi_player_register_csv' %}?format=pdf&{% if f_ward %}ward={{ f_ward }}&{% endif %}{% if f_sport %}sport_type={{ f_sport }}&{% endif %}{% if f_search %}q={{ f_search }}{% endif %}"
-       style="display:inline-flex;align-items:center;gap:.45rem;padding:.5rem 1.1rem;background:#c0392b;color:#fff;border-radius:7px;font-size:.85rem;font-weight:600;text-decoration:none">
-      <i class="bi bi-file-earmark-pdf-fill"></i> Download PDF
-    </a>
-    <span style="font-size:.78rem;color:#9ca3af">Downloads current filtered view</span>
+  <!-- Download panel with sort options -->
+  <div style="margin-top:.75rem;background:#f0f4ff;border:1px solid #b6d4fe;border-radius:10px;padding:.9rem 1.1rem">
+    <div style="font-size:.82rem;font-weight:700;color:#124491;margin-bottom:.6rem"><i class="bi bi-download"></i> Download Player Register</div>
+    <form method="get" action="{% url 'ligi_player_register_csv' %}" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end">
+      <!-- Preserve active filters -->
+      {% if f_ward %}<input type="hidden" name="ward" value="{{ f_ward }}">{% endif %}
+      {% if f_sport %}<input type="hidden" name="sport_type" value="{{ f_sport }}">{% endif %}
+      {% if f_search %}<input type="hidden" name="q" value="{{ f_search }}">{% endif %}
+
+      <!-- Sort -->
+      <div>
+        <label style="display:block;font-size:.75rem;color:#6b7280;margin-bottom:.2rem">Sort by</label>
+        <select name="sort" style="padding:.35rem .7rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff">
+          <option value="name">Name (A–Z)</option>
+          <option value="age">Age</option>
+          <option value="position">Position</option>
+          <option value="discipline">Discipline</option>
+          <option value="eligible">Eligible (18-23) First</option>
+        </select>
+      </div>
+
+      <!-- Format + Download buttons -->
+      <button type="submit" name="format" value="excel"
+        style="padding:.4rem 1rem;background:#1d7a3e;color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem">
+        <i class="bi bi-file-earmark-excel-fill"></i> Excel (.xlsx)
+      </button>
+      <button type="submit" name="format" value="pdf"
+        style="padding:.4rem 1rem;background:#c0392b;color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem">
+        <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+      </button>
+    </form>
   </div>
 </div>
 

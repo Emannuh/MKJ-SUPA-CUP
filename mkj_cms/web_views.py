@@ -17572,6 +17572,8 @@ def ligi_player_register_download_view(request):
     f_ward   = request.GET.get('ward', '').strip()
     f_sport  = request.GET.get('sport_type', '').strip()
     f_search = request.GET.get('q', '').strip()
+    f_sort   = request.GET.get('sort', 'name').strip()  # name | age | position | discipline
+
     if f_ward and not role_locked_ward:
         qs = qs.filter(discipline__ward=f_ward)
     if f_sport:
@@ -17582,6 +17584,36 @@ def ligi_player_register_download_view(request):
             Q(last_name__icontains=f_search) |
             Q(national_id_number__icontains=f_search)
         )
+
+    # Apply sort
+    if f_sort == 'age':
+        from django.db.models import F
+        qs = qs.order_by(F('date_of_birth').asc(nulls_last=True))
+    elif f_sort == 'position':
+        qs = qs.order_by('position', 'last_name', 'first_name')
+    elif f_sort == 'discipline':
+        qs = qs.order_by('discipline__sport_type', 'last_name', 'first_name')
+    elif f_sort == 'eligible':
+        # Eligible (18-23) first, then rest
+        from django.utils import timezone as _tz2
+        _today = _tz2.now().date()
+        qs = sorted(list(qs), key=lambda p: (
+            0 if p.date_of_birth and 18 <= (
+                _today.year - p.date_of_birth.year -
+                ((_today.month, _today.day) < (p.date_of_birth.month, p.date_of_birth.day))
+            ) <= 23 else 1,
+            p.last_name or '', p.first_name or ''
+        ))
+    else:
+        qs = qs.order_by('last_name', 'first_name')
+
+    sort_labels = {
+        'name':       'Sorted by Name',
+        'age':        'Sorted by Age',
+        'position':   'Sorted by Position',
+        'discipline': 'Sorted by Discipline',
+        'eligible':   'Eligible (18-23) First',
+    }
 
     today = _tz.now().date()
 
@@ -17603,6 +17635,7 @@ def ligi_player_register_download_view(request):
 
     ward_label = (role_locked_ward or f_ward or 'All Wards')
     sport_label = f_sport.replace('_', ' ').title() if f_sport else 'All Disciplines'
+    sort_label = sort_labels.get(f_sort, 'Sorted by Name')
     title_line = f'Ligi Mashinani Player Register — {ward_label} Ward · {sport_label}'
     safe_name  = f"ligi_players_{ward_label.replace(' ','_').lower()}_{today}"
 
@@ -17634,56 +17667,107 @@ def ligi_player_register_download_view(request):
     # ── EXCEL ────────────────────────────────────────────────────────────
     if fmt == 'excel':
         import openpyxl
+        import os
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.drawing.image import Image as XLImage
         from django.http import HttpResponse
+        from django.conf import settings as django_settings
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'Players'
 
-        # Title row
-        ws.merge_cells(f'A1:{chr(64+len(headers))}1')
-        title_cell = ws['A1']
-        title_cell.value = title_line
-        title_cell.font = Font(bold=True, size=13, color='FFFFFF')
-        title_cell.fill = PatternFill('solid', fgColor='124491')
-        title_cell.alignment = Alignment(horizontal='center', vertical='center')
-        ws.row_dimensions[1].height = 22
+        # ── Logos ─────────────────────────────────────────────────────────
+        static_base = (
+            django_settings.STATICFILES_DIRS[0]
+            if django_settings.STATICFILES_DIRS
+            else django_settings.STATIC_ROOT
+        )
 
-        # Sub-title
-        ws.merge_cells(f'A2:{chr(64+len(headers))}2')
-        sub = ws['A2']
-        sub.value = f'Generated: {today}  |  Total players: {len(players)}'
-        sub.font = Font(italic=True, size=10)
-        sub.alignment = Alignment(horizontal='center')
-        ws.row_dimensions[2].height = 16
+        def _img_path(*rels):
+            for r in rels:
+                p = os.path.join(static_base, r)
+                if os.path.exists(p):
+                    return p
+            return None
 
-        # Header row
-        hdr_fill = PatternFill('solid', fgColor='1D6FAE')
+        makueni_path = _img_path('img/makueni_logo.png')
+        govt_path    = _img_path('img/gok.png', 'img/GOVT.jpeg')
+        mkj_path     = _img_path('img/mkj_supa_cup_logo.png', 'img/mkj .jpeg')
+
+        ws.row_dimensions[1].height = 55
+        ws.row_dimensions[2].height = 18
+        ws.row_dimensions[3].height = 18
+        ws.row_dimensions[4].height = 18
+        ws.row_dimensions[5].height = 18
+
+        n_cols = len(headers)
+        mid_col = chr(64 + n_cols // 2)
+        last_col = chr(64 + n_cols)
+
+        # Logo left (Makueni)
+        if makueni_path:
+            try:
+                img = XLImage(makueni_path)
+                img.width, img.height = 55, 55
+                ws.add_image(img, 'A1')
+            except Exception:
+                pass
+
+        # Logo right (GoK)
+        if govt_path:
+            try:
+                img2 = XLImage(govt_path)
+                img2.width, img2.height = 55, 55
+                ws.add_image(img2, f'{last_col}1')
+            except Exception:
+                pass
+
+        # Title rows (center, rows 2-5)
+        for row, (text, sz, bold, color) in enumerate([
+            ('COUNTY GOVERNMENT OF MAKUENI', 8, False, '004D1A'),
+            ('GOVERNOR MUTULA KILONZO JUNIOR SUPA CUP', 13, True, '124491'),
+            ('LIGI MASHINANI — WARD PLAYER REGISTER', 12, True, '124491'),
+            (f'{ward_label} Ward  ·  {sport_label}  ·  {len(players)} players  ·  {sort_label}  ·  {today}', 9, False, '555555'),
+        ], start=2):
+            ws.merge_cells(f'A{row}:{last_col}{row}')
+            cell = ws[f'A{row}']
+            cell.value = text
+            cell.font = Font(bold=bold, size=sz, color=color)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        # Gold divider row
+        ws.merge_cells(f'A6:{last_col}6')
+        ws.row_dimensions[6].height = 4
+        for col in range(1, n_cols + 1):
+            c = ws.cell(row=6, column=col)
+            c.fill = PatternFill('solid', fgColor='E8B91E')
+
+        # ── Header row (row 7) ────────────────────────────────────────────
+        hdr_fill = PatternFill('solid', fgColor='124491')
         thin = Side(style='thin', color='CCCCCC')
         border = Border(left=thin, right=thin, top=thin, bottom=thin)
         for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=3, column=col, value=h)
+            cell = ws.cell(row=7, column=col, value=h)
             cell.font = Font(bold=True, color='FFFFFF', size=9)
             cell.fill = hdr_fill
             cell.alignment = Alignment(horizontal='center', wrap_text=True)
             cell.border = border
-        ws.row_dimensions[3].height = 18
+        ws.row_dimensions[7].height = 18
 
-        # Data rows
+        # ── Data rows (from row 8) ────────────────────────────────────────
         age_band_colors = {
-            'Under 18':      'FFF3CD',
+            'Under 18':         'FFF3CD',
             'Eligible (18-23)': 'D1FAE5',
-            'Over 23':       'FEE2E2',
-            'Unknown':       'F3F4F6',
+            'Over 23':          'FEE2E2',
+            'Unknown':          'F3F4F6',
         }
         for i, p in enumerate(players, 1):
             row_data = _row(i, p)
             band = _age_band(p.age_computed)
-            fill_color = age_band_colors.get(band, 'FFFFFF')
-            row_fill = PatternFill('solid', fgColor=fill_color)
+            row_fill = PatternFill('solid', fgColor=age_band_colors.get(band, 'FFFFFF'))
             for col, val in enumerate(row_data, 1):
-                cell = ws.cell(row=i + 3, column=col, value=val)
+                cell = ws.cell(row=i + 7, column=col, value=val)
                 cell.fill = row_fill
                 cell.font = Font(size=9)
                 cell.border = border
@@ -17694,7 +17778,7 @@ def ligi_player_register_download_view(request):
         for col, width in enumerate(col_widths, 1):
             ws.column_dimensions[chr(64 + col)].width = width
 
-        ws.freeze_panes = 'A4'
+        ws.freeze_panes = 'A8'
 
         buf = io.BytesIO()
         wb.save(buf)
@@ -17707,28 +17791,96 @@ def ligi_player_register_download_view(request):
         return response
 
     # ── PDF ──────────────────────────────────────────────────────────────
+    import os
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors as rl_colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import cm, mm
     from django.http import HttpResponse
+    from django.conf import settings as django_settings
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=landscape(A4),
         topMargin=1.2*cm, bottomMargin=1.2*cm,
-        leftMargin=1.2*cm, rightMargin=1.2*cm,
+        leftMargin=1.5*cm, rightMargin=1.5*cm,
     )
     styles = getSampleStyleSheet()
     elements = []
 
-    title_style = ParagraphStyle('title', parent=styles['Heading1'], fontSize=13, spaceAfter=4)
-    sub_style   = ParagraphStyle('sub',   parent=styles['Normal'],   fontSize=9,  spaceAfter=6, textColor=rl_colors.grey)
+    # ── Locate logos ──────────────────────────────────────────────────────
+    static_base = (
+        django_settings.STATICFILES_DIRS[0]
+        if django_settings.STATICFILES_DIRS
+        else django_settings.STATIC_ROOT
+    )
 
-    elements.append(Paragraph(title_line, title_style))
-    elements.append(Paragraph(f'Generated: {today}  |  Total players: {len(players)}', sub_style))
-    elements.append(Spacer(1, 4*mm))
+    def _img_path(*rels):
+        for r in rels:
+            p = os.path.join(static_base, r)
+            if os.path.exists(p):
+                return p
+        return None
+
+    mkj_path     = _img_path('img/mkj_supa_cup_logo.png', 'img/mkj .jpeg')
+    makueni_path = _img_path('img/makueni_logo.png')
+    govt_path    = _img_path('img/gok.png', 'img/GOVT.jpeg', 'img/kenya_flag.png')
+
+    logo_w, logo_h = 20*mm, 20*mm
+    page_w = landscape(A4)[0] - 3*cm
+
+    logo_cells = []
+    for path in (makueni_path, govt_path):
+        try:
+            logo_cells.append(RLImage(path, logo_w, logo_h) if path else Paragraph('', styles['Normal']))
+        except Exception:
+            logo_cells.append(Paragraph('', styles['Normal']))
+
+    logo_table = Table([logo_cells], colWidths=[page_w/2, page_w/2])
+    logo_table.setStyle(TableStyle([
+        ('ALIGN',  (0,0), (0,0), 'LEFT'),
+        ('ALIGN',  (1,0), (1,0), 'RIGHT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING',  (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING',   (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 0),
+    ]))
+    elements.append(logo_table)
+    elements.append(Spacer(1, 2*mm))
+
+    # ── Title block ───────────────────────────────────────────────────────
+    blue = rl_colors.HexColor('#124491')
+    gold = rl_colors.HexColor('#E8B91E')
+
+    gov_style = ParagraphStyle('GovHdr', parent=styles['Normal'],
+        fontSize=7, textColor=rl_colors.HexColor('#004D1A'), alignment=1, spaceAfter=0)
+    title_style = ParagraphStyle('DocTitle', parent=styles['Normal'],
+        fontSize=13, fontName='Helvetica-Bold', textColor=blue, alignment=1, spaceAfter=1*mm)
+    sub_style = ParagraphStyle('DocSub', parent=styles['Normal'],
+        fontSize=9, alignment=1, spaceAfter=0.5*mm)
+    note_style = ParagraphStyle('Note', parent=styles['Normal'],
+        fontSize=8, textColor=rl_colors.grey, alignment=1, spaceAfter=2*mm)
+
+    elements.append(Paragraph('COUNTY GOVERNMENT OF MAKUENI', gov_style))
+    elements.append(Paragraph('GOVERNOR MUTULA KILONZO JUNIOR SUPA CUP', title_style))
+    elements.append(Paragraph('LIGI MASHINANI &mdash; WARD PLAYER REGISTER', title_style))
+    elements.append(Paragraph(
+        f'{ward_label} Ward &bull; {sport_label} &bull; {len(players)} Players &bull; {sort_label}',
+        sub_style,
+    ))
+    elements.append(Paragraph(f'Generated: {today.strftime("%d %B %Y")}', note_style))
+
+    # Gold divider
+    divider = Table([['']], colWidths=[page_w])
+    divider.setStyle(TableStyle([
+        ('LINEABOVE', (0,0), (-1,0), 2, gold),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+    ]))
+    elements.append(divider)
+    elements.append(Spacer(1, 2*mm))
 
     # Table data
     col_headers = ['#', 'First Name', 'Last Name', 'Nat. ID', 'DOB', 'Age', 'Age Band',
@@ -17736,8 +17888,7 @@ def ligi_player_register_download_view(request):
     table_data = [col_headers]
     for i, p in enumerate(players, 1):
         r = _row(i, p)
-        # Remove Phone col for PDF (too wide)
-        r.pop(8)
+        r.pop(8)  # remove Phone col for PDF
         table_data.append([str(v) for v in r])
 
     col_widths_pdf = [0.6*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2*cm, 0.9*cm, 2.4*cm,
@@ -17745,7 +17896,7 @@ def ligi_player_register_download_view(request):
 
     tbl = Table(table_data, colWidths=col_widths_pdf, repeatRows=1)
     tbl.setStyle(TableStyle([
-        ('BACKGROUND',  (0, 0), (-1, 0), rl_colors.HexColor('#124491')),
+        ('BACKGROUND',  (0, 0), (-1, 0), blue),
         ('TEXTCOLOR',   (0, 0), (-1, 0), rl_colors.white),
         ('FONTNAME',    (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE',    (0, 0), (-1, 0), 7.5),
