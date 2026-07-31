@@ -12920,20 +12920,29 @@ def ward_tm_dashboard_view(request):
                 messages.error(request, 'Ward discipline not found.')
                 return redirect('ligi_admin_overview')
         else:
-            # Show admin overview of all ward disciplines
             return redirect('ligi_admin_overview')
     else:
-        # Fetch the ward-level discipline for this user, scoped to their assigned discipline
-        discipline_qs = CountyDiscipline.objects.filter(
-            sub_county=user.sub_county,
-            ward=user.ward,
-            level='ward',
-        ).select_related('registration', 'ward_longlist')
+        # Resolve via LigiMashinaniRegistration FK for proper per-team isolation
+        from teams.models import LigiMashinaniRegistration as _LMR
+        ligi_reg = _LMR.objects.filter(
+            manager_email__iexact=user.email,
+            status='approved',
+        ).select_related('county_discipline__ward_longlist').first()
+
         discipline = None
-        if user.assigned_discipline:
-            discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
-        if not discipline:
-            discipline = discipline_qs.first()
+        if ligi_reg and ligi_reg.county_discipline:
+            discipline = ligi_reg.county_discipline
+        else:
+            # Fallback for legacy teams approved before FK was added
+            discipline_qs = CountyDiscipline.objects.filter(
+                sub_county=user.sub_county,
+                ward=user.ward,
+                level='ward',
+            ).select_related('registration', 'ward_longlist')
+            if user.assigned_discipline:
+                discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
+            if not discipline:
+                discipline = discipline_qs.first()
 
     # Guard: no ward discipline
     if discipline is None:
@@ -13055,7 +13064,26 @@ def _get_ward_tm_context(user, request=None):
             longlist = None
         return discipline, longlist
 
-    return None, None
+    # Fallback for legacy teams approved before the county_discipline FK was added
+    discipline_qs = CountyDiscipline.objects.filter(
+        sub_county=user.sub_county,
+        ward=user.ward,
+        level='ward',
+    ).select_related('registration', 'ward_longlist')
+    if user.assigned_discipline:
+        discipline = discipline_qs.filter(sport_type=user.assigned_discipline).first()
+    else:
+        discipline = discipline_qs.first()
+
+    if discipline is None:
+        return None, None
+
+    try:
+        longlist = discipline.ward_longlist
+    except WardLonglist.DoesNotExist:
+        longlist = None
+
+    return discipline, longlist
 
 
 def _get_tm_player_qs(discipline, user):
