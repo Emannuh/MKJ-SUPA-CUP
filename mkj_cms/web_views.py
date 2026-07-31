@@ -12967,7 +12967,7 @@ def ward_tm_dashboard_view(request):
             'No ward team found for your account. '
             'Please contact the administrator if this is unexpected.',
         )
-        return redirect('dashboard')
+        return redirect('team_manager_dashboard')
 
     # Fetch the linked WardLonglist (created atomically on approval)
     try:
@@ -12975,14 +12975,12 @@ def ward_tm_dashboard_view(request):
     except WardLonglist.DoesNotExist:
         longlist = None
 
-    # Guard: ward discipline exists but no longlist yet → not fully onboarded
+    # Guard: ward discipline exists but no longlist yet — create it automatically
     if longlist is None:
-        messages.warning(
-            request,
-            'Your ward team record is being set up. '
-            'Please contact the administrator if this persists.',
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
         )
-        return redirect('dashboard')
 
     # Count players registered in this ward discipline
     player_count = _get_tm_player_qs(discipline, user).count()
@@ -13153,13 +13151,16 @@ def ward_tm_longlist_view(request):
     user = request.user
     discipline, longlist = _get_ward_tm_context(user, request)
 
-    if discipline is None or longlist is None:
-        messages.warning(
-            request,
-            'No ward team found for your account. '
-            'Please contact the administrator if this is unexpected.',
+    if discipline is None:
+        messages.warning(request, 'No ward team found for your account. Please contact the administrator if this is unexpected.')
+        return redirect('team_manager_dashboard')
+
+    # Longlist may not exist yet for newly approved teams — create automatically
+    if longlist is None:
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
         )
-        return redirect('ward_tm_dashboard')
 
     sort = request.GET.get('sort', 'name').strip()
     qs = _get_tm_player_qs(discipline, user)
@@ -13218,9 +13219,14 @@ def ward_tm_add_player_view(request):
     user = request.user
     discipline, longlist = _get_ward_tm_context(user, request)
 
-    if discipline is None or longlist is None:
+    if discipline is None:
         messages.warning(request, 'No ward team found for your account.')
-        return redirect('ward_tm_dashboard')
+        return redirect('team_manager_dashboard')
+    if longlist is None:
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
+        )
 
     # ── Gate: player registration window must be open ─────────────────────
     from teams.models import LigiSettings
@@ -13297,9 +13303,14 @@ def ward_tm_edit_player_view(request, player_pk):
     user = request.user
     discipline, longlist = _get_ward_tm_context(user, request)
 
-    if discipline is None or longlist is None:
+    if discipline is None:
         messages.warning(request, 'No ward team found for your account.')
-        return redirect('ward_tm_dashboard')
+        return redirect('team_manager_dashboard')
+    if longlist is None:
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
+        )
 
     # Fetch the player; ensure it belongs to this user's discipline
     player = get_object_or_404(CountyPlayer, pk=player_pk, discipline=discipline)
@@ -13359,9 +13370,14 @@ def ward_tm_delete_player_view(request, player_pk):
     user = request.user
     discipline, longlist = _get_ward_tm_context(user, request)
 
-    if discipline is None or longlist is None:
+    if discipline is None:
         messages.warning(request, 'No ward team found for your account.')
-        return redirect('ward_tm_dashboard')
+        return redirect('team_manager_dashboard')
+    if longlist is None:
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
+        )
 
     player = get_object_or_404(CountyPlayer, pk=player_pk, discipline=discipline)
 
@@ -13482,13 +13498,15 @@ def ward_tm_submit_longlist_view(request):
 
     discipline, longlist = _get_ward_tm_context(user, request)
 
-    if discipline is None or longlist is None:
-        messages.warning(
-            request,
-            'No ward team found for your account. '
-            'Please contact the administrator if this is unexpected.',
+    if discipline is None:
+        messages.warning(request, 'No ward team found for your account. Please contact the administrator.')
+        return redirect('team_manager_dashboard')
+    if longlist is None:
+        from teams.models import WardLonglist, WardLonglistStatus
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
         )
-        return redirect('ward_tm_dashboard')
 
     # Only allow submission from draft or returned states
     if longlist.status not in (WardLonglistStatus.DRAFT, WardLonglistStatus.RETURNED):
@@ -13954,9 +13972,15 @@ def ward_tm_fixtures_view(request):
     user = request.user
     discipline, longlist = _get_ward_tm_context(user, request)
 
-    if discipline is None or longlist is None:
-        messages.error(request, 'You do not have a ward discipline linked to your account.')
-        return redirect('ward_tm_dashboard')
+    if discipline is None:
+        messages.warning(request, 'No ward team found for your account. Please contact the administrator.')
+        return redirect('team_manager_dashboard')
+    if longlist is None:
+        from teams.models import WardLonglist, WardLonglistStatus
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
+        )
 
     # Get the team linked to this discipline
     try:
@@ -14025,9 +14049,15 @@ def ward_tm_ward_squad_view(request, fixture_pk):
     user = request.user
 
     discipline, longlist = _get_ward_tm_context(user, request)
-    if discipline is None or longlist is None:
-        messages.error(request, 'No ward team found for your account.')
-        return redirect('ward_tm_dashboard')
+    if discipline is None:
+        messages.warning(request, 'No ward team found for your account. Please contact the administrator.')
+        return redirect('team_manager_dashboard')
+    if longlist is None:
+        from teams.models import WardLonglist, WardLonglistStatus
+        longlist, _ = WardLonglist.objects.get_or_create(
+            discipline=discipline,
+            defaults={'status': WardLonglistStatus.DRAFT},
+        )
 
     fixture = get_object_or_404(Fixture, pk=fixture_pk)
     sport_type   = fixture.competition.sport_type
