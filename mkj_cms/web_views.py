@@ -17681,31 +17681,25 @@ def ligi_player_register_download_view(request):
     safe_name   = f"ligi_players_{ward_label.replace(' ','_').lower()}_{today}"
 
     headers = [
-        '#', 'Team', 'First Name', 'Last Name', 'National ID', 'Date of Birth',
-        'Age', 'Age Band', 'Gender/Discipline', 'Position', 'Phone',
-        'Ward', 'Sub County',
-        'Docs', 'Age Verified', 'Higher League',
+        '#', 'Team', 'Full Name', 'National ID', 'Date of Birth',
+        'Age', 'Age Band', 'Discipline', 'Position', 'Phone',
+        'Doc Status', 'Age Verified',
     ]
 
     def _row(i, p):
-        sport = p.discipline.get_sport_type_display()
         return [
             i,
             p.team_name,
-            p.first_name, p.last_name,
+            f'{p.first_name} {p.last_name}'.strip(),
             p.national_id_number or '',
             p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
             p.age_computed if p.age_computed != '' else 'N/A',
             _age_band(p.age_computed),
-            sport,
+            p.discipline.get_sport_type_display(),
             p.position or '',
             p.phone or '',
-            p.discipline.ward,
-            p.discipline.sub_county,
-            p.discipline.get_sport_type_display(),
-            p.doc_status,
-            p.iprs_age_status,
-            p.higher_league_status,
+            p.doc_status or '',
+            p.iprs_age_status or '',
         ]
 
     # ── EXCEL ────────────────────────────────────────────────────────────
@@ -17745,9 +17739,8 @@ def ligi_player_register_download_view(request):
         ws.row_dimensions[4].height = 18
         ws.row_dimensions[5].height = 18
 
-        n_cols = len(headers)
-        mid_col = chr(64 + n_cols // 2)
-        last_col = chr(64 + n_cols)
+        n_cols = len(headers)  # 12 columns
+        last_col = chr(64 + n_cols)  # L
 
         # Logo left (Makueni)
         if makueni_path:
@@ -17817,8 +17810,8 @@ def ligi_player_register_download_view(request):
                 cell.border = border
                 cell.alignment = Alignment(wrap_text=False)
 
-        # Column widths
-        col_widths = [4, 14, 14, 14, 13, 5, 16, 12, 13, 14, 14, 18, 10, 12, 14]
+        # Column widths — 12 columns
+        col_widths = [4, 20, 22, 16, 13, 5, 16, 18, 12, 14, 12, 14]
         for col, width in enumerate(col_widths, 1):
             ws.column_dimensions[chr(64 + col)].width = width
 
@@ -17926,17 +17919,28 @@ def ligi_player_register_download_view(request):
     elements.append(divider)
     elements.append(Spacer(1, 2*mm))
 
-    # Table data
-    col_headers = ['#', 'First Name', 'Last Name', 'Nat. ID', 'DOB', 'Age', 'Age Band',
-                   'Position', 'Ward', 'Sub County', 'Discipline', 'Docs', 'Age Ver.', 'H.League']
-    table_data = [col_headers]
+    # Table data — reuse _row() which now returns clean 12-column data
+    # For PDF keep all columns (Phone included — fits landscape A4)
+    table_data = [['#', 'Team', 'Full Name', 'National ID', 'DOB', 'Age',
+                   'Age Band', 'Discipline', 'Position', 'Phone', 'Docs', 'Age Ver.']]
     for i, p in enumerate(players, 1):
         r = _row(i, p)
-        r.pop(8)  # remove Phone col for PDF
         table_data.append([str(v) for v in r])
 
-    col_widths_pdf = [0.6*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2*cm, 0.9*cm, 2.4*cm,
-                      1.8*cm, 2*cm, 2.2*cm, 2.4*cm, 1.5*cm, 1.5*cm, 1.5*cm]
+    col_widths_pdf = [
+        0.6*cm,  # #
+        3.0*cm,  # Team
+        3.5*cm,  # Full Name
+        2.5*cm,  # National ID
+        2.0*cm,  # DOB
+        0.9*cm,  # Age
+        2.4*cm,  # Age Band
+        2.8*cm,  # Discipline
+        2.0*cm,  # Position
+        2.2*cm,  # Phone
+        1.5*cm,  # Docs
+        1.8*cm,  # Age Ver.
+    ]
 
     tbl = Table(table_data, colWidths=col_widths_pdf, repeatRows=1)
     tbl.setStyle(TableStyle([
