@@ -17682,7 +17682,7 @@ def ligi_player_register_download_view(request):
 
     headers = [
         '#', 'Team', 'Full Name', 'National ID', 'Date of Birth',
-        'Age', 'Position', 'Phone', 'Doc Status', 'Age Verified',
+        'Age', 'Position', 'Phone', 'Doc Status',
     ]
 
     def _row(i, p):
@@ -17696,7 +17696,6 @@ def ligi_player_register_download_view(request):
             p.position or '',
             p.phone or '',
             p.doc_status or '',
-            p.iprs_age_status or '',
         ]
 
     # ── EXCEL ────────────────────────────────────────────────────────────
@@ -17736,8 +17735,8 @@ def ligi_player_register_download_view(request):
         ws.row_dimensions[4].height = 18
         ws.row_dimensions[5].height = 18
 
-        n_cols = len(headers)  # 10 columns
-        last_col = chr(64 + n_cols)  # J
+        n_cols = len(headers)  # 9 columns
+        last_col = chr(64 + n_cols)  # I
 
         # Logo left (Makueni)
         if makueni_path:
@@ -17807,8 +17806,8 @@ def ligi_player_register_download_view(request):
                 cell.border = border
                 cell.alignment = Alignment(wrap_text=False)
 
-        # Column widths — 10 columns
-        col_widths = [4, 22, 24, 16, 13, 6, 14, 15, 12, 14]
+        # Column widths — 9 columns
+        col_widths = [4, 22, 26, 17, 13, 6, 14, 15, 13]
         for col, width in enumerate(col_widths, 1):
             ws.column_dimensions[chr(64 + col)].width = width
 
@@ -17918,23 +17917,21 @@ def ligi_player_register_download_view(request):
 
     # Table data — reuse _row() which now returns clean 12-column data
     # For PDF keep all columns (Phone included — fits landscape A4)
-    table_data = [['#', 'Team', 'Full Name', 'National ID', 'DOB', 'Age',
-                   'Position', 'Phone', 'Docs', 'Age Ver.']]
+    table_data = [['#', 'Team', 'Full Name', 'National ID', 'DOB', 'Age', 'Position', 'Phone', 'Docs']]
     for i, p in enumerate(players, 1):
         r = _row(i, p)
         table_data.append([str(v) for v in r])
 
     col_widths_pdf = [
         0.6*cm,  # #
-        3.5*cm,  # Team
-        4.0*cm,  # Full Name
-        2.8*cm,  # National ID
-        2.2*cm,  # DOB
+        3.8*cm,  # Team
+        4.5*cm,  # Full Name
+        3.0*cm,  # National ID
+        2.4*cm,  # DOB
         1.0*cm,  # Age
-        2.2*cm,  # Position
-        2.5*cm,  # Phone
-        1.8*cm,  # Docs
-        2.0*cm,  # Age Ver.
+        2.5*cm,  # Position
+        2.8*cm,  # Phone
+        2.0*cm,  # Docs
     ]
 
     tbl = Table(table_data, colWidths=col_widths_pdf, repeatRows=1)
