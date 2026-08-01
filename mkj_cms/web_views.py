@@ -17682,8 +17682,7 @@ def ligi_player_register_download_view(request):
 
     headers = [
         '#', 'Team', 'Full Name', 'National ID', 'Date of Birth',
-        'Age', 'Age Band', 'Discipline', 'Position', 'Phone',
-        'Doc Status', 'Age Verified',
+        'Age', 'Position', 'Phone', 'Doc Status', 'Age Verified',
     ]
 
     def _row(i, p):
@@ -17694,8 +17693,6 @@ def ligi_player_register_download_view(request):
             p.national_id_number or '',
             p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
             p.age_computed if p.age_computed != '' else 'N/A',
-            _age_band(p.age_computed),
-            p.discipline.get_sport_type_display(),
             p.position or '',
             p.phone or '',
             p.doc_status or '',
@@ -17739,8 +17736,8 @@ def ligi_player_register_download_view(request):
         ws.row_dimensions[4].height = 18
         ws.row_dimensions[5].height = 18
 
-        n_cols = len(headers)  # 12 columns
-        last_col = chr(64 + n_cols)  # L
+        n_cols = len(headers)  # 10 columns
+        last_col = chr(64 + n_cols)  # J
 
         # Logo left (Makueni)
         if makueni_path:
@@ -17810,8 +17807,8 @@ def ligi_player_register_download_view(request):
                 cell.border = border
                 cell.alignment = Alignment(wrap_text=False)
 
-        # Column widths — 12 columns
-        col_widths = [4, 20, 22, 16, 13, 5, 16, 18, 12, 14, 12, 14]
+        # Column widths — 10 columns
+        col_widths = [4, 22, 24, 16, 13, 6, 14, 15, 12, 14]
         for col, width in enumerate(col_widths, 1):
             ws.column_dimensions[chr(64 + col)].width = width
 
@@ -17922,24 +17919,22 @@ def ligi_player_register_download_view(request):
     # Table data — reuse _row() which now returns clean 12-column data
     # For PDF keep all columns (Phone included — fits landscape A4)
     table_data = [['#', 'Team', 'Full Name', 'National ID', 'DOB', 'Age',
-                   'Age Band', 'Discipline', 'Position', 'Phone', 'Docs', 'Age Ver.']]
+                   'Position', 'Phone', 'Docs', 'Age Ver.']]
     for i, p in enumerate(players, 1):
         r = _row(i, p)
         table_data.append([str(v) for v in r])
 
     col_widths_pdf = [
         0.6*cm,  # #
-        3.0*cm,  # Team
-        3.5*cm,  # Full Name
-        2.5*cm,  # National ID
-        2.0*cm,  # DOB
-        0.9*cm,  # Age
-        2.4*cm,  # Age Band
-        2.8*cm,  # Discipline
-        2.0*cm,  # Position
-        2.2*cm,  # Phone
-        1.5*cm,  # Docs
-        1.8*cm,  # Age Ver.
+        3.5*cm,  # Team
+        4.0*cm,  # Full Name
+        2.8*cm,  # National ID
+        2.2*cm,  # DOB
+        1.0*cm,  # Age
+        2.2*cm,  # Position
+        2.5*cm,  # Phone
+        1.8*cm,  # Docs
+        2.0*cm,  # Age Ver.
     ]
 
     tbl = Table(table_data, colWidths=col_widths_pdf, repeatRows=1)
