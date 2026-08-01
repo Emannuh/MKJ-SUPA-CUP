@@ -14,34 +14,76 @@
     {% if role_locked_ward %}<strong style="color:#124491">Scoped to: {{ role_locked_ward|title }} Ward</strong>
     {% elif role_locked_sub_county %}<strong>Scoped to: {{ role_locked_sub_county|title }}</strong>{% endif %}
   </p>
-  <!-- Download panel with sort options -->
+  <!-- Download panel with sort + filter options -->
   <div style="margin-top:.75rem;background:#f0f4ff;border:1px solid #b6d4fe;border-radius:10px;padding:.9rem 1.1rem">
     <div style="font-size:.82rem;font-weight:700;color:#124491;margin-bottom:.6rem"><i class="bi bi-download"></i> Download Player Register</div>
     <form method="get" action="{% url 'ligi_player_register_csv' %}" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end">
-      <!-- Preserve active filters -->
-      {% if f_ward %}<input type="hidden" name="ward" value="{{ f_ward }}">{% endif %}
-      {% if f_sport %}<input type="hidden" name="sport_type" value="{{ f_sport }}">{% endif %}
       {% if f_search %}<input type="hidden" name="q" value="{{ f_search }}">{% endif %}
+      {% if role_locked_ward %}<input type="hidden" name="ward" value="{{ role_locked_ward }}">{% endif %}
+
+      <!-- Ward (hidden if WSCC — auto-scoped) -->
+      {% if not role_locked_ward %}
+      <div>
+        <label style="display:block;font-size:.75rem;color:#6b7280;margin-bottom:.2rem">Ward</label>
+        <select name="ward" style="padding:.35rem .6rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff;min-width:130px">
+          <option value="">All Wards</option>
+          {% for w in ward_choices %}<option value="{{ w }}" {% if f_ward == w %}selected{% endif %}>{{ w|title }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <!-- Discipline -->
+      <div>
+        <label style="display:block;font-size:.75rem;color:#6b7280;margin-bottom:.2rem">Discipline</label>
+        <select name="sport_type" style="padding:.35rem .6rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff;min-width:150px">
+          <option value="">All Disciplines</option>
+          {% for val, label in sport_type_choices %}<option value="{{ val }}" {% if f_sport == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <!-- Gender -->
+      <div>
+        <label style="display:block;font-size:.75rem;color:#6b7280;margin-bottom:.2rem">Gender</label>
+        <select name="gender" style="padding:.35rem .6rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff">
+          <option value="">All</option>
+          <option value="men">Men</option>
+          <option value="women">Women</option>
+          <option value="boys">Boys</option>
+          <option value="girls">Girls</option>
+        </select>
+      </div>
+
+      <!-- Age Band -->
+      <div>
+        <label style="display:block;font-size:.75rem;color:#6b7280;margin-bottom:.2rem">Age Band</label>
+        <select name="age_band" style="padding:.35rem .6rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff">
+          <option value="">All Ages</option>
+          <option value="under18">Under 18</option>
+          <option value="eligible">Eligible (18-23)</option>
+          <option value="over23">Over 23</option>
+        </select>
+      </div>
 
       <!-- Sort -->
       <div>
         <label style="display:block;font-size:.75rem;color:#6b7280;margin-bottom:.2rem">Sort by</label>
-        <select name="sort" style="padding:.35rem .7rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff">
+        <select name="sort" style="padding:.35rem .6rem;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;background:#fff">
           <option value="name">Name (A–Z)</option>
+          <option value="team">Team</option>
           <option value="age">Age</option>
           <option value="position">Position</option>
           <option value="discipline">Discipline</option>
-          <option value="eligible">Eligible (18-23) First</option>
+          <option value="eligible">Eligible First</option>
         </select>
       </div>
 
       <!-- Format + Download buttons -->
       <button type="submit" name="format" value="excel"
-        style="padding:.4rem 1rem;background:#1d7a3e;color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem">
-        <i class="bi bi-file-earmark-excel-fill"></i> Excel (.xlsx)
+        style="padding:.4rem 1rem;background:#1d7a3e;color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem">
+        <i class="bi bi-file-earmark-excel-fill"></i> Excel
       </button>
       <button type="submit" name="format" value="pdf"
-        style="padding:.4rem 1rem;background:#c0392b;color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem">
+        style="padding:.4rem 1rem;background:#c0392b;color:#fff;border:none;border-radius:6px;font-size:.83rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem">
         <i class="bi bi-file-earmark-pdf-fill"></i> PDF
       </button>
     </form>

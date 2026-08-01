@@ -13683,6 +13683,11 @@ def ward_longlist_pdf_view(request, discipline_pk):
 
     players = list(players_qs)
 
+    # Get team name from LigiMashinaniRegistration for this discipline
+    from teams.models import LigiMashinaniRegistration as _LMReg
+    ligi_reg = _LMReg.objects.filter(county_discipline=discipline, status='approved').first()
+    team_name = ligi_reg.team_name if ligi_reg else ''
+
     # Age filter
     from django.utils import timezone as _tz
     today = _tz.now().date()
@@ -13782,6 +13787,8 @@ def ward_longlist_pdf_view(request, discipline_pk):
         )))
         elements.append(Paragraph('GOVERNOR MUTULA KILONZO JUNIOR SUPA CUP', title_style))
         elements.append(Paragraph('LIGI MASHINANI - WARD PLAYER LONGLIST', title_style))
+        if team_name:
+            elements.append(Paragraph(f'<b>{team_name}</b>', title_style))
         elements.append(Paragraph(
             f'{discipline.ward} Ward &bull; {discipline.sub_county} Sub-County &bull; {sport_label}',
             sub_style,
@@ -17572,7 +17579,10 @@ def ligi_player_register_download_view(request):
     f_ward   = request.GET.get('ward', '').strip()
     f_sport  = request.GET.get('sport_type', '').strip()
     f_search = request.GET.get('q', '').strip()
-    f_sort   = request.GET.get('sort', 'name').strip()  # name | age | position | discipline
+    f_sort   = request.GET.get('sort', 'name').strip()
+    f_team   = request.GET.get('team', '').strip()     # filter by team name
+    f_gender = request.GET.get('gender', '').strip()   # men / women / boys / girls
+    f_age_band = request.GET.get('age_band', '').strip()  # under18 / eligible / over23
 
     if f_ward and not role_locked_ward:
         qs = qs.filter(discipline__ward=f_ward)
@@ -17584,6 +17594,24 @@ def ligi_player_register_download_view(request):
             Q(last_name__icontains=f_search) |
             Q(national_id_number__icontains=f_search)
         )
+    # Filter by team — match via LigiMashinaniRegistration county_discipline FK
+    if f_team:
+        from teams.models import LigiMashinaniRegistration as _LMRX
+        matching_cds = _LMRX.objects.filter(
+            team_name__icontains=f_team, status='approved'
+        ).values_list('county_discipline_id', flat=True)
+        qs = qs.filter(discipline_id__in=matching_cds)
+    # Filter by gender (derived from sport_type suffix)
+    if f_gender:
+        gender_map = {
+            'men':   ['football_men', 'basketball_men', 'volleyball_men', 'handball_men', 'rugby_men', 'athletics_men'],
+            'women': ['football_women', 'basketball_women', 'volleyball_women', 'handball_women', 'rugby_women', 'athletics_women'],
+            'boys':  ['football_boys', 'basketball_boys'],
+            'girls': ['football_girls', 'basketball_girls'],
+        }
+        sport_types = gender_map.get(f_gender, [])
+        if sport_types:
+            qs = qs.filter(discipline__sport_type__in=sport_types)
 
     # Apply sort
     if f_sort == 'age':
@@ -17593,8 +17621,9 @@ def ligi_player_register_download_view(request):
         qs = qs.order_by('position', 'last_name', 'first_name')
     elif f_sort == 'discipline':
         qs = qs.order_by('discipline__sport_type', 'last_name', 'first_name')
+    elif f_sort == 'team':
+        qs = qs.order_by('discipline__ligi_registration__team_name', 'last_name', 'first_name')
     elif f_sort == 'eligible':
-        # Eligible (18-23) first, then rest
         from django.utils import timezone as _tz2
         _today = _tz2.now().date()
         qs = sorted(list(qs), key=lambda p: (
@@ -17612,6 +17641,7 @@ def ligi_player_register_download_view(request):
         'age':        'Sorted by Age',
         'position':   'Sorted by Position',
         'discipline': 'Sorted by Discipline',
+        'team':       'Sorted by Team',
         'eligible':   'Eligible (18-23) First',
     }
 
@@ -17632,28 +17662,42 @@ def ligi_player_register_download_view(request):
     players = list(qs)
     for p in players:
         p.age_computed = _calc_age(p)
+        # Attach team name via ligi_registration FK on discipline
+        reg = getattr(p.discipline, 'ligi_registration', None)
+        p.team_name = reg.team_name if reg else ''
 
-    ward_label = (role_locked_ward or f_ward or 'All Wards')
+    # Apply age band filter after materialising
+    if f_age_band == 'under18':
+        players = [p for p in players if isinstance(p.age_computed, int) and p.age_computed < 18]
+    elif f_age_band == 'eligible':
+        players = [p for p in players if isinstance(p.age_computed, int) and 18 <= p.age_computed <= 23]
+    elif f_age_band == 'over23':
+        players = [p for p in players if isinstance(p.age_computed, int) and p.age_computed > 23]
+
+    ward_label  = role_locked_ward or f_ward or 'All Wards'
     sport_label = f_sport.replace('_', ' ').title() if f_sport else 'All Disciplines'
-    sort_label = sort_labels.get(f_sort, 'Sorted by Name')
-    title_line = f'Ligi Mashinani Player Register — {ward_label} Ward · {sport_label}'
-    safe_name  = f"ligi_players_{ward_label.replace(' ','_').lower()}_{today}"
+    sort_label  = sort_labels.get(f_sort, 'Sorted by Name')
+    title_line  = f'Ligi Mashinani Player Register — {ward_label} Ward · {sport_label}'
+    safe_name   = f"ligi_players_{ward_label.replace(' ','_').lower()}_{today}"
 
     headers = [
-        '#', 'First Name', 'Last Name', 'National ID', 'Date of Birth',
-        'Age', 'Age Band', 'Position', 'Phone',
-        'Ward', 'Sub County', 'Discipline',
+        '#', 'Team', 'First Name', 'Last Name', 'National ID', 'Date of Birth',
+        'Age', 'Age Band', 'Gender/Discipline', 'Position', 'Phone',
+        'Ward', 'Sub County',
         'Docs', 'Age Verified', 'Higher League',
     ]
 
     def _row(i, p):
+        sport = p.discipline.get_sport_type_display()
         return [
             i,
+            p.team_name,
             p.first_name, p.last_name,
             p.national_id_number or '',
             p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
             p.age_computed if p.age_computed != '' else 'N/A',
             _age_band(p.age_computed),
+            sport,
             p.position or '',
             p.phone or '',
             p.discipline.ward,
