@@ -1637,6 +1637,60 @@ def contact_view(request):
                 sent_at=timezone.now(),
             )
 
+            # ── Acknowledgement email back to the sender ──────────────
+            ack_html = _base_html(
+                'We received your message — MKJ SUPA CUP',
+                f"""
+<p>Dear <strong>{full_name}</strong>,</p>
+<p>Thank you for reaching out to <strong>MKJ SUPA CUP</strong> — Governor Mutula Kilonzo
+Junior Supa Cup, Makueni County.</p>
+<p>We have received your message and a member of our team will get back to you
+as soon as possible, usually within <strong>1–2 business days</strong>.</p>
+
+<div style="background:#f0f4ff;border-left:4px solid #124491;border-radius:4px;
+            padding:1rem 1.25rem;margin:1.5rem 0;font-size:14px;color:#333">
+  <p style="margin:0 0 .5rem;font-weight:700;color:#124491">Your message summary</p>
+  <p style="margin:0 0 .25rem"><strong>Subject:</strong> {subject_label}</p>
+  <p style="margin:0;white-space:pre-wrap;word-break:break-word"><strong>Message:</strong><br>{message}</p>
+</div>
+
+<p>If your enquiry is urgent, you can also reach us at
+<a href="mailto:admin@mkjsupacup.com" style="color:#124491">admin@mkjsupacup.com</a>.</p>
+<p style="margin-top:1.5rem;font-size:13px;color:#888">
+  Please do not reply to this email — it is an automated acknowledgement only.
+  Your original message has been forwarded to the MKJ SUPA CUP team.
+</p>""",
+            )
+            ack_plain = (
+                f"Dear {full_name},\n\n"
+                f"Thank you for contacting MKJ SUPA CUP. We have received your "
+                f"message about \"{subject_label}\" and will respond within 1-2 "
+                f"business days.\n\n"
+                f"If urgent, email us at admin@mkjsupacup.com.\n\n"
+                f"MKJ SUPA CUP Team\nCounty Government of Makueni"
+            )
+            try:
+                ack_msg = EmailMultiAlternatives(
+                    subject='We received your message — MKJ SUPA CUP',
+                    body=ack_plain,
+                    from_email=django_settings.DEFAULT_FROM_EMAIL,
+                    to=[sender_email],
+                )
+                ack_msg.attach_alternative(ack_html, 'text/html')
+                ack_msg.send()
+                EmailLog.objects.create(
+                    direction='OUT',
+                    status='sent',
+                    from_email=django_settings.DEFAULT_FROM_EMAIL,
+                    to_emails=sender_email,
+                    subject='We received your message — MKJ SUPA CUP',
+                    body_text=ack_plain,
+                    body_html=ack_html,
+                    sent_at=timezone.now(),
+                )
+            except Exception:
+                pass  # acknowledgement failure must never block the main success path
+
             contact_sent = True
             messages.success(request, 'Thank you for your message! We will get back to you soon.')
 

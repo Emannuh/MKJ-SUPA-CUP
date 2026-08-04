@@ -109,6 +109,12 @@
                 <a href="{% url 'email_dashboard' %}">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
+                {% if reply_to_addr %}
+                <a href="{% url 'email_compose' %}?to={{ reply_to_addr|urlencode }}&subject={{ reply_subject|urlencode }}"
+                   style="background:rgba(255,255,255,.15)">
+                    <i class="bi bi-reply"></i> Reply
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>

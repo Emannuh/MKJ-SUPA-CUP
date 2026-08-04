@@ -90,8 +90,37 @@ def email_dashboard(request):
 def email_detail(request, email_id):
     """View a single email's full content."""
     email = get_object_or_404(EmailLog, pk=email_id)
+
+    # ── Extract reply-to address ───────────────────────────────────────────
+    # For contact form emails the plain body contains "Email:   sender@example.com"
+    # For other outbound emails we can reply to the To: address directly.
+    import re as _re
+    reply_to_addr = ''
+
+    # Try to extract from plain body (contact form pattern)
+    if email.body_text:
+        m = _re.search(r'Email:\s+([^\s]+@[^\s]+)', email.body_text)
+        if m:
+            reply_to_addr = m.group(1).strip()
+
+    # Fallback: if this is an inbound email, reply to the from address
+    if not reply_to_addr and email.direction == 'IN':
+        reply_to_addr = email.from_email
+
+    # Fallback: if outbound to a single external address (not our own admin), use that
+    if not reply_to_addr and email.to_emails:
+        first_to = email.to_emails.split(',')[0].strip()
+        if 'mkjsupacup.com' not in first_to:
+            reply_to_addr = first_to
+
+    # Build Re: subject
+    subj = email.subject or ''
+    reply_subject = subj if subj.lower().startswith('re:') else f'Re: {subj}'
+
     return render(request, 'admin_dashboard/email_detail.html', {
         'email': email,
+        'reply_to_addr': reply_to_addr,
+        'reply_subject': reply_subject,
     })
 
 
@@ -195,4 +224,11 @@ def email_compose(request):
                 'to': to_raw, 'cc': cc_raw, 'subject': subject, 'body': body,
             })
 
-    return render(request, 'admin_dashboard/email_compose.html')
+    # Pre-fill from query params (used by Reply button on email detail)
+    prefill = {
+        'to':      request.GET.get('to', ''),
+        'subject': request.GET.get('subject', ''),
+        'cc':      request.GET.get('cc', ''),
+        'body':    request.GET.get('body', ''),
+    }
+    return render(request, 'admin_dashboard/email_compose.html', prefill)
