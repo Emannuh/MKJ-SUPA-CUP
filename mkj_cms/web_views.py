@@ -14899,7 +14899,7 @@ def _wscc_write_xl_sheet(
             p.position or '',
             p.jersey_number or '',
             p.registration_code or '',
-            p.doc_status or '',
+            {'not_checked': 'Pending', 'verified': 'Verified ✓', 'rejected': 'Rejected ✗'}.get(p.doc_status, p.doc_status or '—'),
         ]
         for col, val in enumerate(row_vals, 1):
             cell = ws.cell(row=i + data_start - 1, column=col, value=val)
@@ -18393,6 +18393,7 @@ def ligi_player_register_download_view(request):
     ]
 
     def _row(i, p):
+        _doc_labels = {'not_checked': 'Pending', 'verified': 'Verified', 'rejected': 'Rejected'}
         return [
             i,
             p.team_name,
@@ -18402,7 +18403,7 @@ def ligi_player_register_download_view(request):
             p.age_computed if p.age_computed != '' else 'N/A',
             p.position or '',
             p.phone or '',
-            p.doc_status or '',
+            _doc_labels.get(p.doc_status, p.doc_status or '—'),
         ]
 
     # ── EXCEL ────────────────────────────────────────────────────────────
