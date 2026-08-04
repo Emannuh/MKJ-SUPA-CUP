@@ -13927,13 +13927,17 @@ def ward_longlist_pdf_view(request, discipline_pk):
         _page_w, _page_h = A4
 
         def _wm(canv, _doc):
+            # ── Diagonal watermark (centred on page) ──────────────────
             canv.saveState()
-            canv.setFont('Helvetica-Bold', 48)
+            canv.setFont('Helvetica-Bold', 64)
             canv.setFillColor(colors.HexColor('#124491'))
-            canv.setFillAlpha(0.06)
+            canv.setFillAlpha(0.07)
             canv.translate(_page_w / 2, _page_h / 2)
             canv.rotate(40)
-            canv.drawCentredString(0, 0, 'CONFIDENTIAL')
+            canv.drawCentredString(0, 20, 'CONFIDENTIAL')
+            canv.setFont('Helvetica-Bold', 28)
+            canv.setFillAlpha(0.05)
+            canv.drawCentredString(0, -30, 'MKJ SUPA CUP  \u2022  OFFICIAL USE ONLY')
             canv.restoreState()
             strip = 13
             # Bottom strip
@@ -13945,9 +13949,9 @@ def ward_longlist_pdf_view(request, discipline_pk):
             canv.drawCentredString(
                 _page_w / 2, 3.5,
                 (
-                    f'CONFIDENTIAL  |  Doc ID: {_sec["doc_id"]}  |  '
-                    f'Downloaded by: {_sec["generated_by"]}  |  '
-                    f'{_sec["timestamp"]}  |  {_sec["site"]}  |  '
+                    f'CONFIDENTIAL  \u2022  Doc ID: {_sec["doc_id"]}  \u2022  '
+                    f'Downloaded by: {_sec["generated_by"]}  \u2022  '
+                    f'{_sec["timestamp"]}  \u2022  {_sec["site"]}  \u2022  '
                     f'Page {canv.getPageNumber()}'
                 ),
             )
@@ -13960,8 +13964,8 @@ def ward_longlist_pdf_view(request, discipline_pk):
             canv.setFillColor(colors.white)
             canv.drawCentredString(
                 _page_w / 2, _page_h - strip + 3.5,
-                'COUNTY GOVERNMENT OF MAKUENI  |  MKJ SUPA CUP  |  '
-                'LIGI MASHINANI  |  Authorised Personnel Only',
+                'COUNTY GOVERNMENT OF MAKUENI  \u2022  MKJ SUPA CUP  \u2022  '
+                'LIGI MASHINANI  \u2022  Authorised Personnel Only',
             )
             canv.restoreState()
 
@@ -15097,53 +15101,49 @@ def wscc_ward_players_export_view(request):
         security = _wscc_security_stamp(user, today)
 
         def _draw_watermark(canv, doc):
-            """Draw diagonal CONFIDENTIAL watermark + security footer on every page."""
-            canv.saveState()
-            pw, ph = page  # landscape A4 dimensions
+            """Draw diagonal CONFIDENTIAL watermark + security strips on every page."""
+            pw, ph = page  # landscape A4: pw≈841pt, ph≈595pt
 
-            # ── Diagonal CONFIDENTIAL text ─────────────────────────────
-            canv.setFont('Helvetica-Bold', 54)
+            # ── Diagonal watermark text (centred on page) ──────────────
+            canv.saveState()
+            canv.setFont('Helvetica-Bold', 72)
             canv.setFillColor(rl_colors.HexColor('#124491'))
-            canv.setFillAlpha(0.06)
+            canv.setFillAlpha(0.07)
+            # Move origin to page centre, rotate, draw, restore
             canv.translate(pw / 2, ph / 2)
-            canv.rotate(35)
-            canv.drawCentredString(0, 0, 'CONFIDENTIAL')
-            canv.rotate(-35)
-            # Second pass, offset slightly for a shadow effect
-            canv.setFillAlpha(0.04)
-            canv.rotate(35)
-            canv.drawCentredString(0, 25, 'MKJ SUPA CUP')
+            canv.rotate(32)
+            canv.drawCentredString(0, 30, 'CONFIDENTIAL')
+            canv.setFont('Helvetica-Bold', 32)
+            canv.setFillAlpha(0.05)
+            canv.drawCentredString(0, -40, 'MKJ SUPA CUP  \u2022  OFFICIAL USE ONLY')
             canv.restoreState()
 
-            # ── Security footer strip ──────────────────────────────────
+            # ── Bottom security strip ──────────────────────────────────
             canv.saveState()
-            strip_h = 14
+            strip = 15
             canv.setFillColor(rl_colors.HexColor('#1E3A5F'))
-            canv.setFillAlpha(1)
-            canv.rect(0, 0, pw, strip_h, fill=1, stroke=0)
+            canv.rect(0, 0, pw, strip, fill=1, stroke=0)
             canv.setFont('Helvetica', 6.5)
             canv.setFillColor(rl_colors.white)
-            footer_txt = (
-                f'\U0001F512  CONFIDENTIAL  \u2022  Official Use Only  \u2022  '
-                f'Doc ID: {security["doc_id"]}  \u2022  '
+            canv.drawCentredString(
+                pw / 2, 4.5,
+                f'CONFIDENTIAL  \u2022  Doc ID: {security["doc_id"]}  \u2022  '
                 f'Downloaded by: {security["generated_by"]} ({security["role"]})  \u2022  '
                 f'{security["timestamp"]}  \u2022  {security["site"]}  \u2022  '
-                f'Page {canv.getPageNumber()}'
+                f'Page {canv.getPageNumber()}',
             )
-            canv.drawCentredString(pw / 2, 4, footer_txt)
             canv.restoreState()
 
             # ── Top security strip ─────────────────────────────────────
             canv.saveState()
             canv.setFillColor(rl_colors.HexColor('#1E3A5F'))
-            canv.setFillAlpha(1)
-            canv.rect(0, ph - strip_h, pw, strip_h, fill=1, stroke=0)
+            canv.rect(0, ph - strip, pw, strip, fill=1, stroke=0)
             canv.setFont('Helvetica-Bold', 6.5)
             canv.setFillColor(rl_colors.white)
             canv.drawCentredString(
-                pw / 2, ph - strip_h + 4,
-                f'COUNTY GOVERNMENT OF MAKUENI  \u2022  MKJ SUPA CUP  \u2022  '
-                f'LIGI MASHINANI  \u2022  Authorised Personnel Only',
+                pw / 2, ph - strip + 4.5,
+                'COUNTY GOVERNMENT OF MAKUENI  \u2022  MKJ SUPA CUP  \u2022  '
+                'LIGI MASHINANI  \u2022  Authorised Personnel Only',
             )
             canv.restoreState()
 
