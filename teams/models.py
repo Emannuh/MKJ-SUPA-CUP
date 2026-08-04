@@ -285,7 +285,7 @@ class CountyPlayer(models.Model):
         max_length=100, blank=True, default="",
         help_text="Ward within the sub-county",
     )
-    position = models.CharField(max_length=10, blank=True, default="",
+    position = models.CharField(max_length=30, blank=True, default="",
                                 help_text="Player position (where applicable)")
     jersey_number = models.PositiveIntegerField(null=True, blank=True,
                                                 help_text="Jersey number")

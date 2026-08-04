@@ -495,6 +495,109 @@ class CountyPlayerForm(forms.ModelForm):
 #  WARD LONGLIST - Add / Edit Player Form (Ligi Mashinani)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
+# ── Per-sport position choices ─────────────────────────────────────────────
+POSITION_CHOICES = {
+    # Football / Soccer
+    'football': [
+        ('', '— Select Position —'),
+        ('GK',  'Goalkeeper (GK)'),
+        ('RB',  'Right Back (RB)'),
+        ('CB',  'Centre Back (CB)'),
+        ('LB',  'Left Back (LB)'),
+        ('SW',  'Sweeper (SW)'),
+        ('RM',  'Right Midfielder (RM)'),
+        ('CM',  'Central Midfielder (CM)'),
+        ('LM',  'Left Midfielder (LM)'),
+        ('CAM', 'Attacking Midfielder (CAM)'),
+        ('CDM', 'Defensive Midfielder (CDM)'),
+        ('RW',  'Right Winger (RW)'),
+        ('LW',  'Left Winger (LW)'),
+        ('CF',  'Centre Forward (CF)'),
+        ('ST',  'Striker (ST)'),
+    ],
+    # Volleyball
+    'volleyball': [
+        ('', '— Select Position —'),
+        ('S',   'Setter (S)'),
+        ('OH',  'Outside Hitter (OH)'),
+        ('MB',  'Middle Blocker (MB)'),
+        ('OPP', 'Opposite Hitter (OPP)'),
+        ('L',   'Libero (L)'),
+        ('DS',  'Defensive Specialist (DS)'),
+    ],
+    # Basketball 5x5
+    'basketball': [
+        ('', '— Select Position —'),
+        ('PG', 'Point Guard (PG)'),
+        ('SG', 'Shooting Guard (SG)'),
+        ('SF', 'Small Forward (SF)'),
+        ('PF', 'Power Forward (PF)'),
+        ('C',  'Centre (C)'),
+    ],
+    # Basketball 3x3 (same positions, smaller squad)
+    'basketball_3x3': [
+        ('', '— Select Position —'),
+        ('PG', 'Point Guard (PG)'),
+        ('SG', 'Shooting Guard (SG)'),
+        ('SF', 'Small Forward (SF)'),
+        ('C',  'Centre (C)'),
+    ],
+    # Handball
+    'handball': [
+        ('', '— Select Position —'),
+        ('GK',  'Goalkeeper (GK)'),
+        ('LW',  'Left Wing (LW)'),
+        ('LB',  'Left Back (LB)'),
+        ('CB',  'Centre Back (CB)'),
+        ('PV',  'Pivot (PV)'),
+        ('RB',  'Right Back (RB)'),
+        ('RW',  'Right Wing (RW)'),
+    ],
+    # Beach Volleyball
+    'beach_volleyball': [
+        ('', '— Select Position —'),
+        ('BH', 'Blocker (BH)'),
+        ('DF', 'Defender (DF)'),
+    ],
+    # Beach Handball
+    'beach_handball': [
+        ('', '— Select Position —'),
+        ('GK', 'Goalkeeper (GK)'),
+        ('F',  'Field Player (F)'),
+        ('SP', 'Specialist Player (SP)'),
+    ],
+    # Generic fallback
+    'generic': [
+        ('', '— Select Position —'),
+        ('GK', 'Goalkeeper (GK)'),
+        ('DF', 'Defender (DF)'),
+        ('MF', 'Midfielder (MF)'),
+        ('FW', 'Forward (FW)'),
+    ],
+}
+
+
+def _position_choices_for_sport(sport_type: str) -> list:
+    """Return position choices list for a given sport_type value."""
+    st = sport_type or ''
+    if 'football' in st:
+        return POSITION_CHOICES['football']
+    if '3x3' in st:
+        return POSITION_CHOICES['basketball_3x3']
+    if 'basketball' in st:
+        return POSITION_CHOICES['basketball']
+    if 'beach_volleyball' in st:
+        return POSITION_CHOICES['beach_volleyball']
+    if 'volleyball' in st:
+        return POSITION_CHOICES['volleyball']
+    if 'beach_handball' in st:
+        return POSITION_CHOICES['beach_handball']
+    if 'handball' in st:
+        return POSITION_CHOICES['handball']
+    return POSITION_CHOICES['generic']
+
+
 class WardLonglistPlayerForm(forms.ModelForm):
     """
     Form used by Ward Team Managers to add or edit a player in their ward longlist.
@@ -505,10 +608,11 @@ class WardLonglistPlayerForm(forms.ModelForm):
     - photo (passport photo) is required
     - At least one identity document (id_document or birth_certificate) is required
     - phone is optional at ward level (not all ward players have phones)
+    - position is a mandatory dropdown whose choices are sport-specific
     - sub_county and ward are NOT shown  -  they are set automatically from the discipline
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, sport_type=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Phone is optional at ward level
         self.fields['phone'].required = False
@@ -521,6 +625,18 @@ class WardLonglistPlayerForm(forms.ModelForm):
         self.fields['id_document'].required = False
         # birth_certificate is optional on its own
         self.fields['birth_certificate'].required = False
+
+        # ── Position: mandatory sport-specific dropdown ────────────────────
+        choices = _position_choices_for_sport(
+            sport_type or (self.instance.discipline.sport_type if self.instance and self.instance.pk else '')
+        )
+        self.fields['position'] = forms.ChoiceField(
+            choices=choices,
+            required=True,
+            label='Position *',
+            widget=forms.Select(attrs={'class': 'form-control form-select'}),
+            error_messages={'required': 'Please select a position.'},
+        )
 
     class Meta:
         model = CountyPlayer
@@ -559,8 +675,8 @@ class WardLonglistPlayerForm(forms.ModelForm):
                 'maxlength': '9',
                 'inputmode': 'numeric',
             }),
-            'position': forms.TextInput(attrs={
-                'class': 'form-control', 'placeholder': 'e.g. GK, CB, CM, ST (optional)',
+            'position': forms.Select(attrs={
+                'class': 'form-control form-select',
             }),
             'photo': forms.FileInput(attrs={
                 'class': 'form-control', 'accept': 'image/*',
@@ -579,11 +695,17 @@ class WardLonglistPlayerForm(forms.ModelForm):
             'national_id_number': 'National ID Number *',
             'huduma_number': 'Huduma Namba (optional)',
             'phone': 'Phone Number',
-            'position': 'Position (optional)',
+            'position': 'Position *',
             'photo': 'Passport Photo *',
             'id_document': 'Copy of National ID',
             'birth_certificate': 'Copy of Birth Certificate',
         }
+
+    def clean_position(self):
+        pos = self.cleaned_data.get('position', '').strip()
+        if not pos:
+            raise ValidationError('Please select a position.')
+        return pos
 
     def clean_national_id_number(self):
         nid = self.cleaned_data.get('national_id_number', '').strip()

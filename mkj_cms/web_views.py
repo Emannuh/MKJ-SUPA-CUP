@@ -13223,7 +13223,7 @@ def ward_tm_add_player_view(request):
         return redirect('ward_tm_venues')
 
     if request.method == 'POST':
-        form = WardLonglistPlayerForm(request.POST, request.FILES)
+        form = WardLonglistPlayerForm(request.POST, request.FILES, sport_type=discipline.sport_type)
 
         # ── Validate file sizes before hitting Cloudinary (max 10 MB) ────
         MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -13269,9 +13269,9 @@ def ward_tm_add_player_view(request):
             if action == 'finish':
                 return redirect('ward_tm_longlist')
             # Stay on form for another player
-            form = WardLonglistPlayerForm()
+            form = WardLonglistPlayerForm(sport_type=discipline.sport_type)
     else:
-        form = WardLonglistPlayerForm()
+        form = WardLonglistPlayerForm(sport_type=discipline.sport_type)
 
     context = {
         'form': form,
@@ -13309,7 +13309,7 @@ def ward_tm_edit_player_view(request, player_pk):
     player = get_object_or_404(CountyPlayer, pk=player_pk, discipline=discipline)
 
     if request.method == 'POST':
-        form = WardLonglistPlayerForm(request.POST, request.FILES, instance=player)
+        form = WardLonglistPlayerForm(request.POST, request.FILES, instance=player, sport_type=discipline.sport_type)
         if form.is_valid():
             updated_player = form.save(commit=False)
             # Recalculate age from updated DOB (Req 3.3)
@@ -13328,7 +13328,7 @@ def ward_tm_edit_player_view(request, player_pk):
             )
             return redirect('ward_tm_longlist')
     else:
-        form = WardLonglistPlayerForm(instance=player)
+        form = WardLonglistPlayerForm(instance=player, sport_type=discipline.sport_type)
 
     context = {
         'form': form,
@@ -13922,7 +13922,50 @@ def ward_longlist_pdf_view(request, discipline_pk):
                            textColor=colors.HexColor('#124491'), alignment=1),
         ))
 
-        doc.build(elements)
+        # ── Watermark + security strips on every page ──────────────────────
+        _sec    = _wscc_security_stamp(user, today)
+        _page_w, _page_h = A4
+
+        def _wm(canv, _doc):
+            canv.saveState()
+            canv.setFont('Helvetica-Bold', 48)
+            canv.setFillColor(colors.HexColor('#124491'))
+            canv.setFillAlpha(0.06)
+            canv.translate(_page_w / 2, _page_h / 2)
+            canv.rotate(40)
+            canv.drawCentredString(0, 0, 'CONFIDENTIAL')
+            canv.restoreState()
+            strip = 13
+            # Bottom strip
+            canv.saveState()
+            canv.setFillColor(colors.HexColor('#1E3A5F'))
+            canv.rect(0, 0, _page_w, strip, fill=1, stroke=0)
+            canv.setFont('Helvetica', 6)
+            canv.setFillColor(colors.white)
+            canv.drawCentredString(
+                _page_w / 2, 3.5,
+                (
+                    f'CONFIDENTIAL  |  Doc ID: {_sec["doc_id"]}  |  '
+                    f'Downloaded by: {_sec["generated_by"]}  |  '
+                    f'{_sec["timestamp"]}  |  {_sec["site"]}  |  '
+                    f'Page {canv.getPageNumber()}'
+                ),
+            )
+            canv.restoreState()
+            # Top strip
+            canv.saveState()
+            canv.setFillColor(colors.HexColor('#1E3A5F'))
+            canv.rect(0, _page_h - strip, _page_w, strip, fill=1, stroke=0)
+            canv.setFont('Helvetica-Bold', 6)
+            canv.setFillColor(colors.white)
+            canv.drawCentredString(
+                _page_w / 2, _page_h - strip + 3.5,
+                'COUNTY GOVERNMENT OF MAKUENI  |  MKJ SUPA CUP  |  '
+                'LIGI MASHINANI  |  Authorised Personnel Only',
+            )
+            canv.restoreState()
+
+        doc.build(elements, onFirstPage=_wm, onLaterPages=_wm)
         buffer.seek(0)
 
         sort_tag  = f'_{sort}' if sort != 'name' else ''
@@ -14587,41 +14630,95 @@ def wscc_longlists_view(request):
     return render(request, 'ligi/wscc/longlists.html', context)
 
 
+def _wscc_security_stamp(user, today):
+    """Return a dict of security metadata embedded in every exported document."""
+    import uuid
+    return {
+        'doc_id':    str(uuid.uuid4()).upper()[:13],          # e.g. A3F1-9B2C-44E
+        'generated_by': (
+            user.get_full_name().strip() or user.email
+        ),
+        'role':      user.get_role_display() if hasattr(user, 'get_role_display') else user.role,
+        'ward':      getattr(user, 'ward', '') or '',
+        'sub_county': getattr(user, 'sub_county', '') or '',
+        'timestamp': today.strftime('%d %B %Y'),
+        'site':      'mkjsupacup.com',
+    }
+
+
 def _wscc_write_xl_sheet(
     ws, players, HDR_COLS, COL_W, N_COLS, LAST_COL,
     hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
     makueni_img, govt_img,
     ward, sub_county, sheet_title, mode, today,
     sport_choices, _age_band, _gender,
+    security=None,
 ):
     """Write one Excel worksheet of ward players (shared by single-sheet and per-discipline modes)."""
     import openpyxl
-    from openpyxl.styles import Font, Alignment
+    from openpyxl.styles import Font, Alignment, PatternFill
     from openpyxl.drawing.image import Image as XLImage
 
-    # ── Logo row (row 1) ──────────────────────────────────────────────────
-    ws.row_dimensions[1].height = 55
+    # ── Security header / footer via Excel print header metadata ─────────
+    if security:
+        stamp = (
+            f'CONFIDENTIAL — MKJ SUPA CUP  |  '
+            f'Doc ID: {security["doc_id"]}  |  '
+            f'Downloaded by: {security["generated_by"]}  |  '
+            f'{security["timestamp"]}  |  {security["site"]}'
+        )
+        ws.oddHeader.center.text  = '&8&I' + stamp
+        ws.oddFooter.center.text  = (
+            '&8OFFICIAL USE ONLY — Unauthorised reproduction or distribution is prohibited  '
+            f'|  Doc ID: {security["doc_id"]}  |  Page &P of &N'
+        )
+        ws.evenHeader.center.text = ws.oddHeader.center.text
+        ws.evenFooter.center.text = ws.oddFooter.center.text
+
+    # ── Security banner row (row 1) ───────────────────────────────────────
+    if security:
+        ws.merge_cells(f'A1:{LAST_COL}1')
+        banner_cell = ws['A1']
+        banner_cell.value = (
+            f'\U0001F512  CONFIDENTIAL  —  Official Use Only  |  '
+            f'Doc ID: {security["doc_id"]}  |  '
+            f'Downloaded by: {security["generated_by"]} ({security["role"]})  |  '
+            f'{security["timestamp"]}  |  {security["site"]}'
+        )
+        banner_cell.font      = Font(bold=True, size=8, color='FFFFFF')
+        banner_cell.fill      = PatternFill('solid', fgColor='1E3A5F')
+        banner_cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=False)
+        ws.row_dimensions[1].height = 16
+        logo_row = 2
+        title_start = 3
+    else:
+        logo_row    = 1
+        title_start = 2
+
+    # ── Logo row ──────────────────────────────────────────────────────────
+    ws.row_dimensions[logo_row].height = 55
     if makueni_img:
         try:
             img = XLImage(makueni_img); img.width = img.height = 55
-            ws.add_image(img, 'A1')
+            ws.add_image(img, f'A{logo_row}')
         except Exception:
             pass
     if govt_img:
         try:
             img2 = XLImage(govt_img); img2.width = img2.height = 55
-            ws.add_image(img2, f'{LAST_COL}1')
+            ws.add_image(img2, f'{LAST_COL}{logo_row}')
         except Exception:
             pass
 
-    # ── Title rows (2-5) ──────────────────────────────────────────────────
+    # ── Title rows ────────────────────────────────────────────────────────
     titles = [
         ('COUNTY GOVERNMENT OF MAKUENI', 7, False, '004D1A', 15),
         ('GOVERNOR MUTULA KILONZO JUNIOR SUPA CUP', 13, True, BLUE, 18),
         ('LIGI MASHINANI — WARD PLAYER LIST', 11, True, BLUE, 18),
         (f'{ward} Ward · {sub_county} Sub-County · {sheet_title} · {today}', 8, False, '555555', 14),
     ]
-    for row_num, (text, sz, bold, color, ht) in enumerate(titles, start=2):
+    for offset, (text, sz, bold, color, ht) in enumerate(titles):
+        row_num = title_start + offset
         ws.merge_cells(f'A{row_num}:{LAST_COL}{row_num}')
         cell = ws[f'A{row_num}']
         cell.value = text
@@ -14629,22 +14726,26 @@ def _wscc_write_xl_sheet(
         cell.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[row_num].height = ht
 
-    # ── Gold divider (row 6) ──────────────────────────────────────────────
-    ws.merge_cells(f'A6:{LAST_COL}6')
-    ws.row_dimensions[6].height = 4
-    for col in range(1, N_COLS + 1):
-        ws.cell(row=6, column=col).fill = gold_fill
+    gold_row = title_start + len(titles)
+    hdr_row  = gold_row + 1
+    data_start = hdr_row + 1
 
-    # ── Header row (row 7) ────────────────────────────────────────────────
+    # ── Gold divider ──────────────────────────────────────────────────────
+    ws.merge_cells(f'A{gold_row}:{LAST_COL}{gold_row}')
+    ws.row_dimensions[gold_row].height = 4
+    for col in range(1, N_COLS + 1):
+        ws.cell(row=gold_row, column=col).fill = gold_fill
+
+    # ── Header row ────────────────────────────────────────────────────────
     for col, h in enumerate(HDR_COLS, 1):
-        cell = ws.cell(row=7, column=col, value=h)
+        cell = ws.cell(row=hdr_row, column=col, value=h)
         cell.font = Font(bold=True, color=WHITE, size=9)
         cell.fill = hdr_fill
         cell.alignment = Alignment(horizontal='center', wrap_text=True)
         cell.border = bdr
-    ws.row_dimensions[7].height = 18
+    ws.row_dimensions[hdr_row].height = 18
 
-    # ── Data rows (from row 8) ────────────────────────────────────────────
+    # ── Data rows ─────────────────────────────────────────────────────────
     for i, p in enumerate(players, 1):
         age_val = p._age
         band    = _age_band(age_val)
@@ -14666,7 +14767,7 @@ def _wscc_write_xl_sheet(
             p.doc_status or '',
         ]
         for col, val in enumerate(row_vals, 1):
-            cell = ws.cell(row=i + 7, column=col, value=val)
+            cell = ws.cell(row=i + data_start - 1, column=col, value=val)
             if fill:
                 cell.fill = fill
             cell.font = Font(size=9)
@@ -14677,7 +14778,7 @@ def _wscc_write_xl_sheet(
     for col, width in enumerate(COL_W, 1):
         ws.column_dimensions[chr(64 + col)].width = width
 
-    ws.freeze_panes = 'A8'
+    ws.freeze_panes = f'A{data_start}'
 
 
 @role_required('ward_sports_council_chair', 'admin')
@@ -14799,38 +14900,35 @@ def wscc_ward_players_export_view(request):
         COL_W    = [4, 22, 20, 8, 26, 17, 13, 6, 14, 14, 14, 10, 14, 12]
         N_COLS   = len(HDR_COLS)
         LAST_COL = chr(64 + N_COLS)  # N
+        security = _wscc_security_stamp(user, today)
+
+        def _call_sheet(ws, grp, sheet_lbl):
+            _wscc_write_xl_sheet(
+                ws, grp, HDR_COLS, COL_W, N_COLS, LAST_COL,
+                hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
+                makueni_img, govt_img,
+                ward, sub_county, sheet_lbl, mode, today,
+                sport_choices, _age_band, _gender,
+                security=security,
+            )
 
         if mode == 'discipline':
-            # One worksheet per discipline
             wb = openpyxl.Workbook()
-            wb.remove(wb.active)  # remove default blank sheet
+            wb.remove(wb.active)
             from itertools import groupby
-            from operator import attrgetter
             groups = groupby(players, key=lambda p: p.discipline.sport_type)
             for sport_type, grp in groups:
                 grp = list(grp)
                 sheet_title = sport_choices.get(sport_type, sport_type)[:31]
                 ws = wb.create_sheet(title=sheet_title)
-                _wscc_write_xl_sheet(
-                    ws, grp, HDR_COLS, COL_W, N_COLS, LAST_COL,
-                    hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
-                    makueni_img, govt_img,
-                    ward, sub_county, sheet_title, mode, today,
-                    sport_choices, _age_band, _gender,
-                )
+                _call_sheet(ws, grp, sheet_title)
         else:
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = 'Players'
             sport_label = sport_choices.get(discipline_filter, 'All Disciplines') if discipline_filter else 'All Disciplines'
             mode_label2 = 'All Players' if mode == 'all' else 'Age-Eligible (18-23)'
-            _wscc_write_xl_sheet(
-                ws, players, HDR_COLS, COL_W, N_COLS, LAST_COL,
-                hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
-                makueni_img, govt_img,
-                ward, sub_county, f'{sport_label} – {mode_label2}', mode, today,
-                sport_choices, _age_band, _gender,
-            )
+            _call_sheet(ws, players, f'{sport_label} – {mode_label2}')
 
         buf = io.BytesIO()
         wb.save(buf)
@@ -14992,7 +15090,64 @@ def wscc_ward_players_export_view(request):
             elements.append(_player_table(players, sport_choices, _age_band, _gender))
             elements.append(_summary(players))
 
-        doc.build(elements)
+        # ── Build with per-page watermark callback ─────────────────────
+        from reportlab.pdfgen import canvas as rl_canvas
+        import math
+
+        security = _wscc_security_stamp(user, today)
+
+        def _draw_watermark(canv, doc):
+            """Draw diagonal CONFIDENTIAL watermark + security footer on every page."""
+            canv.saveState()
+            pw, ph = page  # landscape A4 dimensions
+
+            # ── Diagonal CONFIDENTIAL text ─────────────────────────────
+            canv.setFont('Helvetica-Bold', 54)
+            canv.setFillColor(rl_colors.HexColor('#124491'))
+            canv.setFillAlpha(0.06)
+            canv.translate(pw / 2, ph / 2)
+            canv.rotate(35)
+            canv.drawCentredString(0, 0, 'CONFIDENTIAL')
+            canv.rotate(-35)
+            # Second pass, offset slightly for a shadow effect
+            canv.setFillAlpha(0.04)
+            canv.rotate(35)
+            canv.drawCentredString(0, 25, 'MKJ SUPA CUP')
+            canv.restoreState()
+
+            # ── Security footer strip ──────────────────────────────────
+            canv.saveState()
+            strip_h = 14
+            canv.setFillColor(rl_colors.HexColor('#1E3A5F'))
+            canv.setFillAlpha(1)
+            canv.rect(0, 0, pw, strip_h, fill=1, stroke=0)
+            canv.setFont('Helvetica', 6.5)
+            canv.setFillColor(rl_colors.white)
+            footer_txt = (
+                f'\U0001F512  CONFIDENTIAL  \u2022  Official Use Only  \u2022  '
+                f'Doc ID: {security["doc_id"]}  \u2022  '
+                f'Downloaded by: {security["generated_by"]} ({security["role"]})  \u2022  '
+                f'{security["timestamp"]}  \u2022  {security["site"]}  \u2022  '
+                f'Page {canv.getPageNumber()}'
+            )
+            canv.drawCentredString(pw / 2, 4, footer_txt)
+            canv.restoreState()
+
+            # ── Top security strip ─────────────────────────────────────
+            canv.saveState()
+            canv.setFillColor(rl_colors.HexColor('#1E3A5F'))
+            canv.setFillAlpha(1)
+            canv.rect(0, ph - strip_h, pw, strip_h, fill=1, stroke=0)
+            canv.setFont('Helvetica-Bold', 6.5)
+            canv.setFillColor(rl_colors.white)
+            canv.drawCentredString(
+                pw / 2, ph - strip_h + 4,
+                f'COUNTY GOVERNMENT OF MAKUENI  \u2022  MKJ SUPA CUP  \u2022  '
+                f'LIGI MASHINANI  \u2022  Authorised Personnel Only',
+            )
+            canv.restoreState()
+
+        doc.build(elements, onFirstPage=_draw_watermark, onLaterPages=_draw_watermark)
         buf.seek(0)
         resp = HttpResponse(buf, content_type='application/pdf')
         resp['Content-Disposition'] = f'attachment; filename="{base_name}.pdf"'

@@ -87,9 +87,12 @@
         </div>
 
         <div style="margin-bottom:1rem">
-            <label for="{{ form.position.id_for_label }}" style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem">{{ form.position.label }}</label>
+            <label for="{{ form.position.id_for_label }}" style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem">
+                {{ form.position.label }} <span style="color:#dc3545">*</span>
+            </label>
             {{ form.position }}
             {% if form.position.errors %}<p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ form.position.errors.0 }}</p>{% endif %}
+            <p style="font-size:.75rem;color:#888;margin:.3rem 0 0">Select the player's playing position for this discipline.</p>
         </div>
 
         <hr style="margin:1.25rem 0;border:none;border-top:1px solid #dee2e6">

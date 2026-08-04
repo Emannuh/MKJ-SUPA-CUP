@@ -30,7 +30,7 @@
 
   <!-- Required fields notice -->
   <div style="background:#f0f4ff;border-left:4px solid #124491;border-radius:4px;padding:.75rem 1rem;margin-bottom:1.5rem;font-size:.85rem;color:#333">
-    <strong>Required for every player:</strong> Full name, National ID, Date of Birth,
+    <strong>Required for every player:</strong> Full name, National ID, Date of Birth, Position,
     <strong style="color:#dc3545">Passport-size photo</strong>, and at least one identity document (National ID copy or Birth Certificate).
   </div>
 
@@ -111,9 +111,12 @@
     </div>
 
     <div style="margin-bottom:1.25rem">
-      <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem">{{ form.position.label }}</label>
+      <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem">
+        {{ form.position.label }} <span style="color:#dc3545">*</span>
+      </label>
       {{ form.position }}
       {% if form.position.errors %}<p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ form.position.errors.0 }}</p>{% endif %}
+      <p style="font-size:.75rem;color:#888;margin:.3rem 0 0">Select the player's playing position for this discipline.</p>
     </div>
 
     <!-- ── IDENTITY DOCUMENTS ───────────────────────────────────── -->
