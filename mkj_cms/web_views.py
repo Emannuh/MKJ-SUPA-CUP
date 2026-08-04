@@ -14587,23 +14587,115 @@ def wscc_longlists_view(request):
     return render(request, 'ligi/wscc/longlists.html', context)
 
 
+def _wscc_write_xl_sheet(
+    ws, players, HDR_COLS, COL_W, N_COLS, LAST_COL,
+    hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
+    makueni_img, govt_img,
+    ward, sub_county, sheet_title, mode, today,
+    sport_choices, _age_band, _gender,
+):
+    """Write one Excel worksheet of ward players (shared by single-sheet and per-discipline modes)."""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment
+    from openpyxl.drawing.image import Image as XLImage
+
+    # ── Logo row (row 1) ──────────────────────────────────────────────────
+    ws.row_dimensions[1].height = 55
+    if makueni_img:
+        try:
+            img = XLImage(makueni_img); img.width = img.height = 55
+            ws.add_image(img, 'A1')
+        except Exception:
+            pass
+    if govt_img:
+        try:
+            img2 = XLImage(govt_img); img2.width = img2.height = 55
+            ws.add_image(img2, f'{LAST_COL}1')
+        except Exception:
+            pass
+
+    # ── Title rows (2-5) ──────────────────────────────────────────────────
+    titles = [
+        ('COUNTY GOVERNMENT OF MAKUENI', 7, False, '004D1A', 15),
+        ('GOVERNOR MUTULA KILONZO JUNIOR SUPA CUP', 13, True, BLUE, 18),
+        ('LIGI MASHINANI — WARD PLAYER LIST', 11, True, BLUE, 18),
+        (f'{ward} Ward · {sub_county} Sub-County · {sheet_title} · {today}', 8, False, '555555', 14),
+    ]
+    for row_num, (text, sz, bold, color, ht) in enumerate(titles, start=2):
+        ws.merge_cells(f'A{row_num}:{LAST_COL}{row_num}')
+        cell = ws[f'A{row_num}']
+        cell.value = text
+        cell.font = Font(bold=bold, size=sz, color=color)
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[row_num].height = ht
+
+    # ── Gold divider (row 6) ──────────────────────────────────────────────
+    ws.merge_cells(f'A6:{LAST_COL}6')
+    ws.row_dimensions[6].height = 4
+    for col in range(1, N_COLS + 1):
+        ws.cell(row=6, column=col).fill = gold_fill
+
+    # ── Header row (row 7) ────────────────────────────────────────────────
+    for col, h in enumerate(HDR_COLS, 1):
+        cell = ws.cell(row=7, column=col, value=h)
+        cell.font = Font(bold=True, color=WHITE, size=9)
+        cell.fill = hdr_fill
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+        cell.border = bdr
+    ws.row_dimensions[7].height = 18
+
+    # ── Data rows (from row 8) ────────────────────────────────────────────
+    for i, p in enumerate(players, 1):
+        age_val = p._age
+        band    = _age_band(age_val)
+        fill    = band_fills.get(band)
+        sport_t = p.discipline.sport_type
+        row_vals = [
+            i, p._team or '—',
+            sport_choices.get(sport_t, sport_t),
+            _gender(sport_t),
+            f'{p.first_name} {p.last_name}'.strip(),
+            p.national_id_number or '',
+            p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
+            age_val if age_val is not None else '',
+            'Yes' if band == 'Eligible (18-23)' else 'No',
+            p.phone or '',
+            p.position or '',
+            p.jersey_number or '',
+            p.registration_code or '',
+            p.doc_status or '',
+        ]
+        for col, val in enumerate(row_vals, 1):
+            cell = ws.cell(row=i + 7, column=col, value=val)
+            if fill:
+                cell.fill = fill
+            cell.font = Font(size=9)
+            cell.border = bdr
+            cell.alignment = Alignment(wrap_text=False)
+
+    # ── Column widths ─────────────────────────────────────────────────────
+    for col, width in enumerate(COL_W, 1):
+        ws.column_dimensions[chr(64 + col)].width = width
+
+    ws.freeze_panes = 'A8'
+
+
 @role_required('ward_sports_council_chair', 'admin')
 def wscc_ward_players_export_view(request):
-    """Export all players in the WSCC's ward as a CSV file.
+    """Export all players in the WSCC's ward as Excel (.xlsx) or PDF.
 
-    Supports three download modes via GET ?mode=:
-      - all          : every player across every discipline in the ward
-      - eligible     : players aged 18-23 only (age-eligible band)
-      - discipline   : one sheet per discipline/gender (uses ?discipline= filter)
-
-    Additional filter: ?discipline=<sport_type> to narrow to a single discipline.
+    GET params:
+      format     : excel (default) | pdf
+      mode       : all (default) | eligible (18-23 only) | discipline (per-discipline sheets/sections)
+      discipline : optional sport_type slug to narrow to a single discipline
 
     URL: /ligi/wscc/ward-players/export/
     """
-    import csv
+    import io, os
     from django.utils import timezone as tz
-    from teams.models import CountyPlayer, CountyDiscipline
+    from teams.models import CountyPlayer
     from competitions.models import SportType
+    from django.conf import settings as django_settings
 
     user = request.user
     ward       = user.ward       if not user.is_superuser else request.GET.get('ward', '')
@@ -14613,120 +14705,306 @@ def wscc_ward_players_export_view(request):
         messages.error(request, 'Your account is not assigned to a ward / sub-county.')
         return redirect('wscc_longlists')
 
-    mode             = request.GET.get('mode', 'all').strip()          # all | eligible | discipline
+    fmt               = request.GET.get('format', 'excel').lower()   # excel | pdf
+    mode              = request.GET.get('mode', 'all').strip()        # all | eligible | discipline
     discipline_filter = request.GET.get('discipline', '').strip()
+    today             = tz.now().date()
+    sport_choices     = dict(SportType.choices)
 
-    today = tz.now().date()
-
-    # ── Build base queryset ────────────────────────────────────────────────
-    players_qs = CountyPlayer.objects.filter(
-        discipline__ward=ward,
-        discipline__sub_county=sub_county,
-        discipline__level='ward',
-    ).select_related('discipline', 'discipline__ligi_registration').order_by(
-        'discipline__sport_type', 'last_name', 'first_name'
-    )
-
-    if discipline_filter:
-        players_qs = players_qs.filter(discipline__sport_type=discipline_filter)
-
-    # ── Age eligibility helper ─────────────────────────────────────────────
-    def calc_age(dob):
+    # ── Shared helpers ─────────────────────────────────────────────────────
+    def _calc_age(dob):
         if not dob:
             return None
         return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
-    # ── Eligible filter ────────────────────────────────────────────────────
-    if mode == 'eligible':
-        # We have to filter in Python since age isn't stored
-        eligible_ids = []
-        for p in players_qs:
-            age = calc_age(p.date_of_birth)
-            if age is not None and 18 <= age <= 23:
-                eligible_ids.append(p.pk)
-        players_qs = players_qs.filter(pk__in=eligible_ids)
-
-    # ── Gender label helper ────────────────────────────────────────────────
-    sport_choices = dict(SportType.choices)
-
-    def gender_label(sport_type):
+    def _gender(sport_type):
         if sport_type.endswith('_women'):
             return 'Women'
-        if sport_type.endswith('_men') or sport_type.endswith('_3x3_men'):
+        if '_men' in sport_type:
             return 'Men'
         return 'Mixed'
 
-    # ── Filename ───────────────────────────────────────────────────────────
-    ward_slug   = ward.lower().replace(' ', '_')
-    mode_label  = {'all': 'all_players', 'eligible': '18_23_eligible', 'discipline': 'by_discipline'}.get(mode, mode)
+    def _age_band(age):
+        if age is None:
+            return 'Unknown'
+        if age < 18:
+            return 'Under 18'
+        if age <= 23:
+            return 'Eligible (18-23)'
+        return 'Over 23'
+
+    # ── Build queryset ─────────────────────────────────────────────────────
+    qs = CountyPlayer.objects.filter(
+        discipline__ward=ward,
+        discipline__sub_county=sub_county,
+        discipline__level='ward',
+    ).select_related('discipline', 'discipline__ligi_registration').order_by(
+        'discipline__sport_type', 'last_name', 'first_name',
+    )
     if discipline_filter:
-        disc_slug = discipline_filter.lower()
-        filename  = f"{ward_slug}_{disc_slug}_{mode_label}.csv"
-    else:
-        filename  = f"{ward_slug}_{mode_label}.csv"
+        qs = qs.filter(discipline__sport_type=discipline_filter)
 
-    # ── Stream CSV response ────────────────────────────────────────────────
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    # Materialise + annotate
+    players = list(qs)
+    for p in players:
+        p._age     = _calc_age(p.date_of_birth)
+        reg        = getattr(p.discipline, 'ligi_registration', None)
+        p._team    = reg.team_name if reg else ''
+    if mode == 'eligible':
+        players = [p for p in players if p._age is not None and 18 <= p._age <= 23]
 
-    # UTF-8 BOM so Excel opens it correctly
-    response.write('\ufeff')
+    # ── Filename base ──────────────────────────────────────────────────────
+    ward_slug  = ward.lower().replace(' ', '_')
+    mode_tag   = {'all': 'all_players', 'eligible': '18_23_eligible', 'discipline': 'by_discipline'}.get(mode, mode)
+    disc_tag   = f'_{discipline_filter}' if discipline_filter else ''
+    base_name  = f"LigiMashinani_{ward_slug}{disc_tag}_{mode_tag}_{today}"
 
-    writer = csv.writer(response)
+    # ── Logo paths ─────────────────────────────────────────────────────────
+    static_base = (
+        django_settings.STATICFILES_DIRS[0]
+        if getattr(django_settings, 'STATICFILES_DIRS', None)
+        else getattr(django_settings, 'STATIC_ROOT', '')
+    )
+    def _img(path):
+        full = os.path.join(static_base, path)
+        return full if os.path.exists(full) else None
+    makueni_img = _img('img/makueni_logo.png')
+    govt_img    = _img('img/gok.png') or _img('img/GOVT.jpeg')
 
-    # Header
-    writer.writerow([
-        '#', 'Team Name', 'Ward', 'Sub County',
-        'Discipline', 'Gender',
-        'First Name', 'Last Name',
-        'Date of Birth', 'Age', 'Age Eligible (18-23)',
-        'National ID', 'Phone',
-        'Position', 'Jersey No.',
-        'Registration Code',
-        'Verification Status',
-    ])
+    # ══════════════════════════════════════════════════════════════════════
+    #  EXCEL
+    # ══════════════════════════════════════════════════════════════════════
+    if fmt == 'excel':
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.drawing.image import Image as XLImage
 
-    current_discipline = None
-    counter = 0
-    for p in players_qs:
-        sport_type = p.discipline.sport_type
-        # Blank separator row between disciplines when mode='discipline'
-        if mode == 'discipline' and sport_type != current_discipline:
-            if current_discipline is not None:
-                writer.writerow([])  # blank separator
-            section_label = sport_choices.get(sport_type, sport_type)
-            writer.writerow([f'--- {section_label} ---'])
-            current_discipline = sport_type
-            counter = 0
+        BLUE  = '124491'
+        GOLD  = 'E8B91E'
+        WHITE = 'FFFFFF'
+        thin  = Side(style='thin', color='CCCCCC')
+        bdr   = Border(left=thin, right=thin, top=thin, bottom=thin)
+        hdr_fill  = PatternFill('solid', fgColor=BLUE)
+        gold_fill = PatternFill('solid', fgColor=GOLD)
+        band_fills = {
+            'Eligible (18-23)': PatternFill('solid', fgColor='D1FAE5'),
+            'Under 18':         PatternFill('solid', fgColor='FFF3CD'),
+            'Over 23':          PatternFill('solid', fgColor='FEE2E2'),
+            'Unknown':          PatternFill('solid', fgColor='F3F4F6'),
+        }
 
-        age = calc_age(p.date_of_birth)
-        eligible = 'Yes' if (age is not None and 18 <= age <= 23) else 'No'
-        team_name = ''
-        if hasattr(p.discipline, 'ligi_registration') and p.discipline.ligi_registration:
-            team_name = p.discipline.ligi_registration.team_name
+        HDR_COLS = ['#', 'Team', 'Discipline', 'Gender', 'Full Name',
+                    'National ID', 'Date of Birth', 'Age', 'Eligible (18-23)',
+                    'Phone', 'Position', 'Jersey No.', 'Reg. Code', 'Doc Status']
+        COL_W    = [4, 22, 20, 8, 26, 17, 13, 6, 14, 14, 14, 10, 14, 12]
+        N_COLS   = len(HDR_COLS)
+        LAST_COL = chr(64 + N_COLS)  # N
 
-        counter += 1
-        writer.writerow([
-            counter,
-            team_name,
-            p.discipline.ward or p.ward,
-            p.discipline.sub_county or p.sub_county,
-            sport_choices.get(sport_type, sport_type),
-            gender_label(sport_type),
-            p.first_name,
-            p.last_name,
-            p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
-            age if age is not None else '',
-            eligible,
-            p.national_id_number,
-            p.phone,
-            p.get_position_display() if hasattr(p, 'get_position_display') else (p.position or ''),
-            p.jersey_number or '',
-            p.registration_code,
-            p.get_verification_status_display() if hasattr(p, 'get_verification_status_display') else p.verification_status,
-        ])
+        if mode == 'discipline':
+            # One worksheet per discipline
+            wb = openpyxl.Workbook()
+            wb.remove(wb.active)  # remove default blank sheet
+            from itertools import groupby
+            from operator import attrgetter
+            groups = groupby(players, key=lambda p: p.discipline.sport_type)
+            for sport_type, grp in groups:
+                grp = list(grp)
+                sheet_title = sport_choices.get(sport_type, sport_type)[:31]
+                ws = wb.create_sheet(title=sheet_title)
+                _wscc_write_xl_sheet(
+                    ws, grp, HDR_COLS, COL_W, N_COLS, LAST_COL,
+                    hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
+                    makueni_img, govt_img,
+                    ward, sub_county, sheet_title, mode, today,
+                    sport_choices, _age_band, _gender,
+                )
+        else:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = 'Players'
+            sport_label = sport_choices.get(discipline_filter, 'All Disciplines') if discipline_filter else 'All Disciplines'
+            mode_label2 = 'All Players' if mode == 'all' else 'Age-Eligible (18-23)'
+            _wscc_write_xl_sheet(
+                ws, players, HDR_COLS, COL_W, N_COLS, LAST_COL,
+                hdr_fill, gold_fill, bdr, band_fills, WHITE, BLUE,
+                makueni_img, govt_img,
+                ward, sub_county, f'{sport_label} – {mode_label2}', mode, today,
+                sport_choices, _age_band, _gender,
+            )
 
-    return response
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        resp = HttpResponse(
+            buf.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = f'attachment; filename="{base_name}.xlsx"'
+        return resp
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  PDF
+    # ══════════════════════════════════════════════════════════════════════
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors as rl_colors
+        from reportlab.platypus import (
+            SimpleDocTemplate, Table, TableStyle,
+            Paragraph, Spacer, Image as RLImage, PageBreak,
+        )
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm, mm
+
+        BLUE_RL = rl_colors.HexColor('#124491')
+        GOLD_RL = rl_colors.HexColor('#E8B91E')
+        ALT_RL  = rl_colors.HexColor('#F0F4FF')
+        band_colors_rl = {
+            'Eligible (18-23)': rl_colors.HexColor('#D1FAE5'),
+            'Under 18':         rl_colors.HexColor('#FFF3CD'),
+            'Over 23':          rl_colors.HexColor('#FEE2E2'),
+            'Unknown':          rl_colors.HexColor('#F3F4F6'),
+        }
+
+        buf  = io.BytesIO()
+        page = landscape(A4)
+        doc  = SimpleDocTemplate(
+            buf, pagesize=page,
+            topMargin=1.2*cm, bottomMargin=1.5*cm,
+            leftMargin=1.5*cm, rightMargin=1.5*cm,
+        )
+        styles = getSampleStyleSheet()
+        page_w = page[0] - 3*cm  # usable width
+
+        def _header_elements(title_str):
+            elems = []
+            logo_w, logo_h = 20*mm, 20*mm
+            left  = RLImage(makueni_img, logo_w, logo_h) if makueni_img else Paragraph('', styles['Normal'])
+            right = RLImage(govt_img,    logo_w, logo_h) if govt_img    else Paragraph('', styles['Normal'])
+            lt = Table([[left, right]], colWidths=[page_w/2, page_w/2])
+            lt.setStyle(TableStyle([
+                ('ALIGN',  (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('LEFTPADDING',  (0,0), (-1,-1), 0),
+                ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                ('TOPPADDING',   (0,0), (-1,-1), 0),
+                ('BOTTOMPADDING',(0,0), (-1,-1), 0),
+            ]))
+            elems.append(lt)
+            elems.append(Spacer(1, 3*mm))
+            elems.append(Paragraph('COUNTY GOVERNMENT OF MAKUENI', ParagraphStyle(
+                'GH', parent=styles['Normal'], fontSize=7,
+                textColor=rl_colors.HexColor('#004D1A'), alignment=1)))
+            elems.append(Paragraph('GOVERNOR MUTULA KILONZO JUNIOR SUPA CUP', ParagraphStyle(
+                'T1', parent=styles['Normal'], fontSize=13, fontName='Helvetica-Bold',
+                textColor=BLUE_RL, alignment=1, spaceAfter=1*mm)))
+            elems.append(Paragraph('LIGI MASHINANI — WARD PLAYER LIST', ParagraphStyle(
+                'T2', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold',
+                textColor=BLUE_RL, alignment=1, spaceAfter=1*mm)))
+            elems.append(Paragraph(
+                f'{ward} Ward &bull; {sub_county} Sub-County &bull; {title_str}  '
+                f'&bull; Generated: {today.strftime("%d %B %Y")}',
+                ParagraphStyle('Sub', parent=styles['Normal'], fontSize=8,
+                               textColor=rl_colors.HexColor('#555555'), alignment=1, spaceAfter=3*mm),
+            ))
+            divider = Table([['']], colWidths=[page_w])
+            divider.setStyle(TableStyle([
+                ('LINEABOVE',     (0,0), (-1,0), 2, GOLD_RL),
+                ('TOPPADDING',    (0,0), (-1,-1), 0),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ]))
+            elems.append(divider)
+            elems.append(Spacer(1, 2*mm))
+            return elems
+
+        def _player_table(grp, sport_choices, _age_band, _gender):
+            name_s = ParagraphStyle('PN', parent=styles['Normal'], fontSize=7.5,
+                                    fontName='Helvetica-Bold', leading=9)
+            cell_s = ParagraphStyle('PC', parent=styles['Normal'], fontSize=7, leading=8.5)
+            hdrs   = ['#', 'Team', 'Discipline', 'Gender', 'Full Name',
+                      'National ID', 'DOB', 'Age', 'Eligible', 'Phone', 'Position']
+            c_ws   = [0.6*cm, 3.2*cm, 3.0*cm, 1.4*cm, 4.2*cm,
+                      2.8*cm, 2.2*cm, 1.0*cm, 1.3*cm, 2.8*cm, 2.0*cm]
+            tdata  = [hdrs]
+            tstyle = [
+                ('BACKGROUND',    (0,0), (-1,0), BLUE_RL),
+                ('TEXTCOLOR',     (0,0), (-1,0), rl_colors.white),
+                ('FONTNAME',      (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE',      (0,0), (-1,0), 7.5),
+                ('ALIGN',         (0,0), (-1,0), 'CENTER'),
+                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+                ('GRID',          (0,0), (-1,-1), 0.4, rl_colors.HexColor('#CCCCCC')),
+                ('LEFTPADDING',   (0,0), (-1,-1), 3),
+                ('RIGHTPADDING',  (0,0), (-1,-1), 3),
+                ('TOPPADDING',    (0,0), (-1,-1), 2),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ]
+            for idx, p in enumerate(grp, 1):
+                age_val  = p._age
+                band     = _age_band(age_val)
+                row_bg   = band_colors_rl.get(band, rl_colors.white)
+                sport_t  = p.discipline.sport_type
+                tdata.append([
+                    str(idx),
+                    Paragraph(p._team or '—', cell_s),
+                    Paragraph(sport_choices.get(sport_t, sport_t), cell_s),
+                    _gender(sport_t),
+                    Paragraph(f'{p.last_name.upper()} {p.first_name}', name_s),
+                    Paragraph(p.national_id_number or '—', cell_s),
+                    p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '—',
+                    str(age_val) if age_val is not None else '—',
+                    'Yes' if band == 'Eligible (18-23)' else 'No',
+                    p.phone or '—',
+                    p.position or '—',
+                ])
+                tstyle.append(('BACKGROUND', (0, idx), (-1, idx), row_bg))
+
+            t = Table(tdata, colWidths=c_ws, repeatRows=1)
+            t.setStyle(TableStyle(tstyle))
+            return t
+
+        def _summary(grp):
+            total    = len(grp)
+            eligible = sum(1 for p in grp if p._age is not None and 18 <= p._age <= 23)
+            return Paragraph(
+                f'Total: <b>{total}</b> &nbsp;&nbsp; Eligible (18-23): <b>{eligible}</b>',
+                ParagraphStyle('Sum', parent=styles['Normal'], fontSize=8,
+                               textColor=rl_colors.grey, spaceAfter=4*mm),
+            )
+
+        elements = []
+        if mode == 'discipline':
+            from itertools import groupby
+            groups = groupby(players, key=lambda p: p.discipline.sport_type)
+            first  = True
+            for sport_type, grp in groups:
+                grp = list(grp)
+                if not first:
+                    elements.append(PageBreak())
+                first = False
+                title_str = sport_choices.get(sport_type, sport_type)
+                elements += _header_elements(title_str)
+                elements.append(_player_table(grp, sport_choices, _age_band, _gender))
+                elements.append(_summary(grp))
+        else:
+            sport_label = sport_choices.get(discipline_filter, 'All Disciplines') if discipline_filter else 'All Disciplines'
+            mode_label2 = 'All Players' if mode == 'all' else 'Age-Eligible (18-23)'
+            elements += _header_elements(f'{sport_label} – {mode_label2}')
+            elements.append(_player_table(players, sport_choices, _age_band, _gender))
+            elements.append(_summary(players))
+
+        doc.build(elements)
+        buf.seek(0)
+        resp = HttpResponse(buf, content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="{base_name}.pdf"'
+        return resp
+
+    except ImportError:
+        messages.error(request, 'PDF generation requires reportlab. Please use Excel format.')
+        return redirect('wscc_longlists')
+    except Exception as exc:
+        logger.exception('WSCC ward players PDF error: %s', exc)
+        messages.error(request, f'PDF generation failed: {exc}')
+        return redirect('wscc_longlists')
 
 
 @role_required('ward_sports_council_chair', 'admin')

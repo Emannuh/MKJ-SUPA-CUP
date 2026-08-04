@@ -50,20 +50,31 @@
         <span style="font-size:.75rem;color:#9ca3af;margin-left:.25rem">{{ ward|title }} Ward</span>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:.6rem">
-        <!-- All players -->
-        <a href="{% url 'wscc_ward_players_export' %}?mode=all"
-           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#124491;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
-            <i class="bi bi-file-earmark-spreadsheet"></i> All Players
+        <!-- Excel downloads -->
+        <a href="{% url 'wscc_ward_players_export' %}?format=excel&mode=all"
+           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#1d6f42;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
+            <i class="bi bi-file-earmark-excel"></i> Excel – All Players
         </a>
-        <!-- 18-23 eligible only -->
-        <a href="{% url 'wscc_ward_players_export' %}?mode=eligible"
+        <a href="{% url 'wscc_ward_players_export' %}?format=excel&mode=eligible"
            style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#065f46;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
-            <i class="bi bi-person-check"></i> Age-Eligible (18–23)
+            <i class="bi bi-file-earmark-excel"></i> Excel – Age-Eligible (18–23)
         </a>
-        <!-- Per discipline (grouped) -->
-        <a href="{% url 'wscc_ward_players_export' %}?mode=discipline"
-           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#6d28d9;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
-            <i class="bi bi-grid-3x2-gap"></i> By Discipline / Gender
+        <a href="{% url 'wscc_ward_players_export' %}?format=excel&mode=discipline"
+           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#166534;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
+            <i class="bi bi-file-earmark-excel"></i> Excel – By Discipline
+        </a>
+        <!-- PDF downloads -->
+        <a href="{% url 'wscc_ward_players_export' %}?format=pdf&mode=all"
+           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#991b1b;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
+            <i class="bi bi-file-earmark-pdf"></i> PDF – All Players
+        </a>
+        <a href="{% url 'wscc_ward_players_export' %}?format=pdf&mode=eligible"
+           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#7f1d1d;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
+            <i class="bi bi-file-earmark-pdf"></i> PDF – Age-Eligible (18–23)
+        </a>
+        <a href="{% url 'wscc_ward_players_export' %}?format=pdf&mode=discipline"
+           style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#b91c1c;color:#fff;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none">
+            <i class="bi bi-file-earmark-pdf"></i> PDF – By Discipline
         </a>
     </div>
     <!-- Per-discipline quick links -->
@@ -72,11 +83,16 @@
         <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px">Single discipline:</span>
         <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem">
             {% for ll in longlists %}
-            <a href="{% url 'wscc_ward_players_export' %}?mode=all&discipline={{ ll.discipline.sport_type }}"
-               style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .7rem;background:#f0f4ff;color:#124491;border:1px solid #c7d7f7;border-radius:6px;font-size:.75rem;font-weight:600;text-decoration:none;white-space:nowrap">
-                <i class="bi bi-download" style="font-size:.68rem"></i>
-                {% if ll.discipline.ligi_registration %}{{ ll.discipline.ligi_registration.team_name }}{% else %}{{ ll.discipline.get_sport_type_display }}{% endif %}
+            {% with label=ll.discipline.ligi_registration.team_name|default:ll.discipline.get_sport_type_display sport=ll.discipline.sport_type %}
+            <a href="{% url 'wscc_ward_players_export' %}?format=excel&mode=all&discipline={{ sport }}"
+               style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .7rem;background:#f0fff4;color:#1d6f42;border:1px solid #86efac;border-radius:6px;font-size:.74rem;font-weight:600;text-decoration:none;white-space:nowrap">
+                <i class="bi bi-file-earmark-excel" style="font-size:.68rem"></i> {{ label }}
             </a>
+            <a href="{% url 'wscc_ward_players_export' %}?format=pdf&mode=all&discipline={{ sport }}"
+               style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .7rem;background:#fff5f5;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;font-size:.74rem;font-weight:600;text-decoration:none;white-space:nowrap">
+                <i class="bi bi-file-earmark-pdf" style="font-size:.68rem"></i> {{ label }}
+            </a>
+            {% endwith %}
             {% endfor %}
         </div>
     </div>
