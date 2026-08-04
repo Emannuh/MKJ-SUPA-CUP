@@ -14434,6 +14434,7 @@ def _wscc_longlist_queryset(user):
     """
     qs = WardLonglist.objects.select_related(
         'discipline__registration',
+        'discipline__ligi_registration',
         'reviewed_by',
     ).prefetch_related(
         'discipline__players',
@@ -14584,6 +14585,148 @@ def wscc_longlists_view(request):
  'ward': user.ward if not user.is_superuser else 'All',
     }
     return render(request, 'ligi/wscc/longlists.html', context)
+
+
+@role_required('ward_sports_council_chair', 'admin')
+def wscc_ward_players_export_view(request):
+    """Export all players in the WSCC's ward as a CSV file.
+
+    Supports three download modes via GET ?mode=:
+      - all          : every player across every discipline in the ward
+      - eligible     : players aged 18-23 only (age-eligible band)
+      - discipline   : one sheet per discipline/gender (uses ?discipline= filter)
+
+    Additional filter: ?discipline=<sport_type> to narrow to a single discipline.
+
+    URL: /ligi/wscc/ward-players/export/
+    """
+    import csv
+    from django.utils import timezone as tz
+    from teams.models import CountyPlayer, CountyDiscipline
+    from competitions.models import SportType
+
+    user = request.user
+    ward       = user.ward       if not user.is_superuser else request.GET.get('ward', '')
+    sub_county = user.sub_county if not user.is_superuser else request.GET.get('sub_county', '')
+
+    if not ward or not sub_county:
+        messages.error(request, 'Your account is not assigned to a ward / sub-county.')
+        return redirect('wscc_longlists')
+
+    mode             = request.GET.get('mode', 'all').strip()          # all | eligible | discipline
+    discipline_filter = request.GET.get('discipline', '').strip()
+
+    today = tz.now().date()
+
+    # ── Build base queryset ────────────────────────────────────────────────
+    players_qs = CountyPlayer.objects.filter(
+        discipline__ward=ward,
+        discipline__sub_county=sub_county,
+        discipline__level='ward',
+    ).select_related('discipline', 'discipline__ligi_registration').order_by(
+        'discipline__sport_type', 'last_name', 'first_name'
+    )
+
+    if discipline_filter:
+        players_qs = players_qs.filter(discipline__sport_type=discipline_filter)
+
+    # ── Age eligibility helper ─────────────────────────────────────────────
+    def calc_age(dob):
+        if not dob:
+            return None
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    # ── Eligible filter ────────────────────────────────────────────────────
+    if mode == 'eligible':
+        # We have to filter in Python since age isn't stored
+        eligible_ids = []
+        for p in players_qs:
+            age = calc_age(p.date_of_birth)
+            if age is not None and 18 <= age <= 23:
+                eligible_ids.append(p.pk)
+        players_qs = players_qs.filter(pk__in=eligible_ids)
+
+    # ── Gender label helper ────────────────────────────────────────────────
+    sport_choices = dict(SportType.choices)
+
+    def gender_label(sport_type):
+        if sport_type.endswith('_women'):
+            return 'Women'
+        if sport_type.endswith('_men') or sport_type.endswith('_3x3_men'):
+            return 'Men'
+        return 'Mixed'
+
+    # ── Filename ───────────────────────────────────────────────────────────
+    ward_slug   = ward.lower().replace(' ', '_')
+    mode_label  = {'all': 'all_players', 'eligible': '18_23_eligible', 'discipline': 'by_discipline'}.get(mode, mode)
+    if discipline_filter:
+        disc_slug = discipline_filter.lower()
+        filename  = f"{ward_slug}_{disc_slug}_{mode_label}.csv"
+    else:
+        filename  = f"{ward_slug}_{mode_label}.csv"
+
+    # ── Stream CSV response ────────────────────────────────────────────────
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    # UTF-8 BOM so Excel opens it correctly
+    response.write('\ufeff')
+
+    writer = csv.writer(response)
+
+    # Header
+    writer.writerow([
+        '#', 'Team Name', 'Ward', 'Sub County',
+        'Discipline', 'Gender',
+        'First Name', 'Last Name',
+        'Date of Birth', 'Age', 'Age Eligible (18-23)',
+        'National ID', 'Phone',
+        'Position', 'Jersey No.',
+        'Registration Code',
+        'Verification Status',
+    ])
+
+    current_discipline = None
+    counter = 0
+    for p in players_qs:
+        sport_type = p.discipline.sport_type
+        # Blank separator row between disciplines when mode='discipline'
+        if mode == 'discipline' and sport_type != current_discipline:
+            if current_discipline is not None:
+                writer.writerow([])  # blank separator
+            section_label = sport_choices.get(sport_type, sport_type)
+            writer.writerow([f'--- {section_label} ---'])
+            current_discipline = sport_type
+            counter = 0
+
+        age = calc_age(p.date_of_birth)
+        eligible = 'Yes' if (age is not None and 18 <= age <= 23) else 'No'
+        team_name = ''
+        if hasattr(p.discipline, 'ligi_registration') and p.discipline.ligi_registration:
+            team_name = p.discipline.ligi_registration.team_name
+
+        counter += 1
+        writer.writerow([
+            counter,
+            team_name,
+            p.discipline.ward or p.ward,
+            p.discipline.sub_county or p.sub_county,
+            sport_choices.get(sport_type, sport_type),
+            gender_label(sport_type),
+            p.first_name,
+            p.last_name,
+            p.date_of_birth.strftime('%d/%m/%Y') if p.date_of_birth else '',
+            age if age is not None else '',
+            eligible,
+            p.national_id_number,
+            p.phone,
+            p.get_position_display() if hasattr(p, 'get_position_display') else (p.position or ''),
+            p.jersey_number or '',
+            p.registration_code,
+            p.get_verification_status_display() if hasattr(p, 'get_verification_status_display') else p.verification_status,
+        ])
+
+    return response
 
 
 @role_required('ward_sports_council_chair', 'admin')

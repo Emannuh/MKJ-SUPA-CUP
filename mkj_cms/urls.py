@@ -278,6 +278,7 @@ from .web_views import (
     wscc_approve_longlist_view,
     wscc_return_longlist_view,
     wscc_team_players_view,
+    wscc_ward_players_export_view,
     # WSCC: team management (payment, deletion)
     wscc_teams_list_view,
     wscc_confirm_payment_view,
@@ -383,6 +384,7 @@ urlpatterns = [
     path("ligi/wscc/longlists/<int:longlist_pk>/",          wscc_longlist_detail_view,     name="wscc_longlist_detail"),
     path("ligi/wscc/longlists/<int:longlist_pk>/approve/",  wscc_approve_longlist_view,    name="wscc_approve_longlist"),
     path("ligi/wscc/longlists/<int:longlist_pk>/return/",   wscc_return_longlist_view,     name="wscc_return_longlist"),
+    path("ligi/wscc/ward-players/export/",                  wscc_ward_players_export_view, name="wscc_ward_players_export"),
     path("ligi/wscc/teams/<int:team_pk>/players/",          wscc_team_players_view,        name="wscc_team_players"),
     path("ligi/wscc/teams/",                                wscc_teams_list_view,          name="wscc_teams_list"),
     path("ligi/wscc/teams/<int:team_pk>/confirm-payment/",  wscc_confirm_payment_view,     name="wscc_confirm_payment"),
