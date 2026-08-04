@@ -16,7 +16,7 @@ from teams.models import Team, Player
 from referees.models import RefereeProfile, RefereeAppointment
 from competitions.models import Competition, Fixture
 from matches.models import MatchReport
-from .models import ActivityLog
+from .models import ActivityLog, PasswordResetRequest
 
 
 COORDINATOR_DISCIPLINE_CHOICES = [
@@ -108,6 +108,9 @@ def admin_dashboard(request):
         'total_fixtures': Fixture.objects.count(),
         'recent_teams': recent_teams,
         'recent_fixtures': recent_fixtures,
+        # Password reset requests badge count
+        'pending_pw_resets': PasswordResetRequest.objects.filter(status='pending').count(),
+        'recent_pw_resets': PasswordResetRequest.objects.filter(status='pending').order_by('-submitted_at')[:5],
     }
     return render(request, 'admin_dashboard/dashboard.html', context)
 
@@ -1197,3 +1200,47 @@ def manage_fixtures(request):
         'knockout_round_display': dict(KnockoutRound.choices),
     }
     return render(request, 'admin_dashboard/manage_fixtures.html', context)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PASSWORD RESET REQUESTS (from expired magic login links)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@login_required
+@user_passes_test(admin_required)
+def password_reset_requests_view(request):
+    """List all password reset requests submitted via the expired-link page."""
+    status_filter = request.GET.get('status', 'pending')
+    qs = PasswordResetRequest.objects.all()
+    if status_filter in ('pending', 'resolved', 'dismissed'):
+        qs = qs.filter(status=status_filter)
+
+    return render(request, 'admin_dashboard/password_reset_requests.html', {
+        'requests': qs,
+        'status_filter': status_filter,
+        'pending_count': PasswordResetRequest.objects.filter(status='pending').count(),
+    })
+
+
+@login_required
+@user_passes_test(admin_required)
+def password_reset_request_resolve_view(request, pk):
+    """Mark a password reset request as resolved or dismissed."""
+    prr = get_object_or_404(PasswordResetRequest, pk=pk)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'resolved')
+        note   = request.POST.get('resolution_note', '').strip()
+
+        if action in ('resolved', 'dismissed'):
+            prr.status = action
+            prr.resolved_at = timezone.now()
+            prr.resolved_by = request.user
+            prr.resolution_note = note
+            prr.save()
+            messages.success(
+                request,
+                f'Request #{prr.pk} from {prr.full_name} marked as {prr.get_status_display()}.',
+            )
+
+    return redirect('admin_password_reset_requests')

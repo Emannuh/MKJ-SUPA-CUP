@@ -79,6 +79,7 @@ from .web_views import (
     # CMS portal
     web_login_view, web_logout_view, dashboard_view,
     magic_login_view,
+    magic_link_expired_view,
     force_change_password_view,
     competitions_list_view, competition_detail_view,
     teams_list_view, team_detail_view,
@@ -414,6 +415,7 @@ urlpatterns = [
     path("portal/login/",                   web_login_view,         name="web_login"),
     path("portal/logout/",                  web_logout_view,        name="web_logout"),
     path("portal/magic-login/<uuid:token>/", magic_login_view,      name="magic_login"),
+    path("portal/magic-link-expired/",       magic_link_expired_view, name="magic_link_expired"),
     path("portal/force-change-password/",   force_change_password_view, name="force_change_password"),
     path("portal/",                         dashboard_view,         name="dashboard"),
     path("portal/competitions/",            competitions_list_view, name="competitions_list"),

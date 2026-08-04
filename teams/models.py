@@ -521,18 +521,19 @@ class CountyPlayer(models.Model):
     def _generate_registration_code(self):
         """
         Auto-generate a unique ward-level registration code.
-        Format: LM-{WARD_ABBREV}-{SPORT_ABBREV}-{6-DIGIT-SEQUENCE}
-        e.g. LM-MKA-FM-000012
+        Format: LM-{WARD3}-{SPORT}-{N}
+        e.g. LM-KAT-VM-3  or  LM-KTH-FM-14
         Only generated for ward-level (level='ward') CountyPlayer records.
         """
         discipline = self.discipline
         ward_abbrev = (discipline.ward or 'WRD')[:3].upper()
         sport_map = {
-            'football_men': 'FM', 'football_women': 'FW',
-            'volleyball_men': 'VM', 'volleyball_women': 'VW',
-            'basketball_men': 'BM', 'basketball_women': 'BW',
-            'basketball_3x3_men': 'B3M', 'basketball_3x3_women': 'B3W',
-            'handball_men': 'HM', 'handball_women': 'HW',
+            'football_men':        'FM',  'football_women':        'FW',
+            'volleyball_men':      'VM',  'volleyball_women':      'VW',
+            'basketball_men':      'BM',  'basketball_women':      'BW',
+            'basketball_3x3_men':  'B3M', 'basketball_3x3_women':  'B3W',
+            'handball_men':        'HM',  'handball_women':        'HW',
+            'beach_volleyball':    'BV',  'beach_handball':        'BH',
         }
         sport_abbrev = sport_map.get(discipline.sport_type, 'XX')
         prefix = f"LM-{ward_abbrev}-{sport_abbrev}-"
@@ -542,13 +543,13 @@ class CountyPlayer(models.Model):
         used_nums = set()
         for code in existing_codes:
             try:
-                used_nums.add(int(code.replace(prefix, '')))
+                used_nums.add(int(code[len(prefix):]))
             except ValueError:
                 pass
         seq = 1
         while seq in used_nums:
             seq += 1
-        return f"{prefix}{seq:06d}"
+        return f"{prefix}{seq}"
 
     def save(self, *args, **kwargs):
         # Auto-generate registration code for ward-level players on first save

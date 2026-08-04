@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Login Link Expired · MKJ SUPA CUP{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;margin:3rem auto;padding:0 1rem">
+
+  <!-- Expired notice card -->
+  <div style="background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);overflow:hidden;margin-bottom:1.5rem">
+    <div style="background:linear-gradient(135deg,#0a2f5c,#124491);padding:2rem;text-align:center;color:#fff">
+      <div style="font-size:3rem;margin-bottom:.5rem">⏰</div>
+      <h1 style="font-size:1.4rem;font-weight:800;margin:0 0 .4rem">Your Login Link Has Expired</h1>
+      <p style="opacity:.8;font-size:.92rem;margin:0">Login links are valid for <strong>48 hours</strong> after they are sent.</p>
+    </div>
+
+    <div style="padding:1.75rem">
+      <p style="color:#374151;font-size:.95rem;line-height:1.7;margin-bottom:1.25rem">
+        The one-click login link in your welcome email is no longer valid.
+        You can still log in with your email and password — or use the form below
+        to request that an admin resend your credentials.
+      </p>
+
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.5rem">
+        <a href="{% url 'web_login' %}"
+           style="flex:1;min-width:160px;display:inline-flex;align-items:center;justify-content:center;
+                  gap:.4rem;padding:.65rem 1.25rem;background:#124491;color:#fff;border-radius:8px;
+                  font-weight:600;font-size:.9rem;text-decoration:none">
+          <i class="bi bi-box-arrow-in-right"></i> Go to Login Page
+        </a>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #f0f0f0;margin-bottom:1.5rem">
+
+      {% if submitted %}
+      <!-- Success state -->
+      <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:1.25rem;text-align:center">
+        <div style="font-size:2rem;margin-bottom:.4rem">✅</div>
+        <p style="font-weight:700;color:#065f46;margin:0 0 .3rem">Request Sent!</p>
+        <p style="color:#065f46;font-size:.9rem;margin:0">
+          The admin team has been notified and will send you new login credentials shortly.
+          Check your email inbox (including spam/junk).
+        </p>
+      </div>
+
+      {% else %}
+      <!-- Request form -->
+      <h2 style="font-size:1rem;font-weight:700;color:#374151;margin:0 0 1rem">
+        <i class="bi bi-envelope" style="color:#124491"></i>&nbsp; Request New Login Credentials
+      </h2>
+
+      {% if errors %}
+      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:.9rem 1rem;margin-bottom:1rem;font-size:.87rem;color:#b91c1c">
+        Please fix the errors below.
+      </div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <!-- Full Name -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem;color:#374151">
+            Full Name <span style="color:#dc3545">*</span>
+          </label>
+          <input type="text" name="full_name" value="{{ form_data.full_name|default:'' }}"
+                 placeholder="Your full name"
+                 class="form-control"
+                 style="{% if errors.full_name %}border-color:#dc3545;{% endif %}">
+          {% if errors.full_name %}
+          <p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.full_name }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Email -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem;color:#374151">
+            Email Address <span style="color:#dc3545">*</span>
+          </label>
+          <input type="email" name="email" value="{{ form_data.email|default:'' }}"
+                 placeholder="The email your account was created with"
+                 class="form-control"
+                 style="{% if errors.email %}border-color:#dc3545;{% endif %}">
+          {% if errors.email %}
+          <p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.email }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Phone -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem;color:#374151">
+            Phone Number <span style="font-weight:400;color:#6b7280">(optional)</span>
+          </label>
+          <input type="tel" name="phone" value="{{ form_data.phone|default:'' }}"
+                 placeholder="+254 7XX XXX XXX"
+                 class="form-control">
+        </div>
+
+        <!-- Account Type -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem;color:#374151">
+            Account Type <span style="color:#dc3545">*</span>
+          </label>
+          <select name="role" class="form-control form-select"
+                  style="{% if errors.role %}border-color:#dc3545;{% endif %}">
+            {% for val, label in role_choices %}
+            <option value="{{ val }}" {% if form_data.role == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          {% if errors.role %}
+          <p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.role }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Message -->
+        <div style="margin-bottom:1.25rem">
+          <label style="font-size:.85rem;font-weight:600;display:block;margin-bottom:.3rem;color:#374151">
+            Additional Details <span style="font-weight:400;color:#6b7280">(optional)</span>
+          </label>
+          <textarea name="message" rows="3" class="form-control"
+                    placeholder="e.g. ward name, team name, or any other context that helps the admin locate your account">{{ form_data.message|default:'' }}</textarea>
+        </div>
+
+        <button type="submit"
+                style="width:100%;padding:.75rem;background:#124491;color:#fff;border:none;border-radius:8px;
+                       font-weight:700;font-size:.95rem;cursor:pointer">
+          <i class="bi bi-send"></i>&nbsp; Send Reset Request
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <p style="text-align:center;font-size:.82rem;color:#9ca3af">
+    MKJ SUPA CUP &nbsp;&bull;&nbsp; County Government of Makueni &nbsp;&bull;&nbsp; mkjsupacup.com
+  </p>
+</div>
+{% endblock %}

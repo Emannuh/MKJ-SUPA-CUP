@@ -1801,16 +1801,11 @@ def magic_login_view(request, token):
         return redirect('web_login')
 
     if user.magic_token_expires and user.magic_token_expires < _tz.now():
-        messages.warning(
-            request,
-            'This login link has expired (links are valid for 7 days). '
-            'Please log in with your email and password.'
-        )
-        # Clear the expired token
+        # Clear the expired token then send to the dedicated expired-link page
         user.magic_token = None
         user.magic_token_expires = None
         user.save(update_fields=['magic_token', 'magic_token_expires'])
-        return redirect('web_login')
+        return redirect('magic_link_expired')
 
     # ── Valid token: consume it, log the user in ──────────────────────────
     user.magic_token = None
@@ -1825,6 +1820,142 @@ def magic_login_view(request, token):
         return redirect('force_change_password')
 
     return redirect('dashboard')
+
+
+def magic_link_expired_view(request):
+    """
+    Shown when a magic login link has expired (after 48 hours).
+    Displays a password reset request form. On submit:
+      - Saves a PasswordResetRequest record
+      - Emails admin@mkjsupacup.com
+      - Logs to EmailLog
+    """
+    from admin_dashboard.models import PasswordResetRequest
+    from django.core.mail import EmailMultiAlternatives
+    from admin_dashboard.models import EmailLog
+    from accounts.notifications import _base_html
+
+    ROLE_CHOICES = [
+        ('',                       '— Select your account type —'),
+        ('team_manager',           'Team Manager (Ligi Mashinani)'),
+        ('ward_sports_council_chair', 'Ward Sports Council Chair (WSCC)'),
+        ('subcounty_sports_officer',  'Sub-County Sports Officer (SCSO)'),
+        ('director_sports',        'Director of Sports'),
+        ('chief_sports_officer',   'Chief Sports Officer (CSO)'),
+        ('referee',                'Referee'),
+        ('other',                  'Other / Not Sure'),
+    ]
+
+    submitted = False
+    errors    = {}
+    form_data = {}
+
+    if request.method == 'POST':
+        full_name = request.POST.get('full_name', '').strip()
+        email     = request.POST.get('email', '').strip()
+        phone     = request.POST.get('phone', '').strip()
+        role      = request.POST.get('role', '').strip()
+        message   = request.POST.get('message', '').strip()
+
+        # Basic validation
+        if not full_name:
+            errors['full_name'] = 'Please enter your full name.'
+        if not email or '@' not in email:
+            errors['email'] = 'Please enter a valid email address.'
+        if not role:
+            errors['role'] = 'Please select your account type.'
+
+        form_data = {'full_name': full_name, 'email': email,
+                     'phone': phone, 'role': role, 'message': message}
+
+        if not errors:
+            # Save the request
+            role_label = dict(ROLE_CHOICES).get(role, role)
+            prr = PasswordResetRequest.objects.create(
+                full_name=full_name,
+                email=email,
+                phone=phone,
+                role=role_label,
+                message=message,
+            )
+
+            # Email admin
+            admin_email = 'admin@mkjsupacup.com'
+            subject     = f'[Password Reset Request] {full_name} ({role_label})'
+            html_body   = _base_html(
+                subject,
+                f"""
+<p style="font-size:15px;color:#333;line-height:1.7">
+  A user's magic login link has expired and they have requested a password reset.
+</p>
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:1.25rem">
+  <tr style="background:#f0f4ff">
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491;width:120px">Full Name</td>
+    <td style="padding:.55rem .85rem">{full_name}</td>
+  </tr>
+  <tr>
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491">Email</td>
+    <td style="padding:.55rem .85rem"><a href="mailto:{email}" style="color:#124491">{email}</a></td>
+  </tr>
+  <tr style="background:#f0f4ff">
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491">Phone</td>
+    <td style="padding:.55rem .85rem">{phone or '—'}</td>
+  </tr>
+  <tr>
+    <td style="padding:.55rem .85rem;font-weight:600;color:#124491">Account Type</td>
+    <td style="padding:.55rem .85rem">{role_label}</td>
+  </tr>
+  {'<tr style="background:#f0f4ff"><td style="padding:.55rem .85rem;font-weight:600;color:#124491">Message</td><td style="padding:.55rem .85rem">' + message + '</td></tr>' if message else ''}
+</table>
+<p style="margin-top:1rem">
+  <a href="{django_settings.SITE_URL}/portal/admin-dashboard/password-reset-requests/"
+     style="display:inline-block;background:#124491;color:#fff;padding:.6rem 1.4rem;
+            border-radius:6px;text-decoration:none;font-weight:600;font-size:14px">
+    View in Admin Dashboard →
+  </a>
+</p>
+<p style="margin-top:1rem;font-size:13px;color:#888">Request ID: #{prr.pk}</p>
+""",
+            )
+            plain = (
+                f"Password Reset Request #{prr.pk}\n\n"
+                f"Name:    {full_name}\n"
+                f"Email:   {email}\n"
+                f"Phone:   {phone or '—'}\n"
+                f"Role:    {role_label}\n"
+                f"Message: {message or '—'}\n\n"
+                f"Action required: reset their password in the admin dashboard."
+            )
+
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=plain,
+                    from_email=django_settings.DEFAULT_FROM_EMAIL,
+                    to=[admin_email],
+                    reply_to=[f'{full_name} <{email}>'],
+                )
+                msg.attach_alternative(html_body, 'text/html')
+                msg.send()
+                EmailLog.objects.create(
+                    direction='OUT', status='sent',
+                    from_email=django_settings.DEFAULT_FROM_EMAIL,
+                    to_emails=admin_email,
+                    subject=subject,
+                    body_text=plain,
+                    body_html=html_body,
+                )
+            except Exception as exc:
+                logger.warning('Password reset request email failed: %s', exc)
+
+            submitted = True
+
+    return render(request, 'accounts/magic_link_expired.html', {
+        'submitted':    submitted,
+        'errors':       errors,
+        'form_data':    form_data,
+        'role_choices': ROLE_CHOICES,
+    })
 
 
 # ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -14140,8 +14271,8 @@ def ward_tm_ward_squad_view(request, fixture_pk):
     # Pool: WSCC-approved, no higher-league flags
     approved_players = CountyPlayer.objects.filter(
         discipline=discipline,
-        discipline__ward_longlist__status=WardLonglistStatus.WSCC_APPROVED,
-    ).exclude(higher_league_status='flagged').order_by('last_name', 'first_name')
+        discipline__ward_longlists__status=WardLonglistStatus.WSCC_APPROVED,
+    ).exclude(higher_league_status='flagged').order_by('last_name', 'first_name').distinct()
 
     # Currently selected starters / subs
     starter_pks = []
@@ -17993,7 +18124,7 @@ def ligi_player_register_view(request):
     if f_sport:
         qs = qs.filter(discipline__sport_type=f_sport)
     if f_longlist_status:
-        qs = qs.filter(discipline__ward_longlist__status=f_longlist_status)
+        qs = qs.filter(discipline__ward_longlists__status=f_longlist_status).distinct()
     if f_search:
         qs = qs.filter(
             Q(first_name__icontains=f_search) |
@@ -20514,8 +20645,8 @@ def scso_ligi_overview_view(request):
     ).count() if sub_county else 0
 
     wards_with_longlists = CountyDiscipline.objects.filter(
-        sub_county=sub_county, level='ward', ward_longlist__isnull=False
-    ).count() if sub_county else 0
+        sub_county=sub_county, level='ward', ward_longlists__isnull=False
+    ).distinct().count() if sub_county else 0
 
     # ── Filter choices ────────────────────────────────────────────────────────
     ward_choices = sorted(set(

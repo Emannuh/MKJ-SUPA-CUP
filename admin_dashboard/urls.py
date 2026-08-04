@@ -2,7 +2,6 @@
 from django.urls import path
 
 from . import views
-
 from . import admin_views
 from . import reschedule_admin_views
 from . import activity_views
@@ -63,4 +62,8 @@ urlpatterns = [
     path('emails/compose/', email_views.email_compose, name='email_compose'),
     path('emails/fetch/', email_views.fetch_inbox_view, name='fetch_inbox'),
     path('emails/<int:email_id>/', email_views.email_detail, name='email_detail'),
+
+    # Password Reset Requests (from expired magic login links)
+    path('password-reset-requests/', views.password_reset_requests_view, name='admin_password_reset_requests'),
+    path('password-reset-requests/<int:pk>/resolve/', views.password_reset_request_resolve_view, name='admin_password_reset_resolve'),
 ]

@@ -243,3 +243,47 @@ class ActivityLog(models.Model):
         if days_old > 7:
             return False
         return True
+
+
+class PasswordResetRequest(models.Model):
+    """
+    Submitted when a user's magic login link has expired and they need
+    admin to reset their password / resend credentials.
+    """
+    STATUS_CHOICES = [
+        ('pending',   'Pending'),
+        ('resolved',  'Resolved'),
+        ('dismissed', 'Dismissed'),
+    ]
+
+    # Submitted by the user (may be anonymous if they don't know their email)
+    full_name   = models.CharField(max_length=200)
+    email       = models.EmailField()
+    phone       = models.CharField(max_length=20, blank=True, default='')
+    role        = models.CharField(
+        max_length=80, blank=True, default='',
+        help_text='Role/account type selected by the user',
+    )
+    message     = models.TextField(
+        blank=True, default='',
+        help_text='Any additional details the user provided',
+    )
+
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    submitted_at = models.DateTimeField(default=timezone.now, db_index=True)
+    resolved_at  = models.DateTimeField(null=True, blank=True)
+    resolved_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='resolved_password_requests',
+    )
+    resolution_note = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-submitted_at']
+        verbose_name = 'Password Reset Request'
+        verbose_name_plural = 'Password Reset Requests'
+
+    def __str__(self):
+        return f'{self.full_name} <{self.email}> — {self.get_status_display()} ({self.submitted_at:%d %b %Y})'

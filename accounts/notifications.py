@@ -358,7 +358,7 @@ def notify_account_created(user, temporary_password, role_label=None):
     # ── Generate / refresh magic token ────────────────────────────────────
     token = _uuid.uuid4()
     user.magic_token = token
-    user.magic_token_expires = _tz.now() + datetime.timedelta(days=7)
+    user.magic_token_expires = _tz.now() + datetime.timedelta(hours=48)
     user.save(update_fields=['magic_token', 'magic_token_expires'])
 
     magic_url = f"{SITE_URL}/portal/magic-login/{token}/"
@@ -377,7 +377,7 @@ def notify_account_created(user, temporary_password, role_label=None):
     &#128274;&nbsp; Click Here to Login (no password needed)
   </a>
   <p style="font-size:12px;color:#888;margin-top:8px">
-    This button works for 7 days and can only be used once.
+    This button works for 48 hours and can only be used once.
   </p>
 </div>
 
