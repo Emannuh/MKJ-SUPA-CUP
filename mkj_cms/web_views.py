@@ -19143,19 +19143,18 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
         if team and team.pk not in seen_pks and team.pk not in already_pooled_team_pks:
             seen_pks.add(team.pk)
-            # Override name with real registration team_name
-            team.display_name = reg.team_name
-            available_teams.append(team)
+            available_teams.append({
+                'pk': team.pk,
+                'name': reg.team_name,  # always use registration name
+            })
         elif not team:
-            class _FakeTeam:
-                def __init__(self, r):
-                    self.pk = f"reg_{r.pk}"
-                    self.name = r.team_name
-                    self.display_name = r.team_name
-            ft = _FakeTeam(reg)
-            if ft.pk not in seen_pks:
-                seen_pks.add(ft.pk)
-                available_teams.append(ft)
+            fake_pk = f"reg_{reg.pk}"
+            if fake_pk not in seen_pks:
+                seen_pks.add(fake_pk)
+                available_teams.append({
+                    'pk': fake_pk,
+                    'name': reg.team_name,
+                })
 
     if request.method == 'POST':
         action = request.POST.get('action', '')

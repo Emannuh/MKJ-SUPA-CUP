@@ -44,15 +44,25 @@ class Command(BaseCommand):
             contact_email=''
         )
 
-        count = stale.count() + stale_no_disc.count()
+        # Also catch stale "Makueni Soccer" teams (named by old auto-generate logic)
+        stale_named = Team.objects.filter(
+            name__icontains='Soccer (Men)',
+        ).exclude(
+            source_discipline_id__in=approved_cds
+        ).exclude(
+            contact_email__in=approved_emails
+        )
+
+        count = stale.count() + stale_no_disc.count() + stale_named.count()
         if count == 0:
             self.stdout.write(self.style.SUCCESS('No stale ward Team records found. Nothing to do.'))
             return
 
         self.stdout.write(f'Found {count} stale ward Team record(s):')
-        for t in list(stale) + list(stale_no_disc):
+        for t in list(stale) + list(stale_no_disc) + list(stale_named):
             self.stdout.write(f'  - {t.name} (email: {t.contact_email}, source_disc: {t.source_discipline_id})')
 
         stale.delete()
         stale_no_disc.delete()
+        stale_named.delete()
         self.stdout.write(self.style.SUCCESS(f'Deleted {count} stale ward Team record(s).'))
