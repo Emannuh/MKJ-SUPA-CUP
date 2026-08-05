@@ -70,7 +70,7 @@ from .web_views import (
     # Public website
     home_view, about_view, public_competitions_view,
     public_fixtures_results_view,
-    public_competition_detail_view, public_results_view,
+    public_ligi_fixtures_view,    public_competition_detail_view, public_results_view,
     public_statistics_view, public_competition_standings_view,
     public_live_matches_view, public_live_matches_page_view,
     contact_view, public_gallery_view,
@@ -334,6 +334,7 @@ from .web_views import (
     ward_tm_request_transfer_view,
     ward_tm_venues_view,
     wscc_edit_fixture_venue_view,
+    wscc_edit_fixture_view,
     ward_tm_withdraw_transfer_view,
     wscc_transfers_view,
     wscc_transfer_action_view,
@@ -398,6 +399,7 @@ urlpatterns = [
     path("about/",                        about_view,                     name="about"),
     path("fixtures/",                     public_fixtures_results_view,   name="public_fixtures_results"),
     path("competitions/public/",          public_fixtures_results_view,   name="public_competitions"),
+    path("ligi/fixtures/",                public_ligi_fixtures_view,      name="public_ligi_fixtures"),
     path("competitions/public/<int:pk>/", public_competition_detail_view, name="public_competition_detail"),
     path("results/",                      public_results_view,            name="public_results"),
     path("statistics/",                    public_statistics_view,         name="public_statistics"),
@@ -769,7 +771,8 @@ urlpatterns = [
     path("ligi/venues/",                               ward_tm_venues_view,           name="ward_tm_venues"),
 
     # ── LIGI MASHINANI: WSCC Fixture Venue Edit ──────────────────────────────
-    path("ligi/wscc/fixtures/<int:fixture_pk>/venue/", wscc_edit_fixture_venue_view,  name="wscc_edit_fixture_venue"),
+    path("ligi/wscc/fixtures/<int:fixture_pk>/venue/", wscc_edit_fixture_venue_view, name="wscc_edit_fixture_venue"),
+    path("ligi/wscc/fixtures/<int:fixture_pk>/edit/",  wscc_edit_fixture_view,       name="wscc_edit_fixture"),
     path("ligi/wscc/transfers/",                      wscc_transfers_view,          name="wscc_transfers"),
     path("ligi/wscc/transfers/<int:transfer_pk>/action/", wscc_transfer_action_view, name="wscc_transfer_action"),
     path("portal/subcounty/transfers/",               scso_transfers_view,          name="scso_transfers"),

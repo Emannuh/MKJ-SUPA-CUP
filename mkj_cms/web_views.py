@@ -988,6 +988,64 @@ def public_competitions_view(request):
 
 
 @cache_page(60 * 2)  # cache 2 minutes
+def public_ligi_fixtures_view(request):
+    """
+    Public: Ligi Mashinani fixtures and results page.
+    Users filter by sub-county then ward to view fixtures and standings.
+    URL: /ligi/fixtures/
+    """
+    from competitions.models import Competition, Pool, Fixture, FixtureStatus
+    from accounts.models import MAKUENI_SUBCOUNTY_WARDS
+
+    f_sub_county = request.GET.get('sub_county', '').strip()
+    f_ward       = request.GET.get('ward', '').strip()
+
+    # Build ward choices for selected sub-county
+    ward_choices = MAKUENI_SUBCOUNTY_WARDS.get(f_sub_county, []) if f_sub_county else []
+    sub_county_choices = list(MAKUENI_SUBCOUNTY_WARDS.keys())
+
+    fixtures_data = []
+    if f_ward:
+        comps = Competition.objects.filter(
+            level='ward',
+            ward__iexact=f_ward,
+        ).order_by('sport_type')
+
+        for comp in comps:
+            pools = comp.pools.prefetch_related('pool_teams__team').order_by('name')
+            fixtures = Fixture.objects.filter(
+                competition=comp
+            ).select_related('home_team', 'away_team', 'venue', 'pool').order_by('match_date', 'kickoff_time')
+
+            # Pool standings
+            from matches.stats_engine import sort_pool_standings
+            pool_standings = []
+            for pool in pools:
+                sorted_teams = sort_pool_standings(pool.pool_teams.all(), comp.sport_type)
+                pool_standings.append({'pool': pool, 'teams': sorted_teams})
+
+            # Results (completed)
+            results = [f for f in fixtures if f.status == FixtureStatus.COMPLETED]
+            upcoming = [f for f in fixtures if f.status != FixtureStatus.COMPLETED]
+
+            fixtures_data.append({
+                'comp': comp,
+                'pool_standings': pool_standings,
+                'fixtures': list(fixtures),
+                'results': results,
+                'upcoming': upcoming,
+            })
+
+    return render(request, 'public/ligi_fixtures.html', {
+        'sub_county_choices': sub_county_choices,
+        'ward_choices': ward_choices,
+        'f_sub_county': f_sub_county,
+        'f_ward': f_ward,
+        'fixtures_data': fixtures_data,
+        'active_page': 'ligi_fixtures',
+    })
+
+
 def public_fixtures_results_view(request):
     """
     Public Fixtures & Results page - replaces old Competitions page.
@@ -19010,21 +19068,22 @@ def wscc_ward_comp_manage_view(request, comp_pk):
     pools    = comp.pools.prefetch_related('pool_teams__team').all()
     fixtures = comp.fixtures.select_related('home_team', 'away_team', 'venue', 'pool').order_by('match_date', 'kickoff_time')
 
-    # Teams registered in this ward (discipline-linked)
-    from teams.models import CountyDiscipline, Team
-    disc = CountyDiscipline.objects.filter(
-        level='ward', ward=comp.ward, sport_type=comp.sport_type
-    ).first()
-    ward_teams = []
-    if disc:
-        ward_teams = Team.objects.filter(source_discipline=disc)
+    # Get real team names from LigiMashinaniRegistration for this ward+sport
+    from teams.models import LigiMashinaniRegistration, Team
+    reg_name_map = {
+        reg.manager_email.lower(): reg.team_name
+        for reg in LigiMashinaniRegistration.objects.filter(
+            ward__iexact=comp.ward or (request.user.ward if hasattr(request.user, 'ward') else ''),
+            discipline=comp.sport_type,
+            status='approved',
+        )
+    }
 
     return render(request, 'ligi/wscc/ward_comp_manage.html', {
         'comp': comp,
         'pools': pools,
         'fixtures': fixtures,
-        'ward_teams': ward_teams,
-        'disc': disc,
+        'reg_name_map': reg_name_map,
     })
 
 
@@ -19044,58 +19103,59 @@ def wscc_ward_comp_pools_view(request, comp_pk):
     pools = comp.pools.prefetch_related('pool_teams__team').all()
 
     from teams.models import LigiMashinaniRegistration, Team
-    # Get ONLY teams from approved registrations for this exact ward + sport
-    # Use case-insensitive matching to handle any capitalization differences
-    approved_regs = LigiMashinaniRegistration.objects.filter(
-        ward__iexact=comp.ward,
-        sub_county__iexact=comp.sub_county,
-        discipline=comp.sport_type,
-        status='approved',
-    ).select_related('county_discipline')
-
-    # Fallback 1: match ward+discipline only (handles sub_county mismatch)
-    if not approved_regs.exists():
-        approved_regs = LigiMashinaniRegistration.objects.filter(
-            ward__iexact=comp.ward,
-            discipline=comp.sport_type,
-            status='approved',
+    # Get approved registrations for this ward+sport — all fallbacks covered
+    def _get_approved_regs(ward, sub_county, sport_type):
+        qs = LigiMashinaniRegistration.objects.filter(
+            discipline=sport_type, status='approved',
         ).select_related('county_discipline')
+        # Try exact ward+sub_county match first
+        exact = qs.filter(ward__iexact=ward, sub_county__iexact=sub_county)
+        if exact.exists():
+            return exact
+        # Fall back to ward only
+        ward_only = qs.filter(ward__iexact=ward)
+        if ward_only.exists():
+            return ward_only
+        return qs.none()
 
-    # Fallback 2: use WSCC user's ward if comp.ward is empty
-    if not approved_regs.exists() and hasattr(request.user, 'ward') and request.user.ward:
-        approved_regs = LigiMashinaniRegistration.objects.filter(
-            ward__iexact=request.user.ward,
-            discipline=comp.sport_type,
-            status='approved',
-        ).select_related('county_discipline')
+    effective_ward = comp.ward or (request.user.ward if hasattr(request.user, 'ward') else '')
+    effective_sub  = comp.sub_county or (request.user.sub_county if hasattr(request.user, 'sub_county') else '')
+    approved_regs  = _get_approved_regs(effective_ward, effective_sub, comp.sport_type)
+
+    # Build available_teams list — use REGISTRATION team_name, not Team.name
+    # This ensures real team names (Vitale FC, JOES FC) not stale "Makueni Soccer" records
+    # Also enforce one-pool-per-team: exclude teams already in ANY pool in this competition
+    already_pooled_team_pks = set(
+        PoolTeam.objects.filter(pool__competition=comp).values_list('team_id', flat=True)
+    )
 
     available_teams = []
     seen_pks = set()
     for reg in approved_regs:
         cd = reg.county_discipline
         team = None
-
         if cd:
-            # Try via source_discipline FK first (new teams)
             team = Team.objects.filter(source_discipline=cd).first()
-
         if not team:
-            # Fallback: match by this registration's manager email exactly
-            # This covers legacy teams approved before source_discipline was set
             team = Team.objects.filter(
                 contact_email__iexact=reg.manager_email,
-            ).order_by('-pk').first()  # most recent if duplicates exist
+            ).order_by('-pk').first()
 
-        if team and team.pk not in seen_pks:
+        if team and team.pk not in seen_pks and team.pk not in already_pooled_team_pks:
             seen_pks.add(team.pk)
+            # Override name with real registration team_name
+            team._display_name = reg.team_name
             available_teams.append(team)
         elif not team:
-            # No Team record at all — show registration name as placeholder
             class _FakeTeam:
                 def __init__(self, r):
                     self.pk = f"reg_{r.pk}"
                     self.name = r.team_name
-            available_teams.append(_FakeTeam(reg))
+                    self._display_name = r.team_name
+            ft = _FakeTeam(reg)
+            if ft.pk not in seen_pks:
+                seen_pks.add(ft.pk)
+                available_teams.append(ft)
 
     if request.method == 'POST':
         action = request.POST.get('action', '')
@@ -19110,12 +19170,13 @@ def wscc_ward_comp_pools_view(request, comp_pk):
             pool_pk = request.POST.get('pool_pk')
             team_pk = request.POST.get('team_pk')
             pool = get_object_or_404(Pool, pk=pool_pk, competition=comp)
-            team = get_object_or_404(Team, pk=team_pk)
-            _, created = PoolTeam.objects.get_or_create(pool=pool, team=team)
-            if created:
-                messages.success(request, f'{team.name} added to {pool.name}.')
+            # Prevent adding to multiple pools
+            if PoolTeam.objects.filter(pool__competition=comp, team_id=team_pk).exists():
+                messages.error(request, 'This team is already in a pool in this competition.')
             else:
-                messages.warning(request, f'{team.name} is already in {pool.name}.')
+                team = get_object_or_404(Team, pk=team_pk)
+                PoolTeam.objects.create(pool=pool, team=team)
+                messages.success(request, f'{team.name} added to {pool.name}.')
 
         elif action == 'remove_team':
             pool_team_pk = request.POST.get('pool_team_pk')
@@ -19614,11 +19675,106 @@ def wscc_edit_fixture_venue_view(request, fixture_pk):
                 'fixture': fixture, 'ward_venues': ward_venues,
             })
 
-        return redirect('wscc_ward_comp_manage', pk=fixture.competition.pk)
+        return redirect('wscc_ward_comp_manage', comp_pk=fixture.competition.pk)
 
     return render(request, 'ligi/wscc/edit_fixture_venue.html', {
         'fixture':     fixture,
         'ward_venues': ward_venues,
+    })
+
+
+@role_required('ward_sports_council_chair', 'admin')
+def wscc_edit_fixture_view(request, fixture_pk):
+    """
+    WSCC: edit full fixture details — date, time, venue, scores, status.
+    URL: /ligi/wscc/fixtures/<fixture_pk>/edit/
+    """
+    from competitions.models import Fixture, Venue, FixtureStatus
+    from teams.models import WardVenue
+    from datetime import date as _date, time as _time
+
+    user = request.user
+    fixture = get_object_or_404(
+        Fixture.objects.select_related('competition', 'home_team', 'away_team', 'venue', 'pool'),
+        pk=fixture_pk,
+        competition__level='ward',
+        competition__sub_county=user.sub_county,
+    )
+
+    home_discipline = getattr(fixture.home_team, 'source_discipline', None)
+    ward_venues = WardVenue.objects.none()
+    if home_discipline and home_discipline.level == 'ward':
+        ward_venues = home_discipline.ward_venues.filter(is_active=True)
+
+    if request.method == 'POST':
+        # Date & time
+        match_date_str  = request.POST.get('match_date', '').strip()
+        kickoff_str     = request.POST.get('kickoff_time', '').strip()
+        custom_venue    = request.POST.get('custom_venue', '').strip()
+        ward_venue_pk   = request.POST.get('ward_venue_pk', '').strip()
+        home_score_str  = request.POST.get('home_score', '').strip()
+        away_score_str  = request.POST.get('away_score', '').strip()
+        status_val      = request.POST.get('status', '').strip()
+
+        if match_date_str:
+            try:
+                fixture.match_date = _date.fromisoformat(match_date_str)
+            except ValueError:
+                messages.error(request, 'Invalid date format.')
+
+        if kickoff_str:
+            try:
+                h, m = kickoff_str.split(':')
+                fixture.kickoff_time = _time(int(h), int(m))
+            except (ValueError, AttributeError):
+                messages.error(request, 'Invalid time format.')
+
+        if ward_venue_pk:
+            try:
+                wv = WardVenue.objects.get(pk=ward_venue_pk, is_active=True)
+                venue, _ = Venue.objects.get_or_create(
+                    name=wv.name, county='Makueni',
+                    defaults={'city': wv.sub_county or 'Makueni',
+                              'address': wv.location_description,
+                              'surface': wv.surface,
+                              'capacity': wv.capacity,
+                              'is_active': True},
+                )
+                fixture.venue = venue
+            except WardVenue.DoesNotExist:
+                pass
+        elif custom_venue:
+            venue, _ = Venue.objects.get_or_create(
+                name=custom_venue, county='Makueni',
+                defaults={'city': user.sub_county or 'Makueni', 'is_active': True},
+            )
+            fixture.venue = venue
+
+        if home_score_str and away_score_str:
+            try:
+                fixture.home_score = int(home_score_str)
+                fixture.away_score = int(away_score_str)
+                fixture.status = FixtureStatus.COMPLETED
+                if fixture.pool_id:
+                    fixture.save()
+                    _update_pool_standings(fixture)
+                    messages.success(request, f'Result saved: {fixture.home_team.name} {fixture.home_score} - {fixture.away_score} {fixture.away_team.name}')
+                    return redirect('wscc_ward_comp_manage', comp_pk=fixture.competition.pk)
+            except ValueError:
+                messages.error(request, 'Scores must be numbers.')
+
+        if status_val and status_val in FixtureStatus.values:
+            fixture.status = status_val
+
+        fixture.save()
+        messages.success(request, 'Fixture updated.')
+        return redirect('wscc_ward_comp_manage', comp_pk=fixture.competition.pk)
+
+    return render(request, 'ligi/wscc/edit_fixture.html', {
+        'fixture': fixture,
+        'ward_venues': ward_venues,
+        'status_choices': FixtureStatus.choices,
+        'comp': fixture.competition,
     })
 
 

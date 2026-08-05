@@ -114,6 +114,10 @@
           {% else %}<span style="background:#e2e3e5;color:#41464b;padding:.15rem .5rem;border-radius:10px;font-size:.75rem">Pending</span>{% endif %}
         </td>
         <td style="padding:.5rem .9rem">
+          <a href="{% url 'wscc_edit_fixture' f.pk %}"
+             style="padding:.25rem .55rem;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:4px;font-size:.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;margin-right:.25rem">
+            <i class="bi bi-pencil"></i> Edit
+          </a>
           <a href="{% url 'wscc_edit_fixture_venue' f.pk %}"
              title="Edit venue for this fixture"
              style="padding:.25rem .55rem;background:#fff;color:#124491;border:1px solid #b6d4fe;border-radius:4px;font-size:.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem">

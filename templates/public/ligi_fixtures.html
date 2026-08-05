@@ -1,0 +1,205 @@
+{% extends "public/base.html" %}
+{% load static %}
+{% block title %}Ligi Mashinani Fixtures & Results{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh;background:#f8f9fa;padding-top:80px">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#124491,#0a2a6e);color:#fff;padding:2.5rem 1.5rem 2rem">
+    <div style="max-width:1100px;margin:0 auto">
+      <div style="font-size:.75rem;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.6);text-transform:uppercase;margin-bottom:.4rem">
+        MKJ SUPA CUP
+      </div>
+      <h1 style="font-size:1.9rem;font-weight:800;margin:0 0 .4rem">
+        <i class="bi bi-flag-fill" style="color:#E8B91E;margin-right:.4rem"></i> Ligi Mashinani Fixtures
+      </h1>
+      <p style="color:rgba(255,255,255,.7);margin:0;font-size:.95rem">
+        Ward-level competition fixtures, results and standings — Makueni County
+      </p>
+    </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:1.1rem 1.5rem;position:sticky;top:60px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+    <div style="max-width:1100px;margin:0 auto">
+      <form method="get" action="" id="filter-form" style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end">
+
+        <!-- Sub County -->
+        <div>
+          <label style="display:block;font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">Sub County</label>
+          <select name="sub_county" id="sub-county-select"
+            onchange="this.form.submit()"
+            style="padding:.5rem .9rem;border:1px solid #d1d5db;border-radius:8px;font-size:.88rem;background:#fff;min-width:170px;cursor:pointer">
+            <option value="">— Select Sub County —</option>
+            {% for sc in sub_county_choices %}
+            <option value="{{ sc }}" {% if f_sub_county == sc %}selected{% endif %}>{{ sc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Ward -->
+        <div>
+          <label style="display:block;font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">Ward</label>
+          <select name="ward" id="ward-select"
+            onchange="this.form.submit()"
+            {% if not ward_choices %}disabled{% endif %}
+            style="padding:.5rem .9rem;border:1px solid #d1d5db;border-radius:8px;font-size:.88rem;background:#fff;min-width:170px;cursor:pointer;{% if not ward_choices %}opacity:.5;{% endif %}">
+            <option value="">— Select Ward —</option>
+            {% for w in ward_choices %}
+            <option value="{{ w }}" {% if f_ward == w %}selected{% endif %}>{{ w }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if f_ward %}
+        <a href="{% url 'public_ligi_fixtures' %}"
+           style="padding:.5rem .9rem;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.83rem;text-decoration:none;font-weight:600">
+          <i class="bi bi-x"></i> Clear
+        </a>
+        {% endif %}
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div style="max-width:1100px;margin:0 auto;padding:1.5rem">
+
+    {% if not f_sub_county %}
+    <!-- Landing state -->
+    <div style="text-align:center;padding:4rem 1rem">
+      <i class="bi bi-flag-fill" style="font-size:3.5rem;color:#E8B91E;display:block;margin-bottom:1rem"></i>
+      <h2 style="font-size:1.3rem;font-weight:700;color:#1a1a1a;margin-bottom:.5rem">Select a Sub County</h2>
+      <p style="color:#6b7280;max-width:380px;margin:0 auto">Choose a sub county from the filter above, then select a ward to view Ligi Mashinani fixtures and results.</p>
+    </div>
+
+    {% elif f_sub_county and not f_ward %}
+    <div style="text-align:center;padding:3rem 1rem">
+      <i class="bi bi-geo-alt-fill" style="font-size:3rem;color:#124491;display:block;margin-bottom:.75rem"></i>
+      <h2 style="font-size:1.2rem;font-weight:700;color:#1a1a1a;margin-bottom:.5rem">{{ f_sub_county }} Sub County</h2>
+      <p style="color:#6b7280">Now select a ward to see fixtures.</p>
+    </div>
+
+    {% elif f_ward and not fixtures_data %}
+    <div style="text-align:center;padding:3rem 1rem">
+      <i class="bi bi-calendar-x" style="font-size:3rem;color:#9ca3af;display:block;margin-bottom:.75rem"></i>
+      <h2 style="font-size:1.2rem;font-weight:700;color:#374151;margin-bottom:.5rem">{{ f_ward }} Ward</h2>
+      <p style="color:#6b7280">No competitions found for this ward yet. Check back soon.</p>
+    </div>
+
+    {% else %}
+    <!-- Competitions for selected ward -->
+    <h2 style="font-size:1.1rem;font-weight:700;color:#124491;margin-bottom:1.25rem">
+      <i class="bi bi-geo-alt-fill"></i> {{ f_ward }} Ward · {{ f_sub_county }} Sub County
+    </h2>
+
+    {% for item in fixtures_data %}
+    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;margin-bottom:1.75rem;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.05)">
+
+      <!-- Competition Header -->
+      <div style="background:linear-gradient(135deg,#124491,#1a5cb8);color:#fff;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <div>
+          <div style="font-size:1rem;font-weight:700">{{ item.comp.name }}</div>
+          <div style="font-size:.8rem;color:rgba(255,255,255,.75)">{{ item.comp.get_sport_type_display }} · {{ item.comp.get_format_type_display }}</div>
+        </div>
+        <span style="background:rgba(255,255,255,.15);padding:.25rem .75rem;border-radius:20px;font-size:.78rem;font-weight:700">
+          {{ item.comp.get_status_display }}
+        </span>
+      </div>
+
+      <div style="padding:1.25rem">
+
+        <!-- Pool Standings -->
+        {% if item.pool_standings %}
+        <h3 style="font-size:.9rem;font-weight:700;color:#374151;margin:0 0 .75rem"><i class="bi bi-table"></i> Standings</h3>
+        {% for ps in item.pool_standings %}
+        <div style="margin-bottom:1rem">
+          <div style="font-size:.82rem;font-weight:700;color:#124491;background:#f0f4ff;padding:.3rem .7rem;border-radius:4px;margin-bottom:.4rem">{{ ps.pool.name }}</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+              <thead><tr style="background:#f8f9fa;text-align:center">
+                <th style="padding:.4rem .7rem;border-bottom:1px solid #dee2e6;text-align:left;font-weight:700">Team</th>
+                <th style="padding:.4rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700">P</th>
+                <th style="padding:.4rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700">W</th>
+                <th style="padding:.4rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700">D</th>
+                <th style="padding:.4rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700">L</th>
+                <th style="padding:.4rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700">GD</th>
+                <th style="padding:.4rem .5rem;border-bottom:1px solid #dee2e6;font-weight:700;color:#124491">Pts</th>
+              </tr></thead>
+              <tbody>
+                {% for pt in ps.teams %}
+                <tr style="border-bottom:1px solid #f0f0f0;text-align:center">
+                  <td style="padding:.4rem .7rem;font-weight:600;text-align:left">{{ pt.team.name }}</td>
+                  <td style="padding:.4rem .5rem">{{ pt.played }}</td>
+                  <td style="padding:.4rem .5rem;color:#198754">{{ pt.won }}</td>
+                  <td style="padding:.4rem .5rem">{{ pt.drawn }}</td>
+                  <td style="padding:.4rem .5rem;color:#dc3545">{{ pt.lost }}</td>
+                  <td style="padding:.4rem .5rem">{{ pt.goal_difference }}</td>
+                  <td style="padding:.4rem .5rem;font-weight:800;color:#124491">{{ pt.points }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="padding:.75rem;text-align:center;color:#9ca3af">No teams</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Results -->
+        {% if item.results %}
+        <h3 style="font-size:.9rem;font-weight:700;color:#374151;margin:1rem 0 .75rem"><i class="bi bi-check-circle-fill" style="color:#198754"></i> Results</h3>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          {% for f in item.results %}
+          <div style="display:flex;align-items:center;gap:.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.6rem .9rem;font-size:.85rem">
+            <span style="font-size:.75rem;color:#6b7280;min-width:70px">{{ f.match_date|date:"d M Y" }}</span>
+            <span style="font-weight:600;flex:1;text-align:right">{{ f.home_team.name }}</span>
+            <span style="font-weight:800;color:#124491;background:#e0f2fe;padding:.2rem .7rem;border-radius:6px;min-width:55px;text-align:center">
+              {{ f.home_score }} – {{ f.away_score }}
+            </span>
+            <span style="font-weight:600;flex:1">{{ f.away_team.name }}</span>
+            {% if f.pool %}<span style="font-size:.73rem;color:#9ca3af">{{ f.pool.name }}</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Upcoming Fixtures -->
+        {% if item.upcoming %}
+        <h3 style="font-size:.9rem;font-weight:700;color:#374151;margin:1rem 0 .75rem"><i class="bi bi-calendar-event" style="color:#124491"></i> Upcoming Fixtures</h3>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          {% for f in item.upcoming %}
+          <div style="display:flex;align-items:center;gap:.75rem;background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:.6rem .9rem;font-size:.85rem">
+            <div style="min-width:90px">
+              <div style="font-size:.78rem;font-weight:700;color:#374151">{{ f.match_date|date:"d M Y" }}</div>
+              <div style="font-size:.73rem;color:#9ca3af">{{ f.kickoff_time|time:"H:i" }}</div>
+            </div>
+            <span style="font-weight:600;flex:1;text-align:right">{{ f.home_team.name }}</span>
+            <span style="font-weight:700;color:#9ca3af;padding:0 .4rem">vs</span>
+            <span style="font-weight:600;flex:1">{{ f.away_team.name }}</span>
+            <div style="text-align:right;min-width:90px">
+              {% if f.venue %}<div style="font-size:.72rem;color:#6b7280">{{ f.venue.name }}</div>{% endif %}
+              {% if f.pool %}<div style="font-size:.72rem;color:#9ca3af">{{ f.pool.name }}</div>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not item.results and not item.upcoming %}
+        <div style="text-align:center;padding:1.5rem;color:#9ca3af;font-size:.88rem">
+          <i class="bi bi-calendar" style="display:block;font-size:1.5rem;margin-bottom:.4rem"></i>
+          No fixtures scheduled yet for this competition.
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
