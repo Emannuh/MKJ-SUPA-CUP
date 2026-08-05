@@ -83,6 +83,13 @@
     </select>
     <button type="submit" style="padding:.45rem .9rem;background:#198754;color:#fff;border:none;border-radius:5px;font-size:.85rem;cursor:pointer">Add</button>
   </form>
+  {% else %}
+  <div style="background:#fff3cd;color:#856404;border:1px solid #ffecb5;border-radius:6px;padding:.5rem .75rem;font-size:.82rem">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    No approved teams found for <strong>{{ comp.ward }}</strong> Ward ·
+    <strong>{{ comp.get_sport_type_display }}</strong>.
+    Ensure teams are approved in Team Management.
+  </div>
   {% endif %}
 </div>
 {% empty %}

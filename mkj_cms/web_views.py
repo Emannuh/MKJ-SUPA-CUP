@@ -19045,13 +19045,29 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
     from teams.models import LigiMashinaniRegistration, Team
     # Get ONLY teams from approved registrations for this exact ward + sport
-    # via the county_discipline FK — the only reliable link
+    # Use case-insensitive matching to handle any capitalization differences
     approved_regs = LigiMashinaniRegistration.objects.filter(
-        ward=comp.ward,
-        sub_county=comp.sub_county,
+        ward__iexact=comp.ward,
+        sub_county__iexact=comp.sub_county,
         discipline=comp.sport_type,
         status='approved',
     ).select_related('county_discipline')
+
+    # Fallback 1: match ward+discipline only (handles sub_county mismatch)
+    if not approved_regs.exists():
+        approved_regs = LigiMashinaniRegistration.objects.filter(
+            ward__iexact=comp.ward,
+            discipline=comp.sport_type,
+            status='approved',
+        ).select_related('county_discipline')
+
+    # Fallback 2: use WSCC user's ward if comp.ward is empty
+    if not approved_regs.exists() and hasattr(request.user, 'ward') and request.user.ward:
+        approved_regs = LigiMashinaniRegistration.objects.filter(
+            ward__iexact=request.user.ward,
+            discipline=comp.sport_type,
+            status='approved',
+        ).select_related('county_discipline')
 
     available_teams = []
     seen_pks = set()
