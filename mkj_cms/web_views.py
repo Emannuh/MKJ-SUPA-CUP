@@ -19124,7 +19124,24 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
     # Build available_teams list — use REGISTRATION team_name, not Team.name
     # This ensures real team names (Vitale FC, JOES FC) not stale "Makueni Soccer" records
-    # Compute valid team pks from approved registrations
+    # Auto-remove stale pool entries — remove any PoolTeam in this competition
+    # whose team has no corresponding LigiMashinaniRegistration (i.e. stale auto-generated teams)
+    from teams.models import LigiMashinaniRegistration as _LMR2
+    all_reg_emails = set(_LMR2.objects.filter(status='approved').values_list('manager_email', flat=True))
+    all_reg_cds = set(_LMR2.objects.filter(status='approved', county_discipline__isnull=False).values_list('county_discipline_id', flat=True))
+
+    # A team is valid if its contact_email matches a registration OR its source_discipline is in reg CDs
+    stale_pool_entries = PoolTeam.objects.filter(
+        pool__competition=comp
+    ).exclude(
+        team__contact_email__in=all_reg_emails
+    ).exclude(
+        team__source_discipline_id__in=all_reg_cds
+    )
+    if stale_pool_entries.exists():
+        stale_pool_entries.delete()
+
+    # Collect valid team pks from approved regs for this specific ward+sport
     valid_team_pks_for_comp = set()
     for reg in approved_regs:
         cd = reg.county_discipline
@@ -19132,17 +19149,11 @@ def wscc_ward_comp_pools_view(request, comp_pk):
         if cd:
             t = Team.objects.filter(source_discipline=cd).values_list('pk', flat=True).first()
         if not t:
-            t = Team.objects.filter(contact_email__iexact=reg.manager_email).order_by('-pk').values_list('pk', flat=True).first()
+            t = Team.objects.filter(
+                contact_email__iexact=reg.manager_email
+            ).order_by('-pk').values_list('pk', flat=True).first()
         if t:
             valid_team_pks_for_comp.add(t)
-
-    # Auto-remove stale pool entries not belonging to this ward's approved teams
-    if valid_team_pks_for_comp:
-        stale_entries = PoolTeam.objects.filter(
-            pool__competition=comp
-        ).exclude(team_id__in=valid_team_pks_for_comp)
-        if stale_entries.exists():
-            stale_entries.delete()
 
     # Also enforce one-pool-per-team: exclude teams already in ANY pool in this competition
     already_pooled_team_pks = set(
