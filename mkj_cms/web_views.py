@@ -19124,6 +19124,26 @@ def wscc_ward_comp_pools_view(request, comp_pk):
 
     # Build available_teams list — use REGISTRATION team_name, not Team.name
     # This ensures real team names (Vitale FC, JOES FC) not stale "Makueni Soccer" records
+    # Compute valid team pks from approved registrations
+    valid_team_pks_for_comp = set()
+    for reg in approved_regs:
+        cd = reg.county_discipline
+        t = None
+        if cd:
+            t = Team.objects.filter(source_discipline=cd).values_list('pk', flat=True).first()
+        if not t:
+            t = Team.objects.filter(contact_email__iexact=reg.manager_email).order_by('-pk').values_list('pk', flat=True).first()
+        if t:
+            valid_team_pks_for_comp.add(t)
+
+    # Auto-remove stale pool entries not belonging to this ward's approved teams
+    if valid_team_pks_for_comp:
+        stale_entries = PoolTeam.objects.filter(
+            pool__competition=comp
+        ).exclude(team_id__in=valid_team_pks_for_comp)
+        if stale_entries.exists():
+            stale_entries.delete()
+
     # Also enforce one-pool-per-team: exclude teams already in ANY pool in this competition
     already_pooled_team_pks = set(
         PoolTeam.objects.filter(pool__competition=comp).values_list('team_id', flat=True)
@@ -19166,16 +19186,22 @@ def wscc_ward_comp_pools_view(request, comp_pk):
                 messages.success(request, f'Pool "{pool_name}" created.')
 
         elif action == 'add_team':
-            pool_pk = request.POST.get('pool_pk')
-            team_pk = request.POST.get('team_pk')
+            pool_pk  = request.POST.get('pool_pk')
+            team_pk  = request.POST.get('team_pk', '').strip()
             pool = get_object_or_404(Pool, pk=pool_pk, competition=comp)
-            # Prevent adding to multiple pools
-            if PoolTeam.objects.filter(pool__competition=comp, team_id=team_pk).exists():
+
+            # Validate team_pk is in the approved list for this competition
+            valid_pks = {str(t['pk']) for t in available_teams}
+            if team_pk not in valid_pks:
+                messages.error(request, 'Invalid team selection.')
+            elif PoolTeam.objects.filter(pool__competition=comp, team_id=team_pk).exists():
                 messages.error(request, 'This team is already in a pool in this competition.')
             else:
                 team = get_object_or_404(Team, pk=team_pk)
                 PoolTeam.objects.create(pool=pool, team=team)
-                messages.success(request, f'{team.name} added to {pool.name}.')
+                # Find the real name from registrations
+                real_name = next((t['name'] for t in available_teams if str(t['pk']) == team_pk), team.name)
+                messages.success(request, f'{real_name} added to {pool.name}.')
 
         elif action == 'remove_team':
             pool_team_pk = request.POST.get('pool_team_pk')
