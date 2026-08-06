@@ -996,6 +996,7 @@ def public_ligi_fixtures_view(request):
     """
     from competitions.models import Competition, Pool, Fixture, FixtureStatus
     from accounts.models import MAKUENI_SUBCOUNTY_WARDS
+    from teams.models import LigiMashinaniRegistration, Team
 
     f_sub_county = request.GET.get('sub_county', '').strip()
     f_ward       = request.GET.get('ward', '').strip()
@@ -1017,21 +1018,70 @@ def public_ligi_fixtures_view(request):
                 competition=comp
             ).select_related('home_team', 'away_team', 'venue', 'pool').order_by('match_date', 'kickoff_time')
 
-            # Pool standings
+            # Build team_pk -> real registration name map for this ward+sport.
+            # This is the authoritative source: LigiMashinaniRegistration.team_name,
+            # not Team.name which may be stale auto-generated text.
+            reg_name_map = {}  # str(team.pk) -> real team name
+            for reg in LigiMashinaniRegistration.objects.filter(
+                ward__iexact=comp.ward,
+                discipline=comp.sport_type,
+                status='approved',
+            ).select_related('county_discipline'):
+                # Resolve Team record the same way the pools view does
+                team = None
+                if reg.county_discipline_id:
+                    team = Team.objects.filter(source_discipline_id=reg.county_discipline_id).first()
+                if not team:
+                    team = Team.objects.filter(
+                        contact_email__iexact=reg.manager_email
+                    ).order_by('-pk').first()
+                if team:
+                    reg_name_map[str(team.pk)] = reg.team_name
+
+            def _team_name(team_obj):
+                """Return real registration name, falling back to Team.name."""
+                return reg_name_map.get(str(team_obj.pk), team_obj.name)
+
+            # Pool standings — resolve real names
             from matches.stats_engine import sort_pool_standings
             pool_standings = []
             for pool in pools:
                 sorted_teams = sort_pool_standings(pool.pool_teams.all(), comp.sport_type)
-                pool_standings.append({'pool': pool, 'teams': sorted_teams})
+                pool_standings.append({
+                    'pool': pool,
+                    'teams': [
+                        {
+                            'pt': pt,
+                            'display_name': _team_name(pt.team),
+                            # forward stats fields so template still works
+                            'played': pt.played,
+                            'won': pt.won,
+                            'drawn': pt.drawn,
+                            'lost': pt.lost,
+                            'goals_for': pt.goals_for,
+                            'goals_against': pt.goals_against,
+                            'goal_difference': pt.goal_difference,
+                            'points': pt.points,
+                        }
+                        for pt in sorted_teams
+                    ],
+                })
 
-            # Results (completed)
-            results = [f for f in fixtures if f.status == FixtureStatus.COMPLETED]
-            upcoming = [f for f in fixtures if f.status != FixtureStatus.COMPLETED]
+            # Fixture lists — annotate each fixture with resolved names
+            def _annotate(f):
+                return {
+                    'fixture': f,
+                    'home_name': _team_name(f.home_team),
+                    'away_name': _team_name(f.away_team),
+                }
+
+            all_fixtures_ann = [_annotate(f) for f in fixtures]
+            results  = [a for a in all_fixtures_ann if a['fixture'].status == FixtureStatus.COMPLETED]
+            upcoming = [a for a in all_fixtures_ann if a['fixture'].status != FixtureStatus.COMPLETED]
 
             fixtures_data.append({
                 'comp': comp,
                 'pool_standings': pool_standings,
-                'fixtures': list(fixtures),
                 'results': results,
                 'upcoming': upcoming,
             })
@@ -19071,22 +19121,52 @@ def wscc_ward_comp_manage_view(request, comp_pk):
     pools    = comp.pools.prefetch_related('pool_teams__team').all()
     fixtures = comp.fixtures.select_related('home_team', 'away_team', 'venue', 'pool').order_by('match_date', 'kickoff_time')
 
-    # Get real team names from LigiMashinaniRegistration for this ward+sport
+    # Build team_pk -> real registration name for this ward+sport.
+    # Keyed by str(team.pk) so template lookups work without custom filters.
     from teams.models import LigiMashinaniRegistration, Team
-    reg_name_map = {
-        reg.manager_email.lower(): reg.team_name
-        for reg in LigiMashinaniRegistration.objects.filter(
-            ward__iexact=comp.ward or (request.user.ward if hasattr(request.user, 'ward') else ''),
-            discipline=comp.sport_type,
-            status='approved',
-        )
-    }
+    reg_name_map = {}  # str(team.pk) -> real team name
+    for reg in LigiMashinaniRegistration.objects.filter(
+        ward__iexact=comp.ward or '',
+        discipline=comp.sport_type,
+        status='approved',
+    ).select_related('county_discipline'):
+        t = None
+        if reg.county_discipline_id:
+            t = Team.objects.filter(source_discipline_id=reg.county_discipline_id).first()
+        if not t:
+            t = Team.objects.filter(contact_email__iexact=reg.manager_email).order_by('-pk').first()
+        if t:
+            reg_name_map[str(t.pk)] = reg.team_name
+
+    def _name(team_obj):
+        return reg_name_map.get(str(team_obj.pk), team_obj.name)
+
+    # Pre-resolve pool standings so the template never touches Team.name
+    pools_data = [
+        {
+            'pool': pool,
+            'pool_teams': [
+                {'pt': pt, 'display_name': _name(pt.team)}
+                for pt in pool.pool_teams.select_related('team').all()
+            ],
+        }
+        for pool in pools
+    ]
+
+    # Pre-resolve fixture team names
+    fixtures_data = [
+        {
+            'f': f,
+            'home_name': _name(f.home_team),
+            'away_name': _name(f.away_team),
+        }
+        for f in fixtures
+    ]
 
     return render(request, 'ligi/wscc/ward_comp_manage.html', {
         'comp': comp,
-        'pools': pools,
-        'fixtures': fixtures,
-        'reg_name_map': reg_name_map,
+        'pools_data': pools_data,
+        'fixtures_data': fixtures_data,
     })
 
 
@@ -19311,6 +19391,29 @@ def wscc_ward_comp_generate_fixtures_view(request, comp_pk):
         pools = comp.pools.prefetch_related('pool_teams__team').all()
         match_date = start_date
         fixtures_created = 0
+
+        # Before generating, rename every pooled Team record to its real
+        # registration name so Fixture.home_team.name / away_team.name are
+        # correct in the DB from day one — not stale auto-generated values.
+        from teams.models import LigiMashinaniRegistration as _LMR, Team as _Team
+        _reg_name_map = {}  # team_pk -> real name from registration
+        for _reg in _LMR.objects.filter(
+            ward__iexact=comp.ward,
+            discipline=comp.sport_type,
+            status='approved',
+        ).select_related('county_discipline'):
+            _t = None
+            if _reg.county_discipline_id:
+                _t = _Team.objects.filter(source_discipline_id=_reg.county_discipline_id).first()
+            if not _t:
+                _t = _Team.objects.filter(contact_email__iexact=_reg.manager_email).order_by('-pk').first()
+            if _t:
+                _reg_name_map[_t.pk] = _reg.team_name
+                # Rename in DB if stale
+                if _t.name != _reg.team_name:
+                    if not _Team.objects.filter(name=_reg.team_name).exclude(pk=_t.pk).exists():
+                        _t.name = _reg.team_name
+                        _t.save(update_fields=['name'])
 
         for pool in pools:
             teams = [pt.team for pt in pool.pool_teams.select_related('team')]

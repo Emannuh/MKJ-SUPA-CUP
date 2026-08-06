@@ -130,7 +130,7 @@
               <tbody>
                 {% for pt in ps.teams %}
                 <tr style="border-bottom:1px solid #f0f0f0;text-align:center">
-                  <td style="padding:.4rem .7rem;font-weight:600;text-align:left">{{ pt.team.name }}</td>
+                  <td style="padding:.4rem .7rem;font-weight:600;text-align:left">{{ pt.display_name }}</td>
                   <td style="padding:.4rem .5rem">{{ pt.played }}</td>
                   <td style="padding:.4rem .5rem;color:#198754">{{ pt.won }}</td>
                   <td style="padding:.4rem .5rem">{{ pt.drawn }}</td>
@@ -152,16 +152,18 @@
         {% if item.results %}
         <h3 style="font-size:.9rem;font-weight:700;color:#374151;margin:1rem 0 .75rem"><i class="bi bi-check-circle-fill" style="color:#198754"></i> Results</h3>
         <div style="display:flex;flex-direction:column;gap:.4rem">
-          {% for f in item.results %}
+          {% for entry in item.results %}
+          {% with f=entry.fixture %}
           <div style="display:flex;align-items:center;gap:.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.6rem .9rem;font-size:.85rem">
             <span style="font-size:.75rem;color:#6b7280;min-width:70px">{{ f.match_date|date:"d M Y" }}</span>
-            <span style="font-weight:600;flex:1;text-align:right">{{ f.home_team.name }}</span>
+            <span style="font-weight:600;flex:1;text-align:right">{{ entry.home_name }}</span>
             <span style="font-weight:800;color:#124491;background:#e0f2fe;padding:.2rem .7rem;border-radius:6px;min-width:55px;text-align:center">
               {{ f.home_score }} – {{ f.away_score }}
             </span>
-            <span style="font-weight:600;flex:1">{{ f.away_team.name }}</span>
+            <span style="font-weight:600;flex:1">{{ entry.away_name }}</span>
             {% if f.pool %}<span style="font-size:.73rem;color:#9ca3af">{{ f.pool.name }}</span>{% endif %}
           </div>
+          {% endwith %}
           {% endfor %}
         </div>
         {% endif %}
@@ -170,20 +172,22 @@
         {% if item.upcoming %}
         <h3 style="font-size:.9rem;font-weight:700;color:#374151;margin:1rem 0 .75rem"><i class="bi bi-calendar-event" style="color:#124491"></i> Upcoming Fixtures</h3>
         <div style="display:flex;flex-direction:column;gap:.4rem">
-          {% for f in item.upcoming %}
+          {% for entry in item.upcoming %}
+          {% with f=entry.fixture %}
           <div style="display:flex;align-items:center;gap:.75rem;background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:.6rem .9rem;font-size:.85rem">
             <div style="min-width:90px">
               <div style="font-size:.78rem;font-weight:700;color:#374151">{{ f.match_date|date:"d M Y" }}</div>
               <div style="font-size:.73rem;color:#9ca3af">{{ f.kickoff_time|time:"H:i" }}</div>
             </div>
-            <span style="font-weight:600;flex:1;text-align:right">{{ f.home_team.name }}</span>
+            <span style="font-weight:600;flex:1;text-align:right">{{ entry.home_name }}</span>
             <span style="font-weight:700;color:#9ca3af;padding:0 .4rem">vs</span>
-            <span style="font-weight:600;flex:1">{{ f.away_team.name }}</span>
+            <span style="font-weight:600;flex:1">{{ entry.away_name }}</span>
             <div style="text-align:right;min-width:90px">
               {% if f.venue %}<div style="font-size:.72rem;color:#6b7280">{{ f.venue.name }}</div>{% endif %}
               {% if f.pool %}<div style="font-size:.72rem;color:#9ca3af">{{ f.pool.name }}</div>{% endif %}
             </div>
           </div>
+          {% endwith %}
           {% endfor %}
         </div>
         {% endif %}

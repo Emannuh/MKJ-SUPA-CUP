@@ -36,45 +36,56 @@
 </div>
 
 <!-- Pools & Standings -->
-{% if pools %}
+{% if pools_data %}
 <div class="card" style="padding:1.25rem;margin-bottom:1.25rem">
   <h2 style="font-size:1rem;color:#333;margin-bottom:1rem"><i class="bi bi-diagram-3"></i> Pools & Standings</h2>
-  {% for pool in pools %}
+  {% for item in pools_data %}
+  {% with pool=item.pool %}
   <div style="margin-bottom:1.25rem">
     <h3 style="font-size:.9rem;color:#124491;margin-bottom:.5rem;background:#f0f4ff;padding:.4rem .8rem;border-radius:4px">{{ pool.name }}</h3>
     <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:.84rem">
-        <thead><tr style="background:#f8f9fa;text-align:center">
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6;text-align:left">Team</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">P</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">W</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">D</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">L</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">GF</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">GA</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6">GD</th>
-          <th style="padding:.45rem .7rem;border-bottom:1px solid #dee2e6;font-weight:700">Pts</th>
-        </tr></thead>
-        <tbody>
-          {% for pt in pool.pool_teams.all %}
-          <tr style="border-bottom:1px solid #f0f0f0;text-align:center">
-            <td style="padding:.45rem .7rem;font-weight:500;text-align:left">{{ pt.team.name }}</td>
-            <td style="padding:.45rem .7rem">{{ pt.played }}</td>
-            <td style="padding:.45rem .7rem;color:#198754">{{ pt.won }}</td>
-            <td style="padding:.45rem .7rem">{{ pt.drawn }}</td>
-            <td style="padding:.45rem .7rem;color:#dc3545">{{ pt.lost }}</td>
-            <td style="padding:.45rem .7rem">{{ pt.goals_for }}</td>
-            <td style="padding:.45rem .7rem">{{ pt.goals_against }}</td>
-            <td style="padding:.45rem .7rem">{{ pt.goal_difference }}</td>
-            <td style="padding:.45rem .7rem;font-weight:800;color:#124491">{{ pt.points }}</td>
+      <table style="width:100%;border-collapse:collapse;font-size:.84rem;table-layout:fixed">
+        <colgroup>
+          <col style="width:auto">
+          <col style="width:42px"><col style="width:42px"><col style="width:42px"><col style="width:42px">
+          <col style="width:48px"><col style="width:48px"><col style="width:48px"><col style="width:48px">
+        </colgroup>
+        <thead>
+          <tr style="background:#f8f9fa;font-size:.75rem;letter-spacing:.04em;color:#6b7280;text-transform:uppercase">
+            <th style="padding:.5rem .8rem;border-bottom:2px solid #dee2e6;text-align:left;font-weight:600">Team</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">P</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">W</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">D</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">L</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">GF</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">GA</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:600">GD</th>
+            <th style="padding:.5rem .4rem;border-bottom:2px solid #dee2e6;text-align:center;font-weight:700;color:#124491">PTS</th>
           </tr>
+        </thead>
+        <tbody>
+          {% for entry in item.pool_teams %}
+          {% with pt=entry.pt %}
+          <tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:.55rem .8rem;font-weight:500;text-align:left">{{ entry.display_name }}</td>
+            <td style="padding:.55rem .4rem;text-align:center">{{ pt.played }}</td>
+            <td style="padding:.55rem .4rem;text-align:center;color:#198754;font-weight:600">{{ pt.won }}</td>
+            <td style="padding:.55rem .4rem;text-align:center">{{ pt.drawn }}</td>
+            <td style="padding:.55rem .4rem;text-align:center;color:#dc3545">{{ pt.lost }}</td>
+            <td style="padding:.55rem .4rem;text-align:center">{{ pt.goals_for }}</td>
+            <td style="padding:.55rem .4rem;text-align:center">{{ pt.goals_against }}</td>
+            <td style="padding:.55rem .4rem;text-align:center">{{ pt.goal_difference }}</td>
+            <td style="padding:.55rem .4rem;text-align:center;font-weight:800;color:#124491">{{ pt.points }}</td>
+          </tr>
+          {% endwith %}
           {% empty %}
-          <tr><td colspan="9" style="padding:.75rem;text-align:center;color:#888">No teams in this pool yet.</td></tr>
+          <tr><td colspan="9" style="padding:.75rem;text-align:center;color:#888;font-size:.84rem">No teams in this pool yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+  {% endwith %}
   {% endfor %}
 </div>
 {% endif %}
@@ -83,9 +94,9 @@
 <div class="card" style="overflow-x:auto">
   <div style="padding:.9rem 1.1rem;border-bottom:1px solid #dee2e6;display:flex;align-items:center;justify-content:space-between">
     <h2 style="font-size:1rem;color:#333;margin:0"><i class="bi bi-calendar-event"></i> Fixtures</h2>
-    <span style="font-size:.82rem;color:#888">{{ fixtures|length }} fixture{{ fixtures|length|pluralize }}</span>
+    <span style="font-size:.82rem;color:#888">{{ fixtures_data|length }} fixture{{ fixtures_data|length|pluralize }}</span>
   </div>
-  {% if fixtures %}
+  {% if fixtures_data %}
   <table style="width:100%;border-collapse:collapse;font-size:.85rem">
     <thead><tr style="background:#f0f4ff;text-align:left">
       <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Date</th>
@@ -98,15 +109,16 @@
       <th style="padding:.55rem .9rem;border-bottom:2px solid #dee2e6">Sheet</th>
     </tr></thead>
     <tbody>
-      {% for f in fixtures %}
+      {% for entry in fixtures_data %}
+      {% with f=entry.f %}
       <tr style="border-bottom:1px solid #f0f0f0">
         <td style="padding:.5rem .9rem;font-size:.82rem">{{ f.match_date|date:"d M" }} {{ f.kickoff_time|time:"H:i" }}</td>
         <td style="padding:.5rem .9rem;font-size:.8rem;color:#888">{{ f.pool.name|default:" - " }}</td>
-        <td style="padding:.5rem .9rem;font-weight:500">{{ f.home_team.name }}</td>
+        <td style="padding:.5rem .9rem;font-weight:500">{{ entry.home_name }}</td>
         <td style="padding:.5rem .9rem;text-align:center;font-weight:700">
           {% if f.home_score is not None %}{{ f.home_score }} - {{ f.away_score }}{% else %}<span style="color:#ccc">vs</span>{% endif %}
         </td>
-        <td style="padding:.5rem .9rem;font-weight:500">{{ f.away_team.name }}</td>
+        <td style="padding:.5rem .9rem;font-weight:500">{{ entry.away_name }}</td>
         <td style="padding:.5rem .9rem">
           {% if f.status == 'completed' %}<span style="background:#d1e7dd;color:#0a3622;padding:.15rem .5rem;border-radius:10px;font-size:.75rem">✅ Done</span>
           {% elif f.status == 'confirmed' %}<span style="background:#cfe2ff;color:#084298;padding:.15rem .5rem;border-radius:10px;font-size:.75rem">Confirmed</span>
@@ -132,6 +144,7 @@
           </a>
         </td>
       </tr>
+      {% endwith %}
       {% endfor %}
     </tbody>
   </table>
