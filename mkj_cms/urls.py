@@ -332,6 +332,7 @@ from .web_views import (
     # Ligi Mashinani: Transfer system
     ward_tm_transfers_view,
     ward_tm_request_transfer_view,
+    ward_tm_transfer_browse_view,
     ward_tm_venues_view,
     wscc_edit_fixture_venue_view,
     wscc_edit_fixture_view,
@@ -766,6 +767,7 @@ urlpatterns = [
     # ── LIGI MASHINANI: Transfer System ──────────────────────────────────────
     path("ligi/transfers/",                            ward_tm_transfers_view,        name="ward_tm_transfers"),
     path("ligi/transfers/request/",                    ward_tm_request_transfer_view, name="ward_tm_request_transfer"),
+    path("ligi/transfers/browse/",                     ward_tm_transfer_browse_view,  name="ward_tm_transfer_browse"),
     path("ligi/transfers/<int:transfer_pk>/withdraw/", ward_tm_withdraw_transfer_view, name="ward_tm_withdraw_transfer"),
     path("ligi/transfers/<int:transfer_pk>/release/",  ward_tm_release_transfer_view,  name="ward_tm_release_transfer"),
 

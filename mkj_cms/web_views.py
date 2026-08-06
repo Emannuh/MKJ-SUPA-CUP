@@ -17613,6 +17613,101 @@ def ward_tm_transfers_view(request):
 
 
 @role_required('team_manager', 'admin')
+def ward_tm_transfer_browse_view(request):
+    """
+    AJAX helper for the cascading transfer player browser.
+    GET params:
+      ?action=wards&sub_county=X         → list wards in that sub-county
+      ?action=teams&sub_county=X&ward=Y  → list teams in that ward (same sport as TM)
+      ?action=players&team_pk=Z          → list players in that team
+      ?action=search&q=name              → search players by name across all teams
+    Returns JSON.
+    """
+    import json as _json
+    from accounts.models import MAKUENI_SUBCOUNTY_WARDS
+    from teams.models import Team, CountyDiscipline
+
+    user = request.user
+    discipline, _ = _get_ward_tm_context(user, request)
+    if discipline is None:
+        return JsonResponse({'error': 'No team found'}, status=403)
+
+    action = request.GET.get('action', '')
+
+    if action == 'wards':
+        sc = request.GET.get('sub_county', '').strip()
+        wards = MAKUENI_SUBCOUNTY_WARDS.get(sc, [])
+        return JsonResponse({'wards': wards})
+
+    elif action == 'teams':
+        sc   = request.GET.get('sub_county', '').strip()
+        ward = request.GET.get('ward', '').strip()
+        teams_qs = Team.objects.filter(
+            source_discipline__level='ward',
+            source_discipline__sport_type=discipline.sport_type,
+            source_discipline__ward__iexact=ward,
+            source_discipline__sub_county__iexact=sc,
+        ).exclude(source_discipline=discipline).select_related('source_discipline')
+        data = [{'pk': t.pk, 'name': t.name, 'disc_pk': t.source_discipline_id} for t in teams_qs]
+        return JsonResponse({'teams': data})
+
+    elif action == 'players':
+        team_pk = request.GET.get('team_pk', '').strip()
+        try:
+            team = Team.objects.select_related('source_discipline').get(pk=team_pk)
+            if team.source_discipline_id == discipline.pk:
+                return JsonResponse({'players': []})  # own team — no
+            players_qs = CountyPlayer.objects.filter(
+                discipline=team.source_discipline,
+            ).order_by('last_name', 'first_name')
+            data = [
+                {
+                    'pk': p.pk,
+                    'name': f'{p.first_name} {p.last_name}',
+                    'id_number': p.national_id_number or '',
+                    'reg_code': p.registration_code or '',
+                    'team': team.name,
+                    'ward': team.source_discipline.ward,
+                    'sub_county': team.source_discipline.sub_county,
+                }
+                for p in players_qs
+            ]
+            return JsonResponse({'players': data})
+        except Team.DoesNotExist:
+            return JsonResponse({'players': []})
+
+    elif action == 'search':
+        q = request.GET.get('q', '').strip()
+        if len(q) < 2:
+            return JsonResponse({'players': []})
+        players_qs = CountyPlayer.objects.filter(
+            Q(first_name__icontains=q) | Q(last_name__icontains=q) |
+            Q(national_id_number__icontains=q)
+        ).exclude(
+            discipline=discipline
+        ).select_related('discipline', 'discipline__linked_team')[:30]
+        data = [
+            {
+                'pk': p.pk,
+                'name': f'{p.first_name} {p.last_name}',
+                'id_number': p.national_id_number or '',
+                'reg_code': p.registration_code or '',
+                'team': (
+                    p.discipline.linked_team.name
+                    if hasattr(p.discipline, 'linked_team') and p.discipline.linked_team
+                    else p.discipline.ward
+                ),
+                'ward': p.discipline.ward,
+                'sub_county': p.discipline.sub_county,
+            }
+            for p in players_qs
+        ]
+        return JsonResponse({'players': data})
+
+    return JsonResponse({'error': 'Invalid action'}, status=400)
+
+
+@role_required('team_manager', 'admin')
 def ward_tm_request_transfer_view(request):
     """
     Ward TM requests a player from another team to join THEIR team.
@@ -17767,6 +17862,9 @@ def ward_tm_request_transfer_view(request):
                 'search_q': search_q,
                 'search_results': search_results,
                 'search_error': search_error,
+                'sub_county_choices': list(__import__('accounts.models', fromlist=['MAKUENI_SUBCOUNTY_WARDS']).MAKUENI_SUBCOUNTY_WARDS.keys()),
+                'browse_url': '/ligi/transfers/browse/',
+                'discipline_sport': discipline.sport_type,
             })
 
         # Compute transfer type from player's discipline vs own
@@ -17814,6 +17912,9 @@ def ward_tm_request_transfer_view(request):
         'search_q': search_q,
         'search_results': search_results,
         'search_error': search_error,
+        'sub_county_choices': list(__import__('accounts.models', fromlist=['MAKUENI_SUBCOUNTY_WARDS']).MAKUENI_SUBCOUNTY_WARDS.keys()),
+        'browse_url': '/ligi/transfers/browse/',
+        'discipline_sport': discipline.sport_type,
     })
 
 def _notify_source_tm_of_request(transfer, requested_by, _conf):

@@ -10,7 +10,7 @@
   </div>
   <h1><i class="bi bi-arrow-left-right"></i> Request Player Transfer</h1>
   <p style="color:#666;font-size:.9rem">
-    Requesting player to join <strong>{{ own_team_name }}</strong> · {{ discipline.ward|title }} Ward
+    Requesting a player to join <strong>{{ own_team_name }}</strong> · {{ discipline.ward|title }} Ward
   </p>
 </div>
 
@@ -23,178 +23,386 @@
 {% endfor %}</div>
 {% endif %}
 
-<!-- ── Step 1: Search ──────────────────────────────────────────────── -->
-<div class="card" style="padding:1.25rem;margin-bottom:1.25rem">
-  <h2 style="font-size:1rem;color:#333;margin-bottom:.2rem">
-    <i class="bi bi-search"></i> Step 1 · Find Player
-  </h2>
-  <p style="font-size:.82rem;color:#888;margin:0 0 .85rem">Search by name or National ID for a player from <strong>another team</strong>.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
 
-  <form method="get" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
-    <div style="flex:2;min-width:220px">
-      <label style="font-size:.8rem;font-weight:600;color:#555;display:block;margin-bottom:.3rem">Player Name or National ID</label>
-      <input type="text" name="q" value="{{ search_q }}"
-             placeholder="e.g. John Mutua or 12345678"
-             style="width:100%;padding:.6rem .75rem;border:1px solid #dee2e6;border-radius:6px;font-size:.9rem;box-sizing:border-box">
-    </div>
-    <button type="submit" style="padding:.6rem 1.2rem;background:#124491;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:.88rem">
-      <i class="bi bi-search"></i> Search
-    </button>
-  </form>
+  <!-- ── LEFT: Player Finder ─────────────────────────────────────── -->
+  <div>
 
-  {% if search_error %}
-  <div style="margin-top:.75rem;background:#f8d7da;color:#842029;border:1px solid #f5c2c7;border-radius:6px;padding:.65rem .9rem;font-size:.88rem">
-    <i class="bi bi-exclamation-circle"></i> {{ search_error }}
-  </div>
-  {% endif %}
-
-  <!-- Multiple matches -->
-  {% if search_results %}
-  <div style="margin-top:1rem">
-    <p style="font-size:.84rem;color:#555;margin-bottom:.5rem">Multiple players found — select one:</p>
-    <table style="width:100%;border-collapse:collapse;font-size:.85rem">
-      <thead>
-        <tr style="background:#f0f4ff;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">
-          <th style="padding:.5rem .8rem;border-bottom:1px solid #dee2e6;text-align:left">Name</th>
-          <th style="padding:.5rem .8rem;border-bottom:1px solid #dee2e6">ID</th>
-          <th style="padding:.5rem .8rem;border-bottom:1px solid #dee2e6;text-align:left">Current Team</th>
-          <th style="padding:.5rem .8rem;border-bottom:1px solid #dee2e6"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in search_results %}
-        <tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:.5rem .8rem;font-weight:600">{{ p.first_name }} {{ p.last_name }}</td>
-          <td style="padding:.5rem .8rem;font-family:monospace;font-size:.8rem;color:#888">{{ p.national_id_number }}</td>
-          <td style="padding:.5rem .8rem">
-            {% if p.discipline.linked_team %}<strong>{{ p.discipline.linked_team.name }}</strong> · {% endif %}
-            {{ p.discipline.ward|title }} Ward
-          </td>
-          <td style="padding:.5rem .8rem">
-            <a href="?q={{ search_q }}&player_pk={{ p.pk }}"
-               style="padding:.25rem .65rem;background:#124491;color:#fff;border-radius:4px;font-size:.78rem;text-decoration:none;font-weight:600">
-              Select
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% endif %}
-
-  <!-- Single found player card -->
-  {% if found_player %}
-  <div style="margin-top:.85rem;background:#f0f4ff;border:1px solid #b6d4fe;border-radius:8px;padding:.9rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-    {% if found_player.photo %}
-    <img src="{{ found_player.photo.url }}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid #dee2e6;flex-shrink:0">
-    {% else %}
-    <div style="width:48px;height:48px;background:#dbeafe;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <i class="bi bi-person-fill" style="color:#3b82f6;font-size:1.3rem"></i>
-    </div>
-    {% endif %}
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:700;font-size:.95rem;color:#111827">
-        {{ found_player.first_name }} {{ found_player.last_name }}
-        <span style="font-family:monospace;font-size:.78rem;color:#9ca3af;margin-left:.4rem;font-weight:400">{{ found_player.national_id_number }}</span>
-      </div>
-      <div style="font-size:.82rem;color:#555;margin-top:.15rem">
-        Currently at
-        {% if found_player.discipline.linked_team %}
-          <strong>{{ found_player.discipline.linked_team.name }}</strong> ·
-        {% endif %}
-        {{ found_player.discipline.ward|title }} Ward, {{ found_player.discipline.sub_county|title }}
-        {% if found_player.registration_code %}
-        <span style="margin-left:.4rem;font-family:monospace;font-size:.75rem;color:#124491;background:#e8edf5;padding:.1rem .4rem;border-radius:4px">
-          {{ found_player.registration_code }}
-        </span>
-        {% endif %}
-      </div>
-    </div>
-    <a href="#submit-form"
-       style="padding:.45rem 1rem;background:#198754;color:#fff;border-radius:6px;font-size:.85rem;text-decoration:none;font-weight:600;white-space:nowrap">
-      Use this player ↓
-    </a>
-  </div>
-  {% endif %}
-</div>
-
-<!-- ── Transfer type alert (auto, once player found) ─────────────── -->
-{% if transfer_type_info %}
-<div style="background:{{ transfer_type_info.alert_colour }};border-radius:8px;padding:.9rem 1.1rem;margin-bottom:1.25rem;font-size:.88rem;line-height:1.6">
-  {{ transfer_type_info.alert_text|safe }}
-</div>
-{% endif %}
-
-<!-- ── Step 2: Submit form ────────────────────────────────────────── -->
-<div class="card" style="padding:1.5rem;max-width:620px" id="submit-form">
-  <h2 style="font-size:1rem;color:#333;margin-bottom:1rem">
-    <i class="bi bi-send"></i> Step 2 · Confirm &amp; Submit
-  </h2>
-
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="submit_transfer">
-
-    <!-- Player (fixed — from search) -->
-    <div style="margin-bottom:1rem">
-      <label style="font-size:.8rem;font-weight:600;color:#555;display:block;margin-bottom:.35rem">Player to Request *</label>
-      {% if found_player %}
-      <input type="hidden" name="player_pk" value="{{ found_player.pk }}">
-      <div style="padding:.65rem .85rem;background:#f0f4ff;border:1px solid #b6d4fe;border-radius:6px;font-size:.88rem;display:flex;align-items:center;gap:.6rem">
-        <i class="bi bi-person-fill" style="color:#3b82f6"></i>
-        <span>
-          <strong>{{ found_player.first_name }} {{ found_player.last_name }}</strong>
-          <span style="color:#9ca3af;margin-left:.4rem;font-family:monospace;font-size:.8rem">{{ found_player.national_id_number }}</span>
-          &nbsp;·&nbsp;
-          {% if found_player.discipline.linked_team %}{{ found_player.discipline.linked_team.name }}{% else %}{{ found_player.discipline.ward|title }} Ward{% endif %}
-        </span>
-      </div>
-      {% else %}
-      <div style="padding:.65rem .85rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;font-size:.85rem;color:#9ca3af">
-        <i class="bi bi-search"></i> Search for a player above first
-      </div>
-      {% endif %}
-      {% if errors.player %}<p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.player }}</p>{% endif %}
-    </div>
-
-    <!-- Destination (fixed — always your own team) -->
-    <div style="margin-bottom:1rem">
-      <label style="font-size:.8rem;font-weight:600;color:#555;display:block;margin-bottom:.35rem">Joining Team (Your Team)</label>
-      <div style="padding:.65rem .85rem;background:#d1fae5;border:1px solid #6ee7b7;border-radius:6px;font-size:.88rem;display:flex;align-items:center;gap:.6rem">
-        <i class="bi bi-shield-fill-check" style="color:#059669"></i>
-        <span>
-          <strong>{{ own_team_name }}</strong>
-          <span style="color:#6b7280;font-size:.8rem;margin-left:.4rem">· {{ discipline.ward|title }} Ward, {{ discipline.sub_county|title }}</span>
-        </span>
-      </div>
-    </div>
-
-    <!-- Reason -->
-    <div style="margin-bottom:1.25rem">
-      <label style="font-size:.8rem;font-weight:600;color:#555;display:block;margin-bottom:.35rem">Reason for Transfer *</label>
-      <textarea name="reason" rows="4"
-                placeholder="Explain why you are requesting this player to join your team..."
-                style="width:100%;padding:.6rem .75rem;border:1px solid {% if errors.reason %}#dc3545{% else %}#dee2e6{% endif %};border-radius:6px;font-size:.88rem;resize:vertical;box-sizing:border-box">{{ post.reason }}</textarea>
-      {% if errors.reason %}<p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.reason }}</p>{% endif %}
-    </div>
-
-    <div style="background:#fff3cd;border:1px solid #fde68a;border-radius:6px;padding:.65rem .85rem;font-size:.8rem;color:#78350f;margin-bottom:1.25rem">
-      <i class="bi bi-info-circle-fill"></i>
-      <strong>Note:</strong> The current team manager must approve the player's release before any official reviews this request.
-    </div>
-
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-      <button type="submit" {% if not found_player %}disabled{% endif %}
-              style="padding:.65rem 1.5rem;background:{% if found_player %}#124491{% else %}#9ca3af{% endif %};color:#fff;border:none;border-radius:6px;font-weight:600;cursor:{% if found_player %}pointer{% else %}not-allowed{% endif %};font-size:.9rem">
-        <i class="bi bi-send"></i> Submit Request
+    <!-- Tab switcher -->
+    <div style="display:flex;border-bottom:2px solid #e5e7eb;margin-bottom:1.25rem">
+      <button id="tab-browse" onclick="switchTab('browse')"
+              style="padding:.55rem 1.1rem;border:none;background:none;font-size:.88rem;font-weight:700;color:#124491;border-bottom:2px solid #124491;margin-bottom:-2px;cursor:pointer">
+        <i class="bi bi-diagram-3"></i> Browse by Team
       </button>
-      <a href="{% url 'ward_tm_transfers' %}"
-         style="padding:.65rem 1.1rem;background:#f8f9fa;color:#555;border:1px solid #dee2e6;border-radius:6px;text-decoration:none;font-size:.9rem">
-        Cancel
-      </a>
+      <button id="tab-search" onclick="switchTab('search')"
+              style="padding:.55rem 1.1rem;border:none;background:none;font-size:.88rem;font-weight:600;color:#9ca3af;cursor:pointer">
+        <i class="bi bi-search"></i> Search by Name
+      </button>
     </div>
-  </form>
-</div>
 
+    <!-- BROWSE panel -->
+    <div id="panel-browse">
+      <div class="card" style="padding:1.1rem">
+
+        <!-- Sub County -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem">Sub County</label>
+          <select id="sel-subcounty" onchange="loadWards()"
+                  style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem;background:#fff">
+            <option value="">— Select Sub County —</option>
+            {% for sc in sub_county_choices %}
+            <option value="{{ sc }}">{{ sc }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Ward -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem">Ward</label>
+          <select id="sel-ward" onchange="loadTeams()" disabled
+                  style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem;background:#fff;opacity:.6">
+            <option value="">— Select Ward —</option>
+          </select>
+        </div>
+
+        <!-- Team -->
+        <div style="margin-bottom:.9rem">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem">Team</label>
+          <select id="sel-team" onchange="loadPlayers()" disabled
+                  style="width:100%;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem;background:#fff;opacity:.6">
+            <option value="">— Select Team —</option>
+          </select>
+        </div>
+
+        <!-- Players list -->
+        <div id="players-browse-list" style="display:none">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem">Players</label>
+          <div id="players-browse-items" style="display:flex;flex-direction:column;gap:.4rem;max-height:280px;overflow-y:auto"></div>
+        </div>
+        <div id="players-browse-empty" style="display:none;padding:.75rem;text-align:center;color:#9ca3af;font-size:.84rem">
+          <i class="bi bi-people"></i> No players found for this team.
+        </div>
+        <div id="players-browse-loading" style="display:none;padding:.75rem;text-align:center;color:#9ca3af;font-size:.84rem">
+          <i class="bi bi-hourglass-split"></i> Loading…
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH panel -->
+    <div id="panel-search" style="display:none">
+      <div class="card" style="padding:1.1rem">
+        <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem">Player Name or National ID</label>
+        <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+          <input id="search-input" type="text" placeholder="e.g. John Mutua or 12345678"
+                 oninput="debounceSearch()"
+                 style="flex:1;padding:.55rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem">
+          <button onclick="runSearch()"
+                  style="padding:.55rem .9rem;background:#124491;color:#fff;border:none;border-radius:6px;font-size:.85rem;cursor:pointer;white-space:nowrap">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <div id="players-search-list" style="display:flex;flex-direction:column;gap:.4rem;max-height:320px;overflow-y:auto"></div>
+        <div id="players-search-empty" style="display:none;padding:.75rem;text-align:center;color:#9ca3af;font-size:.84rem">No players found.</div>
+        <div id="players-search-loading" style="display:none;padding:.5rem;text-align:center;color:#9ca3af;font-size:.84rem"><i class="bi bi-hourglass-split"></i> Searching…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT: Transfer Form ────────────────────────────────────── -->
+  <div>
+    <div class="card" style="padding:1.25rem" id="transfer-form">
+      <h2 style="font-size:.95rem;font-weight:700;color:#333;margin-bottom:1rem">
+        <i class="bi bi-send"></i> Transfer Request
+      </h2>
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="submit_transfer">
+        <input type="hidden" name="player_pk" id="form-player-pk" value="{{ post.player_pk }}">
+
+        <!-- Selected player display -->
+        <div style="margin-bottom:1rem">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem">Selected Player</label>
+          <div id="selected-player-display"
+               style="padding:.75rem .9rem;background:#f8f9fa;border:2px dashed #d1d5db;border-radius:8px;font-size:.86rem;color:#9ca3af;min-height:54px;display:flex;align-items:center;gap:.6rem">
+            <i class="bi bi-person" style="font-size:1.2rem"></i>
+            <span id="selected-player-text">← Select a player from the left</span>
+          </div>
+          {% if errors.player %}
+          <p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.player }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Transfer type indicator -->
+        <div id="transfer-type-badge" style="display:none;border-radius:7px;padding:.7rem .9rem;margin-bottom:.9rem;font-size:.84rem;line-height:1.5"></div>
+
+        <!-- Destination (fixed) -->
+        <div style="margin-bottom:1rem">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem">Joining Your Team</label>
+          <div style="padding:.65rem .9rem;background:#d1fae5;border:1px solid #6ee7b7;border-radius:7px;font-size:.87rem;display:flex;align-items:center;gap:.55rem">
+            <i class="bi bi-shield-fill-check" style="color:#059669;flex-shrink:0"></i>
+            <span>
+              <strong>{{ own_team_name }}</strong>
+              <span style="color:#6b7280;font-size:.8rem;margin-left:.4rem">· {{ discipline.ward|title }} Ward, {{ discipline.sub_county|title }}</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Reason -->
+        <div style="margin-bottom:1rem">
+          <label style="font-size:.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.4rem">Reason *</label>
+          <textarea name="reason" rows="4"
+                    placeholder="Explain why you are requesting this player…"
+                    style="width:100%;padding:.6rem .75rem;border:1px solid {% if errors.reason %}#dc3545{% else %}#d1d5db{% endif %};border-radius:6px;font-size:.87rem;resize:vertical;box-sizing:border-box">{{ post.reason }}</textarea>
+          {% if errors.reason %}<p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.reason }}</p>{% endif %}
+        </div>
+
+        <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:.6rem .85rem;font-size:.79rem;color:#78350f;margin-bottom:1rem">
+          <i class="bi bi-info-circle-fill"></i>
+          The source team manager must approve the release before officials review this request.
+        </div>
+
+        <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+          <button type="submit" id="submit-btn" disabled
+                  style="padding:.6rem 1.4rem;background:#9ca3af;color:#fff;border:none;border-radius:6px;font-weight:600;font-size:.9rem;cursor:not-allowed;transition:background .2s">
+            <i class="bi bi-send"></i> Submit Request
+          </button>
+          <a href="{% url 'ward_tm_transfers' %}"
+             style="padding:.6rem 1rem;background:#f8f9fa;color:#555;border:1px solid #d1d5db;border-radius:6px;text-decoration:none;font-size:.9rem">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div><!-- /grid -->
+
+<script>
+(function() {
+  var BROWSE_URL   = '{{ browse_url }}';
+  var OWN_WARD     = '{{ discipline.ward|escapejs }}';
+  var OWN_SC       = '{{ discipline.sub_county|escapejs }}';
+  var OWN_TEAM     = '{{ own_team_name|escapejs }}';
+  var _searchTimer = null;
+
+  /* ── Tab switching ──────────────────────────────────────────────── */
+  window.switchTab = function(tab) {
+    var isBrowse = tab === 'browse';
+    document.getElementById('panel-browse').style.display = isBrowse ? '' : 'none';
+    document.getElementById('panel-search').style.display = isBrowse ? 'none' : '';
+    document.getElementById('tab-browse').style.color        = isBrowse ? '#124491' : '#9ca3af';
+    document.getElementById('tab-browse').style.borderBottom = isBrowse ? '2px solid #124491' : '2px solid transparent';
+    document.getElementById('tab-browse').style.fontWeight   = isBrowse ? '700' : '600';
+    document.getElementById('tab-search').style.color        = isBrowse ? '#9ca3af' : '#124491';
+    document.getElementById('tab-search').style.borderBottom = isBrowse ? '2px solid transparent' : '2px solid #124491';
+    document.getElementById('tab-search').style.fontWeight   = isBrowse ? '600' : '700';
+  };
+
+  /* ── Cascade: load wards ─────────────────────────────────────────── */
+  window.loadWards = function() {
+    var sc  = document.getElementById('sel-subcounty').value;
+    var sel = document.getElementById('sel-ward');
+    sel.innerHTML = '<option value="">— Select Ward —</option>';
+    sel.disabled = true; sel.style.opacity = '.6';
+    resetTeams();
+    if (!sc) return;
+    fetch(BROWSE_URL + '?action=wards&sub_county=' + encodeURIComponent(sc))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        (d.wards || []).forEach(function(w){
+          var o = document.createElement('option'); o.value = w; o.textContent = w; sel.appendChild(o);
+        });
+        sel.disabled = false; sel.style.opacity = '1';
+      });
+  };
+
+  /* ── Cascade: load teams ─────────────────────────────────────────── */
+  window.loadTeams = function() {
+    var sc   = document.getElementById('sel-subcounty').value;
+    var ward = document.getElementById('sel-ward').value;
+    var sel  = document.getElementById('sel-team');
+    sel.innerHTML = '<option value="">— Select Team —</option>';
+    sel.disabled = true; sel.style.opacity = '.6';
+    hidePlayers();
+    if (!ward) return;
+    fetch(BROWSE_URL + '?action=teams&sub_county=' + encodeURIComponent(sc) + '&ward=' + encodeURIComponent(ward))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        (d.teams || []).forEach(function(t){
+          var o = document.createElement('option'); o.value = t.pk; o.textContent = t.name; sel.appendChild(o);
+        });
+        sel.disabled = false; sel.style.opacity = '1';
+      });
+  };
+
+  /* ── Cascade: load players ───────────────────────────────────────── */
+  window.loadPlayers = function() {
+    var teamPk = document.getElementById('sel-team').value;
+    hidePlayers();
+    if (!teamPk) return;
+    showLoading('browse');
+    fetch(BROWSE_URL + '?action=players&team_pk=' + encodeURIComponent(teamPk))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        hideLoading('browse');
+        renderPlayerList(d.players || [], 'browse');
+      });
+  };
+
+  /* ── Name search ─────────────────────────────────────────────────── */
+  window.debounceSearch = function() {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(runSearch, 350);
+  };
+  window.runSearch = function() {
+    var q = document.getElementById('search-input').value.trim();
+    clearResults('search');
+    if (q.length < 2) return;
+    showLoading('search');
+    fetch(BROWSE_URL + '?action=search&q=' + encodeURIComponent(q))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        hideLoading('search');
+        renderPlayerList(d.players || [], 'search');
+      });
+  };
+
+  /* ── Render player rows ──────────────────────────────────────────── */
+  function renderPlayerList(players, panel) {
+    var listId  = 'players-' + panel + '-list';
+    var itemsId = panel === 'browse' ? 'players-browse-items' : listId;
+    var emptyId = 'players-' + panel + '-empty';
+    var container = document.getElementById(panel === 'browse' ? 'players-browse-list' : listId);
+    var items     = document.getElementById(itemsId);
+    var empty     = document.getElementById(emptyId);
+
+    if (!players.length) {
+      if (container) container.style.display = panel === 'browse' ? 'block' : 'none';
+      if (items)     items.innerHTML = '';
+      if (empty)     empty.style.display = 'block';
+      return;
+    }
+    if (empty)     empty.style.display = 'none';
+    if (container) container.style.display = 'block';
+    if (items)     items.innerHTML = '';
+
+    var target = items || container;
+    players.forEach(function(p) {
+      var div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.45rem .65rem;background:#f8f9fa;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;gap:.5rem;transition:background .15s';
+      div.innerHTML =
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:600;font-size:.86rem;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escH(p.name) + '</div>' +
+          '<div style="font-size:.75rem;color:#9ca3af;margin-top:.05rem">' +
+            (p.team ? escH(p.team) + ' · ' : '') + escH(p.ward) +
+            (p.id_number ? ' <span style="font-family:monospace">' + escH(p.id_number) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<button type="button" style="padding:.25rem .65rem;background:#124491;color:#fff;border:none;border-radius:4px;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Select</button>';
+      div.querySelector('button').addEventListener('click', function(e) {
+        e.stopPropagation();
+        selectPlayer(p);
+      });
+      div.addEventListener('click', function(){ selectPlayer(p); });
+      div.addEventListener('mouseenter', function(){ this.style.background = '#eff6ff'; });
+      div.addEventListener('mouseleave', function(){ this.style.background = '#f8f9fa'; });
+      target.appendChild(div);
+    });
+  }
+
+  /* ── Select a player → pre-fill form ────────────────────────────── */
+  function selectPlayer(p) {
+    document.getElementById('form-player-pk').value = p.pk;
+
+    var display = document.getElementById('selected-player-display');
+    display.style.background = '#f0f4ff';
+    display.style.border = '2px solid #b6d4fe';
+    display.style.color = '#111827';
+    document.getElementById('selected-player-text').innerHTML =
+      '<strong>' + escH(p.name) + '</strong>' +
+      (p.id_number ? ' <span style="font-family:monospace;color:#9ca3af;font-size:.8rem">' + escH(p.id_number) + '</span>' : '') +
+      '<br><span style="font-size:.8rem;color:#6b7280">' +
+        (p.team ? escH(p.team) + ' · ' : '') + escH(p.ward) + ' Ward' +
+      '</span>';
+
+    // Transfer type badge
+    var badge  = document.getElementById('transfer-type-badge');
+    var toSC   = OWN_SC;
+    var toWard = OWN_WARD;
+    var bg, html;
+    if (p.sub_county !== toSC) {
+      bg   = '#f8d7da';
+      html = '⚠️ <strong>Inter-Sub-County</strong> — <strong>' + escH(p.team||p.ward) + '</strong> (' + escH(p.sub_county) + ') → <strong>' + escH(OWN_TEAM) + '</strong> (' + escH(toSC) + '). Requires CSO / Director of Sports approval.';
+    } else if (p.ward !== toWard) {
+      bg   = '#fff3cd';
+      html = '🔄 <strong>Inter-Ward</strong> — <strong>' + escH(p.team||p.ward) + '</strong> (' + escH(p.ward) + ') → <strong>' + escH(OWN_TEAM) + '</strong> (' + escH(toWard) + '). Requires WSCC then SCSO approval.';
+    } else {
+      bg   = '#d1fae5';
+      html = '✅ <strong>Within-Ward</strong> — <strong>' + escH(p.team||p.ward) + '</strong> → <strong>' + escH(OWN_TEAM) + '</strong>. Ward Sports Council Chair approval only.';
+    }
+    badge.style.background = bg;
+    badge.innerHTML = html;
+    badge.style.display = 'block';
+
+    // Enable submit
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = false;
+    btn.style.background = '#124491';
+    btn.style.cursor = 'pointer';
+
+    // Scroll to form on mobile
+    if (window.innerWidth < 768) {
+      document.getElementById('transfer-form').scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  }
+
+  /* ── Helpers ─────────────────────────────────────────────────────── */
+  function escH(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function resetTeams() {
+    var s = document.getElementById('sel-team');
+    s.innerHTML = '<option value="">— Select Team —</option>';
+    s.disabled = true; s.style.opacity = '.6';
+    hidePlayers();
+  }
+  function hidePlayers() {
+    document.getElementById('players-browse-list').style.display  = 'none';
+    document.getElementById('players-browse-empty').style.display = 'none';
+    document.getElementById('players-browse-loading').style.display = 'none';
+  }
+  function clearResults(panel) {
+    var listEl = document.getElementById('players-' + panel + '-list');
+    var emptyEl = document.getElementById('players-' + panel + '-empty');
+    if (listEl)  listEl.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+  }
+  function showLoading(panel) {
+    var el = document.getElementById('players-' + panel + '-loading');
+    if (el) el.style.display = 'block';
+  }
+  function hideLoading(panel) {
+    var el = document.getElementById('players-' + panel + '-loading');
+    if (el) el.style.display = 'none';
+  }
+
+  /* ── Restore state if player_pk already in form (error re-render) ── */
+  {% if post.player_pk %}
+  (function(){
+    fetch(BROWSE_URL + '?action=players&team_pk=__none__')  // won't return, just pre-fill display
+      .catch(function(){});
+    // If player pk exists in post, pre-fill from a direct player search
+    fetch(BROWSE_URL + '?action=search&q={{ post.player_pk }}')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var pl = (d.players||[]).find(function(p){ return String(p.pk) === '{{ post.player_pk }}'; });
+        if (pl) selectPlayer(pl);
+      });
+  })();
+  {% endif %}
+
+})();
+</script>
 {% endblock %}
