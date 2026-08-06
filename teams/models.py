@@ -2197,7 +2197,9 @@ class PlayerRegRequest(models.Model):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class LigiTransferStatus(models.TextChoices):
-    PENDING        = "pending",        "Pending Review"
+    SOURCE_TM_PENDING  = "source_tm_pending",  "Awaiting Source Team Approval"
+    SOURCE_TM_REJECTED = "source_tm_rejected", "Rejected by Source Team Manager"
+    PENDING        = "pending",        "Pending WSCC Review"
     WSCC_APPROVED  = "wscc_approved",  "WSCC Approved  -  Pending SCSO"
     WSCC_REJECTED  = "wscc_rejected",  "Rejected by WSCC"
     SCSO_APPROVED  = "scso_approved",  "Approved  -  Transfer Complete"
@@ -2208,13 +2210,9 @@ class LigiTransferStatus(models.TextChoices):
 
 
 class LigiTransferType(models.TextChoices):
-    WITHIN_WARD    = "within_ward",    "Within Same Ward (Team to Team)"
-    INTER_WARD     = "inter_ward",     "Inter-Ward (Same Sub-County)"
+    WITHIN_WARD     = "within_ward",     "Within Same Ward (Team to Team)"
+    INTER_WARD      = "inter_ward",      "Inter-Ward (Same Sub-County)"
     INTER_SUBCOUNTY = "inter_subcounty", "Inter-Sub-County"
-    WSCC_REJECTED  = "wscc_rejected",  "Rejected by WSCC"
-    SCSO_APPROVED  = "scso_approved",  "Approved  -  Transfer Complete"
-    SCSO_REJECTED  = "scso_rejected",  "Rejected by Sub-County Officer"
-    WITHDRAWN      = "withdrawn",      "Withdrawn by Team Manager"
 
 
 class LigiTransferRequest(models.Model):
@@ -2262,6 +2260,18 @@ class LigiTransferRequest(models.Model):
         choices=LigiTransferStatus.choices,
         default=LigiTransferStatus.PENDING,
     )
+
+    # ── Source TM review (must approve before any official reviews) ──────
+    source_tm_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="source_tm_transfer_reviews",
+        help_text="Source team manager who approved/rejected release of this player",
+    )
+    source_tm_reviewed_at = models.DateTimeField(null=True, blank=True)
+    source_tm_notes = models.TextField(blank=True, default="",
+                                       help_text="Source TM approval/rejection notes")
 
     # ── WSCC review ───────────────────────────────────────────────────────
     wscc_reviewed_by = models.ForeignKey(
@@ -2324,6 +2334,10 @@ class LigiTransferRequest(models.Model):
         )
 
     @property
+    def is_pending_source_tm(self):
+        return self.status == LigiTransferStatus.SOURCE_TM_PENDING
+
+    @property
     def is_pending_wscc(self):
         return self.status == LigiTransferStatus.PENDING
 
@@ -2333,13 +2347,18 @@ class LigiTransferRequest(models.Model):
 
     @property
     def is_complete(self):
-        return self.status == LigiTransferStatus.SCSO_APPROVED
+        return self.status in (
+            LigiTransferStatus.SCSO_APPROVED,
+            LigiTransferStatus.SENIOR_APPROVED,
+        )
 
     @property
     def is_rejected(self):
         return self.status in (
+            LigiTransferStatus.SOURCE_TM_REJECTED,
             LigiTransferStatus.WSCC_REJECTED,
             LigiTransferStatus.SCSO_REJECTED,
+            LigiTransferStatus.SENIOR_REJECTED,
         )
 
 

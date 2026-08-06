@@ -336,6 +336,7 @@ from .web_views import (
     wscc_edit_fixture_venue_view,
     wscc_edit_fixture_view,
     ward_tm_withdraw_transfer_view,
+    ward_tm_release_transfer_view,
     wscc_transfers_view,
     wscc_transfer_action_view,
     scso_transfers_view,
@@ -766,6 +767,7 @@ urlpatterns = [
     path("ligi/transfers/",                            ward_tm_transfers_view,        name="ward_tm_transfers"),
     path("ligi/transfers/request/",                    ward_tm_request_transfer_view, name="ward_tm_request_transfer"),
     path("ligi/transfers/<int:transfer_pk>/withdraw/", ward_tm_withdraw_transfer_view, name="ward_tm_withdraw_transfer"),
+    path("ligi/transfers/<int:transfer_pk>/release/",  ward_tm_release_transfer_view,  name="ward_tm_release_transfer"),
 
     # ── LIGI MASHINANI: Ward TM Venue Management ─────────────────────────────
     path("ligi/venues/",                               ward_tm_venues_view,           name="ward_tm_venues"),

@@ -17574,7 +17574,7 @@ def ward_tm_transfers_view(request):
     Ward TM: list their own transfer requests + button to create new one.
     URL: /ligi/transfers/
     """
-    from teams.models import LigiTransferRequest, LigiSettings
+    from teams.models import LigiTransferRequest, LigiSettings, LigiTransferStatus
     user = request.user
     discipline, longlist = _get_ward_tm_context(user, request)
     if discipline is None:
@@ -17582,17 +17582,26 @@ def ward_tm_transfers_view(request):
         return redirect('ward_tm_dashboard')
 
     cfg = LigiSettings.get()
+    # Requests THIS TM submitted (outgoing — they are the destination team)
     transfers = LigiTransferRequest.objects.filter(
-        from_discipline=discipline,
-    ).select_related('player', 'to_discipline', 'wscc_reviewed_by', 'scso_reviewed_by').order_by('-requested_at')
+        to_discipline=discipline,
+    ).select_related('player', 'from_discipline', 'to_discipline', 'wscc_reviewed_by', 'scso_reviewed_by').order_by('-requested_at')
 
+    # Requests for THIS TM's players to be released (incoming — they are the source team)
+    release_requests = LigiTransferRequest.objects.filter(
+        from_discipline=discipline,
+        status=LigiTransferStatus.SOURCE_TM_PENDING,
+    ).select_related('player', 'to_discipline', 'requested_by').order_by('-requested_at')
+
+    # Players who have successfully transferred INTO this team
     incoming = LigiTransferRequest.objects.filter(
         to_discipline=discipline,
-        status='scso_approved',
+        status__in=['scso_approved', 'senior_approved'],
     ).select_related('player', 'from_discipline').order_by('-completed_at')
 
     return render(request, 'ligi/ward_tm_transfers.html', {
         'transfers': transfers,
+        'release_requests': release_requests,
         'incoming': incoming,
         'discipline': discipline,
         'longlist': longlist,
@@ -17772,7 +17781,7 @@ def ward_tm_request_transfer_view(request):
         if player_obj and not errors:
             active = LigiTransferRequest.objects.filter(
                 player=player_obj,
-                status__in=['pending', 'wscc_approved', 'senior_pending'],
+                status__in=['source_tm_pending', 'pending', 'wscc_approved', 'senior_pending'],
             ).exists()
             if active:
                 errors['player'] = 'This player already has a pending transfer request.'
@@ -17807,12 +17816,12 @@ def ward_tm_request_transfer_view(request):
             to_discipline=to_disc_obj,
             reason=reason,
             transfer_type=t_type,
-            status=LigiTransferStatus.PENDING,
+            status=LigiTransferStatus.SOURCE_TM_PENDING,  # source TM must release first
             requested_by=user,
         )
 
-        # Notify appropriate reviewer
-        _notify_transfer_reviewer(transfer, user, _conf)
+        # Notify the SOURCE team manager first — they must approve the release
+        _notify_source_tm_of_request(transfer, user, _conf)
 
         type_labels = {
             LigiTransferType.WITHIN_WARD: 'Within-Ward',
@@ -17821,7 +17830,8 @@ def ward_tm_request_transfer_view(request):
         }
         messages.success(
             request,
-            f'{type_labels[t_type]} transfer request for {player_obj.first_name} {player_obj.last_name} submitted.'
+            f'{type_labels[t_type]} transfer request for {player_obj.first_name} {player_obj.last_name} submitted. '
+            f'The source team manager has been notified and must approve the release first.'
         )
         return redirect('ward_tm_transfers')
 
@@ -17836,6 +17846,58 @@ def ward_tm_request_transfer_view(request):
         'found_player': found_player,
         'transfer_type_info': transfer_type_info,
     })
+
+
+def _notify_source_tm_of_request(transfer, requested_by, _conf):
+    """
+    Notify the source team manager that a transfer request has been made for their player.
+    They must log in and approve the release before any official reviews it.
+    """
+    from accounts.models import User as _User
+    from accounts.notifications import _send, _base_html
+    site_url = getattr(_conf, 'SITE_URL', '')
+    p = transfer.player
+
+    try:
+        source_tm = _User.objects.filter(
+            role='team_manager',
+            ward=transfer.from_discipline.ward,
+            sub_county=transfer.from_discipline.sub_county,
+            is_active=True,
+        ).first()
+        if not source_tm or not source_tm.email:
+            return
+
+        dest_team_name = ''
+        try:
+            from teams.models import Team as _T
+            dest_t = _T.objects.filter(source_discipline=transfer.to_discipline).first()
+            dest_team_name = dest_t.name if dest_t else transfer.to_discipline.ward
+        except Exception:
+            dest_team_name = transfer.to_discipline.ward
+
+        body = f"""
+<p>Dear <strong>{source_tm.first_name} {source_tm.last_name}</strong>,</p>
+<p>A transfer request has been submitted for one of your players.
+You must <strong>approve or reject</strong> this request before it proceeds to officials.</p>
+<dl class="info-box">
+ <dt>Player</dt><dd>{p.first_name} {p.last_name} &mdash; <code>{p.registration_code or p.national_id_number}</code></dd>
+ <dt>Requesting Team</dt><dd>{dest_team_name} ({transfer.to_discipline.ward} Ward)</dd>
+ <dt>Transfer Type</dt><dd>{transfer.get_transfer_type_display()}</dd>
+ <dt>Reason</dt><dd>{transfer.reason}</dd>
+</dl>
+<a href="{site_url}/ligi/transfers/" class="btn">Review Request</a>
+<p style="font-size:.85rem;color:#888;margin-top:1rem">
+  If you approve, the request will then go to the relevant official for final authorisation.
+  If you reject, the request is closed immediately.
+</p>"""
+        _send(
+            f'Player Release Request — {p.first_name} {p.last_name}',
+            _base_html('Player Transfer Request Received', body),
+            [source_tm.email],
+        )
+    except Exception as e:
+        logger.warning('Failed to notify source TM of transfer request: %s', e)
 
 
 def _notify_transfer_reviewer(transfer, requested_by, _conf):
@@ -17917,13 +17979,83 @@ def ward_tm_withdraw_transfer_view(request, transfer_pk):
         LigiTransferRequest,
         pk=transfer_pk,
         from_discipline=discipline,
-        status=LigiTransferStatus.PENDING,
+        status__in=[LigiTransferStatus.SOURCE_TM_PENDING, LigiTransferStatus.PENDING],
     )
 
     if request.method == 'POST':
         transfer.status = LigiTransferStatus.WITHDRAWN
         transfer.save(update_fields=['status', 'updated_at'])
         messages.success(request, 'Transfer request withdrawn.')
+
+    return redirect('ward_tm_transfers')
+
+
+@role_required('team_manager', 'admin')
+def ward_tm_release_transfer_view(request, transfer_pk):
+    """
+    Source TM: approve (release) or reject an incoming transfer request for their player.
+    - Approve  → status becomes PENDING, routed to WSCC / senior official
+    - Reject   → status becomes SOURCE_TM_REJECTED, requester notified
+    POST only. URL: /ligi/transfers/<pk>/release/
+    """
+    from teams.models import LigiTransferRequest, LigiTransferStatus, LigiTransferType
+    from django.conf import settings as _conf
+
+    user = request.user
+    discipline, _ = _get_ward_tm_context(user, request)
+    if discipline is None:
+        return redirect('ward_tm_dashboard')
+
+    # This TM is the SOURCE team — the player belongs to their discipline
+    transfer = get_object_or_404(
+        LigiTransferRequest,
+        pk=transfer_pk,
+        from_discipline=discipline,
+        status=LigiTransferStatus.SOURCE_TM_PENDING,
+    )
+
+    if request.method != 'POST':
+        return redirect('ward_tm_transfers')
+
+    action = request.POST.get('action', '').strip()
+    notes  = request.POST.get('notes', '').strip()
+
+    transfer.source_tm_reviewed_by = user
+    transfer.source_tm_reviewed_at = timezone.now()
+    transfer.source_tm_notes = notes
+
+    if action == 'approve':
+        # Within-ward within-ward: goes to WSCC
+        # Inter-ward: goes to WSCC then SCSO
+        # Inter-subcounty: goes straight to senior
+        if transfer.transfer_type == LigiTransferType.INTER_SUBCOUNTY:
+            transfer.status = LigiTransferStatus.PENDING  # senior handles from PENDING
+        else:
+            transfer.status = LigiTransferStatus.PENDING  # WSCC picks up PENDING
+        transfer.save(update_fields=[
+            'status', 'source_tm_reviewed_by', 'source_tm_reviewed_at',
+            'source_tm_notes', 'updated_at',
+        ])
+        # Now notify the correct official
+        _notify_transfer_reviewer(transfer, user, _conf)
+        messages.success(
+            request,
+            f'You have approved the release of {transfer.player.first_name} {transfer.player.last_name}. '
+            f'The request has been forwarded to the relevant official for final approval.'
+        )
+
+    elif action == 'reject':
+        if not notes:
+            messages.error(request, 'Please provide a reason for rejecting this request.')
+            return redirect('ward_tm_transfers')
+        transfer.status = LigiTransferStatus.SOURCE_TM_REJECTED
+        transfer.save(update_fields=[
+            'status', 'source_tm_reviewed_by', 'source_tm_reviewed_at',
+            'source_tm_notes', 'updated_at',
+        ])
+        # Notify the requesting TM
+        _notify_ward_tm_transfer_decision(transfer, 'rejected', notes, rejected_by='Source Team Manager')
+        messages.success(request, 'Transfer request rejected.')
 
     return redirect('ward_tm_transfers')
 
@@ -17948,8 +18080,8 @@ def wscc_transfers_view(request):
     if sub_county:
         qs = qs.filter(from_discipline__sub_county=sub_county)
 
-    pending = qs.filter(status='pending')
-    reviewed = qs.exclude(status='pending')
+    pending = qs.filter(status='pending')   # source TM has approved; awaiting WSCC
+    reviewed = qs.exclude(status__in=['pending', 'source_tm_pending'])
 
     return render(request, 'ligi/wscc/transfers.html', {
         'pending': pending,

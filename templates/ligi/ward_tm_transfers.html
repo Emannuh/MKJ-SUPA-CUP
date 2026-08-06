@@ -1,5 +1,5 @@
 ﻿{% extends 'base.html' %}
-{% block title %}My Transfer Requests · Ligi Mashinani{% endblock %}
+{% block title %}Player Transfers · Ligi Mashinani{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -12,34 +12,29 @@
 </div>
 
 {% if messages %}
-<div style="margin-bottom:1rem">
-  {% for msg in messages %}
-  <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:.5rem;font-size:.9rem;
-    {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;border:1px solid #f5c2c7;
-    {% elif 'success' in msg.tags %}background:#d1e7dd;color:#0a3622;border:1px solid #badbcc;
-    {% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;border:1px solid #ffecb5;
-    {% else %}background:#cfe2ff;color:#084298;border:1px solid #b6d4fe;{% endif %}">
+<div style="margin-bottom:1rem">{% for msg in messages %}
+  <div style="padding:.75rem 1rem;border-radius:6px;margin-bottom:.4rem;font-size:.88rem;
+    {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;{% elif 'success' in msg.tags %}background:#d1fae5;color:#065f46;{% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;{% else %}background:#cfe2ff;color:#084298;{% endif %}">
     {{ msg }}
   </div>
-  {% endfor %}
-</div>
+{% endfor %}</div>
 {% endif %}
 
-<!-- Transfer window status banner -->
+<!-- Transfer window banner -->
 {% if window_open %}
-<div style="background:#d1e7dd;border:1px solid #badbcc;border-radius:8px;padding:.9rem 1.1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.75rem">
-  <span style="font-size:1.4rem">🟢</span>
-  <div>
-    <strong style="color:#0a3622">Transfer Window is OPEN</strong>
-    <p style="margin:0;font-size:.82rem;color:#0a3622">You can request player transfers to other ward teams in {{ sub_county|title }}.</p>
+<div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:.9rem 1.1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+  <span style="font-size:1.3rem">🟢</span>
+  <div style="flex:1">
+    <strong style="color:#065f46">Transfer Window is OPEN</strong>
+    <p style="margin:0;font-size:.82rem;color:#065f46">Search for a player from another team and submit a request — they must approve before officials review it.</p>
   </div>
-  <a href="{% url 'ward_tm_request_transfer' %}" style="margin-left:auto;padding:.5rem 1.1rem;background:#198754;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap">
+  <a href="{% url 'ward_tm_request_transfer' %}" style="padding:.5rem 1.1rem;background:#198754;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:.88rem;white-space:nowrap">
     <i class="bi bi-plus-circle"></i> New Request
   </a>
 </div>
 {% else %}
 <div style="background:#f8d7da;border:1px solid #f5c2c7;border-radius:8px;padding:.9rem 1.1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.75rem">
-  <span style="font-size:1.4rem">🔴</span>
+  <span style="font-size:1.3rem">🔴</span>
   <div>
     <strong style="color:#842029">Transfer Window is CLOSED</strong>
     <p style="margin:0;font-size:.82rem;color:#842029">{{ window_closed_msg }}</p>
@@ -47,63 +42,146 @@
 </div>
 {% endif %}
 
-<!-- Outgoing transfer requests -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
-  <h2 style="font-size:1.05rem;color:#333;margin-bottom:1rem"><i class="bi bi-arrow-right-circle"></i> My Transfer Requests ({{ transfers.count }})</h2>
+<!-- ── SECTION 1: Release requests — players from YOUR team being requested ── -->
+{% if release_requests %}
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem;border-left:4px solid #f59e0b">
+  <h2 style="font-size:1rem;color:#92400e;margin-bottom:.25rem">
+    <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b"></i>
+    Player Release Requests ({{ release_requests|length }})
+  </h2>
+  <p style="font-size:.82rem;color:#78350f;margin:0 0 1rem">Another team has requested one of your players. You must approve or reject before any official reviews it.</p>
+  <div style="display:flex;flex-direction:column;gap:.75rem">
+    {% for t in release_requests %}
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:1rem 1.1rem">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+          <div style="font-weight:700;font-size:.95rem;color:#111827">
+            {{ t.player.first_name }} {{ t.player.last_name }}
+            <span style="font-family:monospace;font-size:.78rem;color:#888;margin-left:.4rem">{{ t.player.registration_code|default:t.player.national_id_number }}</span>
+          </div>
+          <div style="font-size:.82rem;color:#555;margin-top:.2rem">
+            Requested by <strong>{{ t.to_discipline.linked_team.name|default:t.to_discipline.ward }}</strong>
+            ({{ t.to_discipline.ward|title }} Ward · {{ t.to_discipline.sub_county|title }})
+            · <span style="color:#888">{{ t.requested_at|date:"d M Y" }}</span>
+          </div>
+          <div style="font-size:.82rem;color:#374151;margin-top:.3rem">
+            <strong>Type:</strong>
+            {% if t.transfer_type == 'within_ward' %}<span style="color:#065f46">Within-Ward</span>
+            {% elif t.transfer_type == 'inter_ward' %}<span style="color:#856404">Inter-Ward</span>
+            {% else %}<span style="color:#842029">Inter-Sub-County</span>{% endif %}
+            &nbsp;·&nbsp; <strong>Reason:</strong> {{ t.reason|truncatechars:100 }}
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-start">
+          <form method="post" action="{% url 'ward_tm_release_transfer' t.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <button type="submit"
+                    onclick="return confirm('Approve release of {{ t.player.first_name }} {{ t.player.last_name }}? This will forward the request to officials.')"
+                    style="padding:.4rem .85rem;background:#198754;color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer">
+              <i class="bi bi-check-lg"></i> Approve Release
+            </button>
+          </form>
+          <button type="button"
+                  onclick="document.getElementById('reject-form-{{ t.pk }}').style.display='block';this.style.display='none'"
+                  style="padding:.4rem .85rem;background:#fff;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer">
+            <i class="bi bi-x-lg"></i> Reject
+          </button>
+        </div>
+      </div>
+      <!-- Reject inline form -->
+      <form method="post" action="{% url 'ward_tm_release_transfer' t.pk %}" id="reject-form-{{ t.pk }}" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #fde68a">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reject">
+        <label style="font-size:.8rem;font-weight:600;color:#78350f;display:block;margin-bottom:.3rem">Reason for rejecting *</label>
+        <textarea name="notes" rows="2" required placeholder="Explain why you are not releasing this player..."
+                  style="width:100%;padding:.5rem .7rem;border:1px solid #fde68a;border-radius:6px;font-size:.84rem;resize:vertical;box-sizing:border-box"></textarea>
+        <div style="display:flex;gap:.5rem;margin-top:.5rem">
+          <button type="submit" style="padding:.35rem .8rem;background:#dc2626;color:#fff;border:none;border-radius:5px;font-size:.82rem;cursor:pointer">Confirm Reject</button>
+          <button type="button" onclick="document.getElementById('reject-form-{{ t.pk }}').style.display='none'"
+                  style="padding:.35rem .7rem;background:#fff;color:#555;border:1px solid #dee2e6;border-radius:5px;font-size:.82rem;cursor:pointer">Cancel</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
+<!-- ── SECTION 2: Outgoing requests — transfers THIS TM has requested ───────── -->
+<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
+  <h2 style="font-size:1rem;color:#333;margin-bottom:1rem">
+    <i class="bi bi-arrow-right-circle"></i> My Transfer Requests ({{ transfers|length }})
+  </h2>
   {% if transfers %}
   <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+    <table style="width:100%;border-collapse:collapse;font-size:.86rem">
       <thead>
-        <tr style="background:#f0f4ff;text-align:left">
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Player</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">To Ward</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Discipline</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Status</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Date</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Action</th>
+        <tr style="background:#f0f4ff;text-align:left;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">Player</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">From Team</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">Type</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">Status</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">Date</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6"></th>
         </tr>
       </thead>
       <tbody>
         {% for t in transfers %}
-        <tr style="border-bottom:1px solid #dee2e6">
-          <td style="padding:.6rem 1rem;font-weight:500">{{ t.player.first_name }} {{ t.player.last_name }}</td>
-          <td style="padding:.6rem 1rem">{{ t.to_discipline.ward|title }}</td>
-          <td style="padding:.6rem 1rem">{{ t.from_discipline.get_sport_type_display }}</td>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:.6rem 1rem;font-weight:600">
+            {{ t.player.first_name }} {{ t.player.last_name }}
+            <div style="font-size:.75rem;font-family:monospace;color:#888;font-weight:400">{{ t.player.registration_code|default:t.player.national_id_number }}</div>
+          </td>
           <td style="padding:.6rem 1rem">
-            {% if t.status == 'pending' %}
-              <span style="background:#fff3cd;color:#856404;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:600">⏳ Pending WSCC</span>
+            {{ t.from_discipline.linked_team.name|default:t.from_discipline.ward }}
+            <div style="font-size:.75rem;color:#9ca3af">{{ t.from_discipline.ward|title }} Ward</div>
+          </td>
+          <td style="padding:.6rem 1rem;font-size:.8rem">
+            {% if t.transfer_type == 'within_ward' %}<span style="color:#065f46;font-weight:600">Within-Ward</span>
+            {% elif t.transfer_type == 'inter_ward' %}<span style="color:#856404;font-weight:600">Inter-Ward</span>
+            {% else %}<span style="color:#842029;font-weight:600">Inter-Sub-County</span>{% endif %}
+          </td>
+          <td style="padding:.6rem 1rem">
+            {% if t.status == 'source_tm_pending' %}
+              <span style="background:#fef3c7;color:#92400e;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">⏳ Awaiting Source TM</span>
+            {% elif t.status == 'source_tm_rejected' %}
+              <span style="background:#f8d7da;color:#842029;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">❌ Rejected by Source TM</span>
+            {% elif t.status == 'pending' %}
+              <span style="background:#e0f2fe;color:#0c4a6e;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">📋 Pending WSCC</span>
             {% elif t.status == 'wscc_approved' %}
-              <span style="background:#cfe2ff;color:#084298;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:600">✅ WSCC Approved</span>
+              <span style="background:#cfe2ff;color:#084298;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">✅ WSCC Approved → SCSO</span>
             {% elif t.status == 'wscc_rejected' %}
-              <span style="background:#f8d7da;color:#842029;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:600">❌ WSCC Rejected</span>
-            {% elif t.status == 'scso_approved' %}
-              <span style="background:#d1e7dd;color:#0a3622;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:600">🎉 Approved</span>
-            {% elif t.status == 'scso_rejected' %}
-              <span style="background:#f8d7da;color:#842029;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:600">❌ SCSO Rejected</span>
+              <span style="background:#f8d7da;color:#842029;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">❌ Rejected by WSCC</span>
+            {% elif t.status == 'scso_approved' or t.status == 'senior_approved' %}
+              <span style="background:#d1fae5;color:#065f46;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">🎉 Transfer Complete</span>
+            {% elif t.status == 'scso_rejected' or t.status == 'senior_rejected' %}
+              <span style="background:#f8d7da;color:#842029;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">❌ Rejected</span>
             {% elif t.status == 'withdrawn' %}
-              <span style="background:#e2e3e5;color:#41464b;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:600">↩ Withdrawn</span>
+              <span style="background:#e2e3e5;color:#41464b;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:600">↩ Withdrawn</span>
             {% endif %}
           </td>
-          <td style="padding:.6rem 1rem;color:#888;font-size:.82rem">{{ t.requested_at|date:"d M Y" }}</td>
+          <td style="padding:.6rem 1rem;color:#9ca3af;font-size:.8rem">{{ t.requested_at|date:"d M Y" }}</td>
           <td style="padding:.6rem 1rem">
-            {% if t.status == 'pending' %}
-            <form method="post" action="{% url 'ward_tm_withdraw_transfer' t.pk %}" onsubmit="return confirm('Withdraw this transfer request?')">
+            {% if t.status == 'source_tm_pending' or t.status == 'pending' %}
+            <form method="post" action="{% url 'ward_tm_withdraw_transfer' t.pk %}"
+                  onsubmit="return confirm('Withdraw this transfer request?')">
               {% csrf_token %}
-              <button type="submit" style="padding:.25rem .65rem;background:#dc3545;color:#fff;border:none;border-radius:4px;font-size:.78rem;cursor:pointer">Withdraw</button>
+              <button type="submit" style="padding:.2rem .6rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;font-size:.75rem;cursor:pointer">Withdraw</button>
             </form>
-            {% elif t.status in 'wscc_rejected scso_rejected' %}
-            <span style="font-size:.78rem;color:#888" title="{{ t.wscc_notes }}{{ t.scso_notes }}">
-              <i class="bi bi-chat-left-text"></i> See notes
+            {% elif t.source_tm_notes or t.wscc_notes or t.scso_notes %}
+            <span style="font-size:.75rem;color:#888" title="{{ t.source_tm_notes }} {{ t.wscc_notes }} {{ t.scso_notes }}">
+              <i class="bi bi-chat-left-text"></i> Notes
             </span>
-            {% else %} - {% endif %}
+            {% else %} — {% endif %}
           </td>
         </tr>
-        {% if t.wscc_notes or t.scso_notes %}
-        <tr style="background:#f8f9fa">
-          <td colspan="6" style="padding:.4rem 1rem;font-size:.8rem;color:#555">
-            {% if t.wscc_notes %}<strong>WSCC:</strong> {{ t.wscc_notes }} {% endif %}
-            {% if t.scso_notes %}<strong>SCSO:</strong> {{ t.scso_notes }}{% endif %}
+        {% if t.source_tm_notes or t.wscc_notes or t.scso_notes %}
+        <tr style="background:#fafafa">
+          <td colspan="6" style="padding:.35rem 1rem .55rem;font-size:.78rem;color:#555;border-bottom:1px solid #f0f0f0">
+            {% if t.source_tm_notes %}<span style="color:#92400e"><strong>Source TM:</strong> {{ t.source_tm_notes }}</span> &nbsp;{% endif %}
+            {% if t.wscc_notes %}<span><strong>WSCC:</strong> {{ t.wscc_notes }}</span> &nbsp;{% endif %}
+            {% if t.scso_notes %}<span><strong>SCSO:</strong> {{ t.scso_notes }}</span>{% endif %}
           </td>
         </tr>
         {% endif %}
@@ -112,29 +190,31 @@
     </table>
   </div>
   {% else %}
-  <p style="color:#888;font-size:.9rem;text-align:center;padding:1.5rem 0">No transfer requests yet.</p>
+  <p style="color:#9ca3af;font-size:.88rem;text-align:center;padding:1.5rem 0">No transfer requests submitted yet.</p>
   {% endif %}
 </div>
 
-<!-- Incoming approved transfers -->
+<!-- ── SECTION 3: Players transferred into this team ────────────────────────── -->
 {% if incoming %}
 <div class="card" style="padding:1.5rem">
-  <h2 style="font-size:1.05rem;color:#333;margin-bottom:1rem"><i class="bi bi-arrow-left-circle" style="color:#198754"></i> Players Transferred In</h2>
+  <h2 style="font-size:1rem;color:#333;margin-bottom:1rem">
+    <i class="bi bi-arrow-left-circle" style="color:#198754"></i> Players Transferred In ({{ incoming|length }})
+  </h2>
   <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+    <table style="width:100%;border-collapse:collapse;font-size:.86rem">
       <thead>
-        <tr style="background:#f0fff4;text-align:left">
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Player</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">From Ward</th>
-          <th style="padding:.6rem 1rem;border-bottom:2px solid #dee2e6">Completed</th>
+        <tr style="background:#f0fff4;text-align:left;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280">
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">Player</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">From Team</th>
+          <th style="padding:.55rem 1rem;border-bottom:2px solid #dee2e6">Completed</th>
         </tr>
       </thead>
       <tbody>
         {% for t in incoming %}
-        <tr style="border-bottom:1px solid #dee2e6">
-          <td style="padding:.6rem 1rem;font-weight:500">{{ t.player.first_name }} {{ t.player.last_name }}</td>
-          <td style="padding:.6rem 1rem">{{ t.from_discipline.ward|title }}</td>
-          <td style="padding:.6rem 1rem;color:#888;font-size:.82rem">{{ t.completed_at|date:"d M Y"|default:" - " }}</td>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:.6rem 1rem;font-weight:600">{{ t.player.first_name }} {{ t.player.last_name }}</td>
+          <td style="padding:.6rem 1rem">{{ t.from_discipline.linked_team.name|default:t.from_discipline.ward }}</td>
+          <td style="padding:.6rem 1rem;color:#9ca3af;font-size:.8rem">{{ t.completed_at|date:"d M Y"|default:"—" }}</td>
         </tr>
         {% endfor %}
       </tbody>
