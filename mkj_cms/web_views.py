@@ -19029,10 +19029,13 @@ def wscc_ward_competition_setup_view(request):
         if not created and format_type:
             comp.format_type = format_type
             comp.save(update_fields=['format_type', 'updated_at'])
+            messages.success(request, f'Format updated to "{comp.get_format_type_display()}" for {comp.name}.')
+            # Stay on setup page after a format edit so the chair can see all disciplines
+            return redirect('wscc_ward_competition_setup')
 
         messages.success(request, f'Competition "{comp.name}" ({comp.get_format_type_display()}) ready.')
 
-        # Route to format-specific management page
+        # Route to format-specific management page after creating
         return redirect('wscc_ward_comp_manage', comp_pk=comp.pk)
 
     return render(request, 'ligi/wscc/ward_competition_setup.html', {
@@ -19166,6 +19169,11 @@ def wscc_ward_comp_pools_view(request, comp_pk):
         PoolTeam.objects.filter(pool__competition=comp).values_list('team_id', flat=True)
     )
 
+    # Build a complete name map: team_pk (str) -> real registration team_name
+    # This covers ALL teams for this ward+sport (pooled or not) so the template
+    # always shows the real name rather than the stale Team.name field.
+    reg_name_map = {}  # str(team.pk) -> real team name from registration
+
     available_teams = []
     seen_pks = set()
     for reg in approved_regs:
@@ -19178,12 +19186,22 @@ def wscc_ward_comp_pools_view(request, comp_pk):
                 contact_email__iexact=reg.manager_email,
             ).order_by('-pk').first()
 
-        if team and team.pk not in seen_pks and team.pk not in already_pooled_team_pks:
-            seen_pks.add(team.pk)
-            available_teams.append({
-                'pk': team.pk,
-                'name': reg.team_name,  # always use registration name
-            })
+        if team:
+            # Register real name for ALL teams (pooled or not)
+            reg_name_map[str(team.pk)] = reg.team_name
+
+            # Eagerly fix any stale Team.name so DB stays consistent
+            if team.name != reg.team_name:
+                if not Team.objects.filter(name=reg.team_name).exclude(pk=team.pk).exists():
+                    team.name = reg.team_name
+                    team.save(update_fields=['name'])
+
+            if team.pk not in seen_pks and team.pk not in already_pooled_team_pks:
+                seen_pks.add(team.pk)
+                available_teams.append({
+                    'pk': team.pk,
+                    'name': reg.team_name,  # always use registration name
+                })
         elif not team:
             fake_pk = f"reg_{reg.pk}"
             if fake_pk not in seen_pks:
@@ -19238,7 +19256,24 @@ def wscc_ward_comp_pools_view(request, comp_pk):
         return redirect('wscc_ward_comp_pools', comp_pk=comp_pk)
 
     return render(request, 'ligi/wscc/ward_comp_pools.html', {
-        'comp': comp, 'pools': pools, 'available_teams': available_teams,
+        'comp': comp,
+        'available_teams': available_teams,
+        'reg_name_map': reg_name_map,
+        # Pre-annotate each PoolTeam with the real registration name
+        # so the template doesn't need a custom filter for dict lookup.
+        'pools_data': [
+            {
+                'pool': pool,
+                'pool_teams': [
+                    {
+                        'pt': pt,
+                        'display_name': reg_name_map.get(str(pt.team_id), pt.team.name),
+                    }
+                    for pt in pool.pool_teams.select_related('team').all()
+                ],
+            }
+            for pool in pools
+        ],
     })
 
 

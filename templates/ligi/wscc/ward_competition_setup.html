@@ -31,19 +31,47 @@
       <span style="font-size:.8rem;color:#888">{{ item.discipline.sub_county|title }}</span>
     </div>
     {% if item.competition %}
-    <div>
+    <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
       <span style="background:#d1e7dd;color:#0a3622;padding:.25rem .65rem;border-radius:12px;font-size:.8rem;font-weight:600">
         ✅ {{ item.competition.get_format_type_display }} · {{ item.competition.get_status_display }}
       </span>
       <a href="{% url 'wscc_ward_comp_manage' item.competition.pk %}"
-         style="margin-left:.5rem;padding:.25rem .65rem;background:#124491;color:#fff;border-radius:6px;font-size:.8rem;text-decoration:none">
+         style="padding:.25rem .65rem;background:#124491;color:#fff;border-radius:6px;font-size:.8rem;text-decoration:none">
         Manage →
       </a>
+      <button type="button"
+              onclick="this.closest('.card').querySelector('.format-edit-row').style.display = this.closest('.card').querySelector('.format-edit-row').style.display === 'none' ? 'flex' : 'none'"
+              style="padding:.25rem .65rem;background:#fff;color:#495057;border:1px solid #ced4da;border-radius:6px;font-size:.8rem;cursor:pointer">
+        <i class="bi bi-pencil"></i> Edit Format
+      </button>
     </div>
     {% endif %}
   </div>
 
-  {% if not item.competition %}
+  {% if item.competition %}
+  <form method="post" class="format-edit-row" style="display:none;align-items:flex-end;gap:.75rem;flex-wrap:wrap;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #e9ecef">
+    {% csrf_token %}
+    <input type="hidden" name="discipline_pk" value="{{ item.discipline.pk }}">
+    <input type="hidden" name="season" value="{{ item.competition.season }}">
+    <div style="flex:1;min-width:200px">
+      <label style="font-size:.8rem;font-weight:600;color:#555;display:block;margin-bottom:.25rem">Change Competition Format</label>
+      <select name="format_type" required style="width:100%;padding:.55rem .7rem;border:1px solid #dee2e6;border-radius:6px;font-size:.88rem">
+        <option value=""> - Choose format - </option>
+        {% for val, label in format_choices %}
+        <option value="{{ val }}" {% if val == item.competition.format_type %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" style="padding:.55rem 1.2rem;background:#fd7e14;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:.88rem;white-space:nowrap">
+      <i class="bi bi-arrow-repeat"></i> Update Format
+    </button>
+    <button type="button"
+            onclick="this.closest('.format-edit-row').style.display='none'"
+            style="padding:.55rem .9rem;background:#fff;color:#6c757d;border:1px solid #ced4da;border-radius:6px;font-size:.88rem;cursor:pointer">
+      Cancel
+    </button>
+  </form>
+  {% else %}
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="discipline_pk" value="{{ item.discipline.pk }}">

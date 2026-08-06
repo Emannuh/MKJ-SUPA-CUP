@@ -38,7 +38,8 @@
 </div>
 
 <!-- Existing pools -->
-{% for pool in pools %}
+{% for item in pools_data %}
+{% with pool=item.pool %}
 <div class="card" style="padding:1.25rem;margin-bottom:1rem">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
     <h3 style="font-size:.95rem;color:#124491;margin:0">{{ pool.name }}</h3>
@@ -54,13 +55,13 @@
 
   <!-- Teams in this pool -->
   <div style="margin-bottom:.75rem">
-    {% for pt in pool.pool_teams.all %}
+    {% for entry in item.pool_teams %}
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .65rem;background:#f8f9fa;border-radius:4px;margin-bottom:.3rem">
-      <span style="font-size:.88rem;font-weight:500">{{ pt.team.name }}</span>
+      <span style="font-size:.88rem;font-weight:500">{{ entry.display_name }}</span>
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="remove_team">
-        <input type="hidden" name="pool_team_pk" value="{{ pt.pk }}">
+        <input type="hidden" name="pool_team_pk" value="{{ entry.pt.pk }}">
         <button type="submit" style="padding:.15rem .45rem;background:#f8d7da;color:#842029;border:none;border-radius:3px;font-size:.75rem;cursor:pointer">✕</button>
       </form>
     </div>
@@ -92,6 +93,7 @@
   </div>
   {% endif %}
 </div>
+{% endwith %}
 {% empty %}
 <div class="card" style="padding:2rem;text-align:center;color:#888">
   <p>No pools yet. Create your first pool above.</p>
