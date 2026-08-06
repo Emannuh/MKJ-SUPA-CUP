@@ -80,7 +80,12 @@
     <div style="flex:1">
       <strong>{{ found_player.first_name }} {{ found_player.last_name }}</strong>
       <span style="font-family:monospace;font-size:.8rem;color:#888;margin-left:.5rem">{{ found_player.national_id_number }}</span><br>
-      <span style="font-size:.82rem;color:#555">{{ found_player.discipline.ward|title }} Ward, {{ found_player.discipline.sub_county|title }}</span>
+      <span style="font-size:.82rem;color:#555">
+        {% if found_player.discipline.linked_team %}
+          <strong>{{ found_player.discipline.linked_team.name }}</strong> ·
+        {% endif %}
+        {{ found_player.discipline.ward|title }} Ward, {{ found_player.discipline.sub_county|title }}
+      </span>
       {% if found_player.registration_code %}<span style="margin-left:.5rem;font-family:monospace;font-size:.78rem;color:#124491;background:#e8edf5;padding:.1rem .4rem;border-radius:4px">{{ found_player.registration_code }}</span>{% endif %}
     </div>
     <a href="#transfer-form" style="padding:.4rem .9rem;background:#198754;color:#fff;border-radius:6px;font-size:.85rem;text-decoration:none">
@@ -115,7 +120,7 @@
       <div style="padding:.6rem .8rem;background:#f0f4ff;border:1px solid #b6d4fe;border-radius:6px;font-size:.88rem">
         <strong>{{ found_player.first_name }} {{ found_player.last_name }}</strong>
         <span style="color:#888;margin-left:.5rem">{{ found_player.national_id_number }}</span>
-        · {{ found_player.discipline.ward|title }} Ward
+        · {% if found_player.discipline.linked_team %}<strong>{{ found_player.discipline.linked_team.name }}</strong>{% else %}{{ found_player.discipline.ward|title }} Ward{% endif %}
       </div>
       {% else %}
       <!-- Dropdown from own longlist -->
@@ -135,21 +140,21 @@
       {% endif %}
     </div>
 
-    <!-- Destination ward/team -->
+    <!-- Destination team -->
     <div style="margin-bottom:1.1rem">
-      <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:.35rem">Destination Ward / Team *</label>
+      <label style="font-size:.82rem;font-weight:600;color:#555;display:block;margin-bottom:.35rem">Destination Team *</label>
       <select name="to_discipline_pk" id="to_discipline_select"
               style="width:100%;padding:.6rem .75rem;border:1px solid {% if errors.to_discipline %}#dc3545{% else %}#dee2e6{% endif %};border-radius:6px;font-size:.88rem"
               onchange="updateTransferType()">
-        <option value=""> -  Select destination  - </option>
+        <option value=""> -  Select destination team  - </option>
         {% for disc in target_disciplines %}
-        <optgroup label="{{ disc.sub_county|title }}">
-          <option value="{{ disc.pk }}"
-                  data-ward="{{ disc.ward }}" data-sc="{{ disc.sub_county }}"
-                  {% if post.to_discipline_pk == disc.pk|stringformat:"s" %}selected{% endif %}>
-            {{ disc.ward|title }} Ward ({{ disc.sub_county|title }})
-          </option>
-        </optgroup>
+        <option value="{{ disc.pk }}"
+                data-ward="{{ disc.ward }}"
+                data-sc="{{ disc.sub_county }}"
+                data-team="{{ disc.team_name }}"
+                {% if post.to_discipline_pk == disc.pk|stringformat:"s" %}selected{% endif %}>
+          {{ disc.team_name }} · {{ disc.ward|title }} Ward ({{ disc.sub_county|title }})
+        </option>
         {% endfor %}
       </select>
       {% if errors.to_discipline %}<p style="color:#dc3545;font-size:.8rem;margin:.3rem 0 0">{{ errors.to_discipline }}</p>{% endif %}
@@ -176,39 +181,49 @@
 </div>
 
 <script>
-/* Live transfer type detection */
 (function() {
-  var fromWard = '{{ discipline.ward|escapejs }}';
-  var fromSC   = '{{ discipline.sub_county|escapejs }}';
+  var fromWard    = '{{ discipline.ward|escapejs }}';
+  var fromSC      = '{{ discipline.sub_county|escapejs }}';
+  var fromTeam    = '{{ discipline.linked_team.name|default:discipline.ward|escapejs }}';
 
   function updateTransferType() {
-    var sel  = document.getElementById('to_discipline_select');
+    var sel   = document.getElementById('to_discipline_select');
     var alert = document.getElementById('liveTransferAlert');
     if (!sel || !alert) return;
     var opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) { alert.style.display='none'; return; }
+    if (!opt || !opt.value) { alert.style.display = 'none'; return; }
     var toWard = opt.dataset.ward || '';
-    var toSC   = opt.dataset.sc || '';
+    var toSC   = opt.dataset.sc   || '';
+    var toTeam = opt.dataset.team || toWard + ' Ward';
     var msg, bg;
     if (toSC && toSC !== fromSC) {
       bg  = '#f8d7da';
-      msg = '?? <strong>Inter-Sub County Transfer</strong> · ' + fromSC + ' ? ' + toSC + '. Requires Chief Sports Officer or Director - Sports approval.';
+      msg = '⚠️ <strong>Inter-Sub-County Transfer</strong> — '
+          + '<strong>' + fromTeam + '</strong> (' + fromSC + ') → '
+          + '<strong>' + toTeam  + '</strong> (' + toSC   + '). '
+          + 'Requires Chief Sports Officer or Director of Sports approval.';
     } else if (toWard && toWard !== fromWard) {
       bg  = '#fff3cd';
-      msg = '?? <strong>Inter-Ward Transfer</strong> · ' + fromWard + ' ? ' + toWard + '. Requires WSCC approval, then SCSO final approval.';
+      msg = '🔄 <strong>Inter-Ward Transfer</strong> — '
+          + '<strong>' + fromTeam + '</strong> (' + fromWard + ') → '
+          + '<strong>' + toTeam  + '</strong> (' + toWard   + '). '
+          + 'Requires WSCC approval, then SCSO final approval.';
     } else {
       bg  = '#d1e7dd';
-      msg = '? <strong>Within-Ward Transfer</strong> · same ward (' + fromWard + '). Ward Sports Council Chair approval only.';
+      msg = '✅ <strong>Within-Ward Transfer</strong> — '
+          + '<strong>' + fromTeam + '</strong> → <strong>' + toTeam + '</strong> '
+          + '(both in ' + fromWard + ' Ward). '
+          + 'Ward Sports Council Chair approval only.';
     }
     alert.style.background = bg;
-    alert.innerHTML = msg;
-    alert.style.display = 'block';
+    alert.innerHTML        = msg;
+    alert.style.display    = 'block';
   }
 
   window.updateTransferType = updateTransferType;
 
-  var toSel = document.getElementById('to_discipline_select');
-  if (toSel) toSel.addEventListener('change', updateTransferType);
+  var toSel   = document.getElementById('to_discipline_select');
+  if (toSel)   toSel.addEventListener('change', updateTransferType);
   var fromSel = document.getElementById('player_pk_select');
   if (fromSel) fromSel.addEventListener('change', updateTransferType);
 

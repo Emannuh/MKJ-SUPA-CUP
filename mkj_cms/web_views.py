@@ -17644,7 +17644,7 @@ def ward_tm_request_transfer_view(request):
             Q(national_id_number__icontains=search_q) |
             Q(first_name__icontains=search_q) |
             Q(last_name__icontains=search_q)
-        ).select_related('discipline')
+        ).select_related('discipline', 'discipline__linked_team')
         if found_qs.count() == 0:
             search_error = f'No player found matching "{search_q}".'
         elif found_qs.count() == 1:
@@ -17675,29 +17675,39 @@ def ward_tm_request_transfer_view(request):
             to_ward        = to_disc.ward
             to_sub_county  = to_disc.sub_county
 
+            # Resolve real team names for the alert
+            from teams.models import Team as _T
+            _origin_team = _T.objects.filter(source_discipline=sel_player.discipline).first()
+            _dest_team   = _T.objects.filter(source_discipline=to_disc).first()
+            origin_team_name = _origin_team.name if _origin_team else f'{from_ward} Ward'
+            dest_team_name   = _dest_team.name   if _dest_team   else f'{to_ward} Ward'
+
             if from_sub_county != to_sub_county:
                 t_type = LigiTransferType.INTER_SUBCOUNTY
                 alert_colour = '#f8d7da'
                 alert_text = (
-                    f'⚠️ <strong>Inter-Sub-County Transfer</strong>  -  '
-                    f'{from_sub_county} → {to_sub_county}. '
-                    f'This requires approval from the Chief Sports Officer or Director of Sports.'
+                    f'⚠️ <strong>Inter-Sub-County Transfer</strong>  —  '
+                    f'<strong>{origin_team_name}</strong> ({from_sub_county}) → '
+                    f'<strong>{dest_team_name}</strong> ({to_sub_county}). '
+                    f'Requires Chief Sports Officer or Director of Sports approval.'
                 )
             elif from_ward != to_ward:
                 t_type = LigiTransferType.INTER_WARD
                 alert_colour = '#fff3cd'
                 alert_text = (
-                    f'🔄 <strong>Inter-Ward Transfer</strong>  -  '
-                    f'{from_ward} → {to_ward} (within {from_sub_county}). '
+                    f'🔄 <strong>Inter-Ward Transfer</strong>  —  '
+                    f'<strong>{origin_team_name}</strong> ({from_ward}) → '
+                    f'<strong>{dest_team_name}</strong> ({to_ward}). '
                     f'Requires WSCC approval, then Sub-County Sports Officer final approval.'
                 )
             else:
                 t_type = LigiTransferType.WITHIN_WARD
                 alert_colour = '#d1e7dd'
                 alert_text = (
-                    f'✅ <strong>Within-Ward Transfer</strong>  -  '
-                    f'Moving between teams in {from_ward} Ward. '
-                    f'Requires Ward Sports Council Chair approval only.'
+                    f'✅ <strong>Within-Ward Transfer</strong>  —  '
+                    f'<strong>{origin_team_name}</strong> → <strong>{dest_team_name}</strong> '
+                    f'(both in {from_ward} Ward). '
+                    f'Ward Sports Council Chair approval only.'
                 )
 
             transfer_type_info = {
@@ -17711,11 +17721,25 @@ def ward_tm_request_transfer_view(request):
         except (CountyPlayer.DoesNotExist, CountyDiscipline.DoesNotExist):
             pass
 
-    # All possible destination disciplines (all levels, all sub-counties, same sport)
+    # All possible destination disciplines (all ward-level, same sport)
+    # Annotate each with the linked team name so the template can show
+    # "Vitale FC (Kathonzweni Ward)" instead of just "Kathonzweni Ward"
+    from teams.models import Team as _TeamModel
+    _disc_team_map = {
+        t.source_discipline_id: t.name
+        for t in _TeamModel.objects.filter(
+            source_discipline__level='ward',
+            source_discipline__sport_type=discipline.sport_type,
+        ).only('name', 'source_discipline_id')
+    }
     target_disciplines = CountyDiscipline.objects.filter(
         level='ward',
         sport_type=discipline.sport_type,
     ).exclude(pk=discipline.pk).order_by('sub_county', 'ward')
+
+    # Attach team name to each discipline object for easy template access
+    for d in target_disciplines:
+        d.team_name = _disc_team_map.get(d.pk) or f'{d.ward} Ward'
 
     if request.method == 'POST' and request.POST.get('action') == 'submit_transfer':
         player_pk_post = request.POST.get('player_pk', '').strip()
