@@ -19566,32 +19566,19 @@ def _update_pool_standings(fixture):
     if home_score > away_score:
         home_pt.won += 1
         away_pt.lost += 1
-        if family == 'football':
-            home_pt.bonus_points += 3
-        elif family == 'handball':
-            home_pt.bonus_points += 2
-        elif family in ('basketball_5x5', 'basketball_3x3'):
+        if family in ('basketball_5x5', 'basketball_3x3'):
             home_pt.bonus_points += 2
             away_pt.bonus_points += 1
     elif away_score > home_score:
         away_pt.won += 1
         home_pt.lost += 1
-        if family == 'football':
-            away_pt.bonus_points += 3
-        elif family == 'handball':
-            away_pt.bonus_points += 2
-        elif family in ('basketball_5x5', 'basketball_3x3'):
+        if family in ('basketball_5x5', 'basketball_3x3'):
             away_pt.bonus_points += 2
             home_pt.bonus_points += 1
     else:
         home_pt.drawn += 1
         away_pt.drawn += 1
-        if family == 'football':
-            home_pt.bonus_points += 1
-            away_pt.bonus_points += 1
-        elif family == 'handball':
-            home_pt.bonus_points += 1
-            away_pt.bonus_points += 1
+        # No bonus_points for draws — handled by won/drawn fields in PoolTeam.points property
 
     home_pt.save()
     away_pt.save()
