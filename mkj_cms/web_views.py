@@ -19142,18 +19142,24 @@ def wscc_ward_comp_pools_view(request, comp_pk):
         stale_pool_entries.delete()
 
     # Collect valid team pks from approved regs for this specific ward+sport
+    # AND rename any Team whose name doesn't match the registration name
     valid_team_pks_for_comp = set()
     for reg in approved_regs:
         cd = reg.county_discipline
         t = None
         if cd:
-            t = Team.objects.filter(source_discipline=cd).values_list('pk', flat=True).first()
+            t = Team.objects.filter(source_discipline=cd).first()
         if not t:
             t = Team.objects.filter(
                 contact_email__iexact=reg.manager_email
-            ).order_by('-pk').values_list('pk', flat=True).first()
+            ).order_by('-pk').first()
         if t:
-            valid_team_pks_for_comp.add(t)
+            valid_team_pks_for_comp.add(t.pk)
+            # Fix name if wrong
+            if t.name != reg.team_name:
+                if not Team.objects.filter(name=reg.team_name).exclude(pk=t.pk).exists():
+                    t.name = reg.team_name
+                    t.save(update_fields=['name'])
 
     # Also enforce one-pool-per-team: exclude teams already in ANY pool in this competition
     already_pooled_team_pks = set(
@@ -19209,10 +19215,15 @@ def wscc_ward_comp_pools_view(request, comp_pk):
                 messages.error(request, 'This team is already in a pool in this competition.')
             else:
                 team = get_object_or_404(Team, pk=team_pk)
+                # Get real name from registration and update Team record permanently
+                real_name = next((t['name'] for t in available_teams if str(t['pk']) == team_pk), None)
+                if real_name and team.name != real_name:
+                    # Ensure uniqueness before renaming
+                    if not Team.objects.filter(name=real_name).exclude(pk=team.pk).exists():
+                        team.name = real_name
+                        team.save(update_fields=['name'])
                 PoolTeam.objects.create(pool=pool, team=team)
-                # Find the real name from registrations
-                real_name = next((t['name'] for t in available_teams if str(t['pk']) == team_pk), team.name)
-                messages.success(request, f'{real_name} added to {pool.name}.')
+                messages.success(request, f'{team.name} added to {pool.name}.')
 
         elif action == 'remove_team':
             pool_team_pk = request.POST.get('pool_team_pk')
