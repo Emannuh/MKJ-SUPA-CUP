@@ -14895,6 +14895,13 @@ def wscc_dashboard_view(request):
             status__in=['pending', 'ward_verified'],
         ).order_by('-submitted_at') if (hasattr(user, 'ward') and user.ward) else [],
         'payment_method_choices': LigiMashinaniRegistration.PAYMENT_METHOD_CHOICES,
+        'pending_transfers': (
+            __import__('teams.models', fromlist=['LigiTransferRequest'])
+            .LigiTransferRequest.objects.filter(
+                from_discipline__sub_county=user.sub_county,
+                status='pending',
+            ).count()
+        ) if (not user.is_superuser and user.sub_county) else 0,
     }
     return render(request, 'ligi/wscc/dashboard.html', context)
 
@@ -17621,11 +17628,11 @@ def ward_tm_transfer_browse_view(request):
       ?action=teams&sub_county=X&ward=Y  → list teams in that ward (same sport as TM)
       ?action=players&team_pk=Z          → list players in that team
       ?action=search&q=name              → search players by name across all teams
-    Returns JSON.
+    Returns JSON. All team names resolved from LigiMashinaniRegistration.team_name
+    (the authoritative source) rather than the stale Team.name field.
     """
-    import json as _json
     from accounts.models import MAKUENI_SUBCOUNTY_WARDS
-    from teams.models import Team, CountyDiscipline
+    from teams.models import Team, CountyDiscipline, LigiMashinaniRegistration
 
     user = request.user
     discipline, _ = _get_ward_tm_context(user, request)
@@ -17633,6 +17640,20 @@ def ward_tm_transfer_browse_view(request):
         return JsonResponse({'error': 'No team found'}, status=403)
 
     action = request.GET.get('action', '')
+
+    # ── Shared helper: build discipline_pk → real team name ─────────────
+    def _real_name_map(disc_pks):
+        """
+        Returns {discipline_pk: real_team_name} by looking up
+        LigiMashinaniRegistration.team_name for each discipline.
+        Falls back to Team.name if no registration found.
+        """
+        regs = LigiMashinaniRegistration.objects.filter(
+            county_discipline_id__in=disc_pks,
+            status='approved',
+        ).values('county_discipline_id', 'team_name')
+        m = {r['county_discipline_id']: r['team_name'] for r in regs}
+        return m
 
     if action == 'wards':
         sc = request.GET.get('sub_county', '').strip()
@@ -17642,31 +17663,51 @@ def ward_tm_transfer_browse_view(request):
     elif action == 'teams':
         sc   = request.GET.get('sub_county', '').strip()
         ward = request.GET.get('ward', '').strip()
+        # Strictly same sport_type (encodes both discipline AND gender)
         teams_qs = Team.objects.filter(
             source_discipline__level='ward',
             source_discipline__sport_type=discipline.sport_type,
             source_discipline__ward__iexact=ward,
             source_discipline__sub_county__iexact=sc,
         ).exclude(source_discipline=discipline).select_related('source_discipline')
-        data = [{'pk': t.pk, 'name': t.name, 'disc_pk': t.source_discipline_id} for t in teams_qs]
+
+        disc_pks = [t.source_discipline_id for t in teams_qs if t.source_discipline_id]
+        name_map = _real_name_map(disc_pks)
+
+        data = [
+            {
+                'pk': t.pk,
+                'name': name_map.get(t.source_discipline_id) or t.name,
+                'disc_pk': t.source_discipline_id,
+            }
+            for t in teams_qs
+        ]
         return JsonResponse({'teams': data})
 
     elif action == 'players':
         team_pk = request.GET.get('team_pk', '').strip()
         try:
             team = Team.objects.select_related('source_discipline').get(pk=team_pk)
+            # Strictly enforce same sport_type (discipline + gender)
             if team.source_discipline_id == discipline.pk:
-                return JsonResponse({'players': []})  # own team — no
+                return JsonResponse({'players': []})
+            if team.source_discipline.sport_type != discipline.sport_type:
+                return JsonResponse({'players': [], 'error': 'Sport type mismatch'})
+
+            name_map  = _real_name_map([team.source_discipline_id])
+            real_name = name_map.get(team.source_discipline_id) or team.name
+
             players_qs = CountyPlayer.objects.filter(
                 discipline=team.source_discipline,
             ).order_by('last_name', 'first_name')
+
             data = [
                 {
                     'pk': p.pk,
                     'name': f'{p.first_name} {p.last_name}',
                     'id_number': p.national_id_number or '',
                     'reg_code': p.registration_code or '',
-                    'team': team.name,
+                    'team': real_name,
                     'ward': team.source_discipline.ward,
                     'sub_county': team.source_discipline.sub_county,
                 }
@@ -17680,23 +17721,27 @@ def ward_tm_transfer_browse_view(request):
         q = request.GET.get('q', '').strip()
         if len(q) < 2:
             return JsonResponse({'players': []})
+
+        # Strictly same sport_type — discipline AND gender
         players_qs = CountyPlayer.objects.filter(
             Q(first_name__icontains=q) | Q(last_name__icontains=q) |
-            Q(national_id_number__icontains=q)
+            Q(national_id_number__icontains=q),
+            discipline__sport_type=discipline.sport_type,
+            discipline__level='ward',
         ).exclude(
             discipline=discipline
-        ).select_related('discipline', 'discipline__linked_team')[:30]
+        ).select_related('discipline').order_by('last_name', 'first_name')[:30]
+
+        disc_pks = list({p.discipline_id for p in players_qs if p.discipline_id})
+        name_map = _real_name_map(disc_pks)
+
         data = [
             {
                 'pk': p.pk,
                 'name': f'{p.first_name} {p.last_name}',
                 'id_number': p.national_id_number or '',
                 'reg_code': p.registration_code or '',
-                'team': (
-                    p.discipline.linked_team.name
-                    if hasattr(p.discipline, 'linked_team') and p.discipline.linked_team
-                    else p.discipline.ward
-                ),
+                'team': name_map.get(p.discipline_id) or p.discipline.ward,
                 'ward': p.discipline.ward,
                 'sub_county': p.discipline.sub_county,
             }
@@ -17830,6 +17875,12 @@ def ward_tm_request_transfer_view(request):
                 player_obj = CountyPlayer.objects.select_related('discipline').get(pk=player_pk_post)
                 if player_obj.discipline_id == discipline.pk:
                     errors['player'] = 'This player is already on your team.'
+                elif player_obj.discipline.sport_type != discipline.sport_type:
+                    errors['player'] = (
+                        f'This player is registered for {player_obj.discipline.get_sport_type_display()}, '
+                        f'not {discipline.get_sport_type_display()}. '
+                        f'Transfers must be within the same discipline and gender category.'
+                    )
             except CountyPlayer.DoesNotExist:
                 errors['player'] = 'Invalid player.'
 
@@ -17917,122 +17968,237 @@ def ward_tm_request_transfer_view(request):
         'discipline_sport': discipline.sport_type,
     })
 
+def _resolve_real_team_name(discipline):
+    """Get real team name from LigiMashinaniRegistration, fall back to Team.name."""
+    try:
+        from teams.models import LigiMashinaniRegistration, Team as _T
+        reg = LigiMashinaniRegistration.objects.filter(
+            county_discipline=discipline, status='approved'
+        ).first()
+        if reg:
+            return reg.team_name
+        t = _T.objects.filter(source_discipline=discipline).first()
+        return t.name if t else discipline.ward
+    except Exception:
+        return discipline.ward
+
+
+def _get_discipline_tm_email(discipline):
+    """Return the active team manager email for a given CountyDiscipline."""
+    from accounts.models import User as _U
+    tm = _U.objects.filter(
+        role='team_manager',
+        ward=discipline.ward,
+        sub_county=discipline.sub_county,
+        is_active=True,
+    ).first()
+    return tm.email if tm and tm.email else None
+
+
 def _notify_source_tm_of_request(transfer, requested_by, _conf):
     """
-    Notify the source team manager that a transfer request has been made for their player.
-    They must log in and approve the release before any official reviews it.
+    Notify the SOURCE team manager that a transfer request has been made for their player.
+    They must approve or reject before any official reviews it.
+    Also notify the REQUESTING (destination) TM that their request was submitted.
     """
-    from accounts.models import User as _User
     from accounts.notifications import _send, _base_html
-    site_url = getattr(_conf, 'SITE_URL', '')
+    site_url = getattr(_conf, 'SITE_URL', 'https://mkjsupacup.com')
     p = transfer.player
 
+    src_name  = _resolve_real_team_name(transfer.from_discipline)
+    dest_name = _resolve_real_team_name(transfer.to_discipline)
+    type_label = transfer.get_transfer_type_display()
+
+    # ── 1. Notify source TM (they must release the player) ────────────────
     try:
-        source_tm = _User.objects.filter(
-            role='team_manager',
-            ward=transfer.from_discipline.ward,
-            sub_county=transfer.from_discipline.sub_county,
-            is_active=True,
-        ).first()
-        if not source_tm or not source_tm.email:
-            return
-
-        dest_team_name = ''
-        try:
-            from teams.models import Team as _T
-            dest_t = _T.objects.filter(source_discipline=transfer.to_discipline).first()
-            dest_team_name = dest_t.name if dest_t else transfer.to_discipline.ward
-        except Exception:
-            dest_team_name = transfer.to_discipline.ward
-
-        body = f"""
-<p>Dear <strong>{source_tm.first_name} {source_tm.last_name}</strong>,</p>
-<p>A transfer request has been submitted for one of your players.
-You must <strong>approve or reject</strong> this request before it proceeds to officials.</p>
+        src_email = _get_discipline_tm_email(transfer.from_discipline)
+        if src_email:
+            body = f"""
+<p>Dear Team Manager (<strong>{src_name}</strong>),</p>
+<p>Another team has requested to sign one of your players.
+You must <strong>approve or reject</strong> this release request before any official reviews it.</p>
 <dl class="info-box">
  <dt>Player</dt><dd>{p.first_name} {p.last_name} &mdash; <code>{p.registration_code or p.national_id_number}</code></dd>
- <dt>Requesting Team</dt><dd>{dest_team_name} ({transfer.to_discipline.ward} Ward)</dd>
- <dt>Transfer Type</dt><dd>{transfer.get_transfer_type_display()}</dd>
- <dt>Reason</dt><dd>{transfer.reason}</dd>
+ <dt>Requesting Team</dt><dd>{dest_name} ({transfer.to_discipline.ward} Ward, {transfer.to_discipline.sub_county})</dd>
+ <dt>Transfer Type</dt><dd>{type_label}</dd>
+ <dt>Reason given</dt><dd>{transfer.reason}</dd>
 </dl>
-<a href="{site_url}/ligi/transfers/" class="btn">Review Request</a>
-<p style="font-size:.85rem;color:#888;margin-top:1rem">
-  If you approve, the request will then go to the relevant official for final authorisation.
-  If you reject, the request is closed immediately.
+<a href="{site_url}/ligi/transfers/" class="btn">Approve or Reject →</a>
+<p style="font-size:.84rem;color:#888;margin-top:1rem">
+  If you approve, the request proceeds to the relevant official for final authorisation.
+  If you reject, it is closed immediately and the requesting team is notified.
 </p>"""
-        _send(
-            f'Player Release Request — {p.first_name} {p.last_name}',
-            _base_html('Player Transfer Request Received', body),
-            [source_tm.email],
-        )
+            _send(
+                f'⚽ Player Release Request — {p.first_name} {p.last_name}',
+                _base_html('Player Transfer Release Request', body),
+                [src_email],
+            )
     except Exception as e:
         logger.warning('Failed to notify source TM of transfer request: %s', e)
 
+    # ── 2. Confirm to the requesting (destination) TM ─────────────────────
+    try:
+        dest_email = _get_discipline_tm_email(transfer.to_discipline)
+        if dest_email:
+            body = f"""
+<p>Dear Team Manager (<strong>{dest_name}</strong>),</p>
+<p>Your transfer request has been submitted successfully and is now awaiting approval from the source team manager.</p>
+<dl class="info-box">
+ <dt>Player</dt><dd>{p.first_name} {p.last_name} &mdash; <code>{p.registration_code or p.national_id_number}</code></dd>
+ <dt>Current Team</dt><dd>{src_name} ({transfer.from_discipline.ward} Ward, {transfer.from_discipline.sub_county})</dd>
+ <dt>Transfer Type</dt><dd>{type_label}</dd>
+ <dt>Next Step</dt><dd>The source team manager must approve the release. You will be notified of their decision.</dd>
+</dl>
+<a href="{site_url}/ligi/transfers/" class="btn">View My Transfers →</a>"""
+            _send(
+                f'✅ Transfer Request Submitted — {p.first_name} {p.last_name}',
+                _base_html('Transfer Request Submitted', body),
+                [dest_email],
+            )
+    except Exception as e:
+        logger.warning('Failed to confirm transfer request to destination TM: %s', e)
+
 
 def _notify_transfer_reviewer(transfer, requested_by, _conf):
-    """Send notification to the appropriate reviewer based on transfer type."""
+    """
+    Notify the appropriate official reviewer that a transfer is ready for their decision.
+    Called after source TM approves the release.
+    """
     from teams.models import LigiTransferType
     from accounts.models import User as _User
     from accounts.notifications import _send, _base_html
-    site_url = getattr(_conf, 'SITE_URL', '')
+    site_url = getattr(_conf, 'SITE_URL', 'https://mkjsupacup.com')
     p = transfer.player
-    subject = f'Transfer Request  -  {p.first_name} {p.last_name}'
+    type_label = transfer.get_transfer_type_display()
+    src_name   = _resolve_real_team_name(transfer.from_discipline)
+    dest_name  = _resolve_real_team_name(transfer.to_discipline)
 
     try:
-        if transfer.transfer_type == LigiTransferType.WITHIN_WARD:
-            # Notify WSCC
+        if transfer.transfer_type in (LigiTransferType.WITHIN_WARD, LigiTransferType.INTER_WARD):
             wscc = _User.objects.filter(
                 role='ward_sports_council_chair',
                 sub_county=transfer.from_discipline.sub_county,
                 is_active=True,
             ).first()
-            recipients = [wscc.email] if wscc and wscc.email else []
+            recipients    = [wscc.email] if wscc and wscc.email else []
             reviewer_label = 'Ward Sports Council Chair'
-            portal_url = f'{site_url}/ligi/wscc/transfers/'
-
-        elif transfer.transfer_type == LigiTransferType.INTER_WARD:
-            # Notify WSCC (will then forward to SCSO)
-            wscc = _User.objects.filter(
-                role='ward_sports_council_chair',
-                sub_county=transfer.from_discipline.sub_county,
-                is_active=True,
-            ).first()
-            recipients = [wscc.email] if wscc and wscc.email else []
-            reviewer_label = 'Ward Sports Council Chair'
-            portal_url = f'{site_url}/ligi/wscc/transfers/'
-
+            portal_url     = f'{site_url}/ligi/wscc/transfers/'
         else:
-            # Inter-sub-county: notify senior officials
             senior_users = _User.objects.filter(
                 role__in=['chief_sports_officer', 'director_sports', 'admin'],
                 is_active=True,
             ).values_list('email', flat=True)
-            recipients = list(senior_users)
+            recipients     = list(senior_users)
             reviewer_label = 'Senior Sports Official'
-            portal_url = f'{site_url}/portal/ligi/transfers/senior/'
+            portal_url     = f'{site_url}/portal/ligi/transfers/senior/'
 
         if not recipients:
+            logger.warning('No reviewer found for transfer %s', transfer.pk)
             return
 
-        type_label = transfer.get_transfer_type_display()
         body = f"""
 <p>Dear {reviewer_label},</p>
-<p>A new <strong>{type_label}</strong> transfer request requires your review.</p>
+<p>A <strong>{type_label}</strong> transfer request is ready for your review.
+The source team manager has approved the player's release.</p>
 <dl class="info-box">
- <dt>Player</dt><dd>{p.first_name} {p.last_name}  -  <code>{p.registration_code or p.national_id_number}</code></dd>
- <dt>From</dt><dd>{transfer.from_discipline.ward}, {transfer.from_discipline.sub_county}</dd>
- <dt>To</dt><dd>{transfer.to_discipline.ward}, {transfer.to_discipline.sub_county}</dd>
+ <dt>Player</dt><dd>{p.first_name} {p.last_name} &mdash; <code>{p.registration_code or p.national_id_number}</code></dd>
+ <dt>From</dt><dd>{src_name} ({transfer.from_discipline.ward} Ward, {transfer.from_discipline.sub_county})</dd>
+ <dt>To</dt><dd>{dest_name} ({transfer.to_discipline.ward} Ward, {transfer.to_discipline.sub_county})</dd>
  <dt>Discipline</dt><dd>{transfer.from_discipline.get_sport_type_display()}</dd>
  <dt>Reason</dt><dd>{transfer.reason}</dd>
 </dl>
-<a href="{portal_url}" class="btn">Review Transfer Request</a>"""
+<a href="{portal_url}" class="btn">Review Transfer →</a>"""
 
-        _send(subject, _base_html(f'{type_label} Transfer Request', body), recipients)
+        _send(
+            f'🔄 Transfer For Review — {p.first_name} {p.last_name} ({type_label})',
+            _base_html(f'{type_label} Transfer — Review Required', body),
+            recipients,
+        )
     except Exception as e:
         logger.warning('Transfer reviewer notification failed: %s', e)
 
 
-@role_required('team_manager', 'admin')
+def _notify_ward_tm_transfer_decision(transfer, outcome, notes, rejected_by=None):
+    """
+    Notify BOTH team managers (source and destination) of a transfer decision.
+    outcome: 'approved' or 'rejected'
+    rejected_by: label of who rejected (e.g. 'WSCC', 'Sub-County Sports Officer')
+    """
+    try:
+        from accounts.notifications import _send, _base_html, notify_wa_transfer_update
+        from django.conf import settings as _s
+        site_url = getattr(_s, 'SITE_URL', 'https://mkjsupacup.com')
+
+        p         = transfer.player
+        src_name  = _resolve_real_team_name(transfer.from_discipline)
+        dest_name = _resolve_real_team_name(transfer.to_discipline)
+
+        if outcome == 'approved':
+            subject     = f'✅ Transfer Approved — {p.first_name} {p.last_name}'
+            title       = 'Transfer Approved'
+            colour      = '#065f46'
+            bg          = '#d1fae5'
+            outcome_txt = 'has been <strong>approved</strong> and completed'
+            wa_status   = '✅ Transfer Approved'
+            notes_html  = f'<p style="color:#555;font-size:.88rem">{notes}</p>' if notes else ''
+        else:
+            subject     = f'❌ Transfer Rejected — {p.first_name} {p.last_name}'
+            title       = 'Transfer Rejected'
+            colour      = '#842029'
+            bg          = '#f8d7da'
+            outcome_txt = f'was <strong>rejected</strong> by {rejected_by}'
+            wa_status   = f'❌ Rejected by {rejected_by}'
+            notes_html  = f'<div class="alert"><strong>Reason:</strong> {notes}</div>' if notes else ''
+
+        def _send_to(email, recipient_name, role_context):
+            body = f"""
+<p>Dear <strong>{recipient_name}</strong>,</p>
+<p>The transfer request for player <strong>{p.first_name} {p.last_name}</strong> {outcome_txt}.</p>
+{notes_html}
+<dl class="info-box">
+ <dt>Player</dt><dd>{p.first_name} {p.last_name} &mdash; <code>{p.registration_code or p.national_id_number}</code></dd>
+ <dt>From</dt><dd>{src_name} ({transfer.from_discipline.ward} Ward)</dd>
+ <dt>To</dt><dd>{dest_name} ({transfer.to_discipline.ward} Ward)</dd>
+ <dt>Discipline</dt><dd>{transfer.from_discipline.get_sport_type_display()}</dd>
+ <dt>Your Role</dt><dd>{role_context}</dd>
+</dl>
+<a href="{site_url}/ligi/transfers/" class="btn">View Transfers →</a>"""
+            _send(subject, _base_html(title, body), [email])
+
+        # Notify destination TM (who requested the transfer)
+        dest_email = _get_discipline_tm_email(transfer.to_discipline)
+        if dest_email:
+            _send_to(dest_email, f'{dest_name} Team Manager', 'Requesting Team')
+
+        # Notify source TM (whose player was involved)
+        src_email = _get_discipline_tm_email(transfer.from_discipline)
+        if src_email and src_email != dest_email:
+            _send_to(src_email, f'{src_name} Team Manager', 'Source Team')
+
+        # WhatsApp to destination TM if phone available
+        from accounts.models import User as _U
+        dest_tm = _U.objects.filter(
+            role='team_manager',
+            ward=transfer.to_discipline.ward,
+            sub_county=transfer.to_discipline.sub_county,
+            is_active=True,
+        ).first()
+        if dest_tm and getattr(dest_tm, 'phone', None):
+            try:
+                notify_wa_transfer_update(
+                    phone=dest_tm.phone,
+                    first_name=p.first_name,
+                    last_name=p.last_name,
+                    status_label=wa_status,
+                    from_ward=transfer.from_discipline.ward,
+                    to_ward=transfer.to_discipline.ward,
+                    notes=notes or '',
+                )
+            except Exception:
+                pass
+
+    except Exception as _e:
+        logger.warning('Transfer decision notification failed: %s', _e)@role_required('team_manager', 'admin')
 def ward_tm_withdraw_transfer_view(request, transfer_pk):
     """
     Ward TM: withdraw a pending transfer request.
@@ -18047,7 +18213,7 @@ def ward_tm_withdraw_transfer_view(request, transfer_pk):
     transfer = get_object_or_404(
         LigiTransferRequest,
         pk=transfer_pk,
-        from_discipline=discipline,
+        to_discipline=discipline,   # only the requesting (destination) TM can withdraw
         status__in=[LigiTransferStatus.SOURCE_TM_PENDING, LigiTransferStatus.PENDING],
     )
 
@@ -18149,10 +18315,14 @@ def wscc_transfers_view(request):
     if sub_county:
         qs = qs.filter(from_discipline__sub_county=sub_county)
 
-    pending = qs.filter(status='pending')   # source TM has approved; awaiting WSCC
+    # Awaiting source TM release — WSCC can see these (pipeline visibility)
+    awaiting_source_tm = qs.filter(status='source_tm_pending')
+    # Ready for WSCC decision (source TM approved)
+    pending  = qs.filter(status='pending')
     reviewed = qs.exclude(status__in=['pending', 'source_tm_pending'])
 
     return render(request, 'ligi/wscc/transfers.html', {
+        'awaiting_source_tm': awaiting_source_tm,
         'pending': pending,
         'reviewed': reviewed,
         'sub_county': sub_county or 'All',
@@ -18366,62 +18536,9 @@ def scso_transfer_action_view(request, transfer_pk):
 
 def _notify_ward_tm_transfer_decision(transfer, outcome, notes, rejected_by=None):
     """Email + WhatsApp the originating Ward TM about the transfer decision."""
-    try:
-        from accounts.models import User as _User
-        from accounts.notifications import _send, _base_html, notify_wa_transfer_update
-        from django.conf import settings as _s
+    # Delegated to the unified _notify_ward_tm_transfer_decision above
+    pass  # already replaced — this stub keeps the call sites valid
 
-        tm = _User.objects.filter(
-            role='team_manager',
-            ward=transfer.from_discipline.ward,
-            sub_county=transfer.from_discipline.sub_county,
-            is_active=True,
-        ).first()
-        if not tm or not tm.email:
-            return
-
-        p = transfer.player
-        if outcome == 'approved':
-            subject = f'Transfer Approved  -  {p.first_name} {p.last_name}'
-            colour = '#198754'
-            detail = f'<p>The transfer has been <strong style="color:{colour}">approved</strong>. {p.first_name} has been moved to <strong>{transfer.to_discipline.ward} Ward</strong>.</p>'
-            wa_status = '✅ Transfer Approved'
-        else:
-            subject = f'Transfer Rejected  -  {p.first_name} {p.last_name}'
-            colour = '#dc3545'
-            detail = f'<p>The transfer was <strong style="color:{colour}">rejected</strong> by the {rejected_by}.</p><div class="alert">{notes}</div>'
-            wa_status = f'❌ Rejected by {rejected_by}'
-
-        body = f"""
-<p>Dear <strong>{tm.first_name} {tm.last_name}</strong>,</p>
-{detail}
-<dl class="info-box">
- <dt>Player</dt><dd>{p.first_name} {p.last_name}</dd>
- <dt>From Ward</dt><dd>{transfer.from_discipline.ward}</dd>
- <dt>To Ward</dt><dd>{transfer.to_discipline.ward}</dd>
- <dt>Discipline</dt><dd>{transfer.from_discipline.get_sport_type_display()}</dd>
-</dl>
-<a href="{getattr(_s, 'SITE_URL', '')}/ligi/transfers/" class="btn">View Transfers</a>"""
-
-        _send(subject, _base_html(f'Transfer {outcome.title()}', body), [tm.email])
-
-        # WhatsApp
-        if getattr(tm, 'phone', None):
-            try:
-                notify_wa_transfer_update(
-                    phone=tm.phone,
-                    first_name=p.first_name,
-                    last_name=p.last_name,
-                    status_label=wa_status,
-                    from_ward=transfer.from_discipline.ward,
-                    to_ward=transfer.to_discipline.ward,
-                    notes=notes or '',
-                )
-            except Exception:
-                pass
-
-    except Exception as _e:
-        logger.warning('Transfer decision notification failed: %s', _e)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

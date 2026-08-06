@@ -37,8 +37,9 @@
     <a href="{% url 'wscc_longlists' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
       <i class="bi bi-list-ul"></i> All Longlists
     </a>
-    <a href="{% url 'wscc_transfers' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
+    <a href="{% url 'wscc_transfers' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:{% if pending_transfers %}#fef3c7{% else %}#fff{% endif %};color:#374151;border:1px solid {% if pending_transfers %}#f59e0b{% else %}#d1d5db{% endif %};border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
       <i class="bi bi-arrow-left-right"></i> Transfers
+      {% if pending_transfers %}<span style="background:#f59e0b;color:#fff;border-radius:10px;padding:.05rem .45rem;font-size:.72rem;font-weight:700;margin-left:.2rem">{{ pending_transfers }}</span>{% endif %}
     </a>
     <a href="{% url 'wscc_ward_competition_setup' %}" style="display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;background:#fff;color:#0a3622;border:1px solid #6ee7b7;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none">
       <i class="bi bi-trophy"></i> Ward Competition
