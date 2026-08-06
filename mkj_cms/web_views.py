@@ -17615,19 +17615,17 @@ def ward_tm_transfers_view(request):
 @role_required('team_manager', 'admin')
 def ward_tm_request_transfer_view(request):
     """
-    Upgraded: Ward TM submits a transfer request.
-    - Player lookup by name or National ID
-    - Transfer type auto-detected (within_ward / inter_ward / inter_subcounty)
-    - Type alert shown to TM before confirming
-    - Approval routing based on type:
-        within_ward     → WSCC only
-        inter_ward      → WSCC → SCSO
-        inter_subcounty → Senior official (CSO/Director/Admin) only
+    Ward TM requests a player from another team to join THEIR team.
+    - Destination is always THIS TM's own team (fixed, not selectable)
+    - Player search by name or national ID finds players from OTHER teams
+    - Transfer type auto-detected once player is found
+    - Approval: source TM releases → WSCC (within-ward) / SCSO (inter-ward)
+                / Director/CSO (inter-subcounty)
     URL: /ligi/transfers/request/
     """
     from teams.models import (
         LigiTransferRequest, LigiSettings,
-        CountyDiscipline, LigiTransferStatus, LigiTransferType,
+        CountyDiscipline, LigiTransferStatus, LigiTransferType, Team as _T,
     )
     from django.conf import settings as _conf
 
@@ -17641,212 +17639,182 @@ def ward_tm_request_transfer_view(request):
     if err:
         return err
 
-    # Players on this ward's longlist
-    my_players = _get_tm_player_qs(discipline, user).order_by('last_name', 'first_name')
+    # This TM's own team — always the destination
+    own_team = _T.objects.filter(source_discipline=discipline).first()
+    own_team_name = own_team.name if own_team else f'{discipline.ward} Ward'
 
-    # ── Step 1: Player lookup (GET with ?q=name_or_id) ────────────────────
-    search_q    = request.GET.get('q', '').strip()
+    # ── Player search ──────────────────────────────────────────────────────
+    search_q     = request.GET.get('q', '').strip()
     found_player = None
     search_error = None
+    search_results = None
+
     if search_q:
         found_qs = CountyPlayer.objects.filter(
             Q(national_id_number__icontains=search_q) |
             Q(first_name__icontains=search_q) |
             Q(last_name__icontains=search_q)
-        ).select_related('discipline', 'discipline__linked_team')
+        ).select_related('discipline', 'discipline__linked_team').exclude(
+            discipline=discipline  # exclude own team's players
+        )
         if found_qs.count() == 0:
-            search_error = f'No player found matching "{search_q}".'
+            search_error = f'No player found matching "{search_q}" in other teams.'
         elif found_qs.count() == 1:
             found_player = found_qs.first()
         else:
-            # Multiple matches  -  show list to choose from
-            return render(request, 'ligi/ward_tm_request_transfer.html', {
-                'my_players': my_players,
-                'discipline': discipline,
-                'search_q': search_q,
-                'search_results': found_qs[:20],
-                'search_error': None,
-                'errors': {}, 'post': {},
-                'transfer_type_info': None,
-            })
+            search_results = found_qs[:20]
 
-    # ── Step 2: Transfer type detection (AJAX or pre-submit) ─────────────
-    transfer_type_info = None
-    selected_player_pk = request.GET.get('player_pk') or request.POST.get('player_pk', '')
-    to_disc_pk         = request.GET.get('to_discipline_pk') or request.POST.get('to_discipline_pk', '')
-
-    if selected_player_pk and to_disc_pk:
+    # If player_pk is in GET (selected from multiple results), load that player
+    player_pk_get = request.GET.get('player_pk', '').strip()
+    if player_pk_get and not found_player:
         try:
-            sel_player = CountyPlayer.objects.select_related('discipline').get(pk=selected_player_pk)
-            to_disc    = CountyDiscipline.objects.get(pk=to_disc_pk)
-            from_ward      = sel_player.discipline.ward
-            from_sub_county = sel_player.discipline.sub_county
-            to_ward        = to_disc.ward
-            to_sub_county  = to_disc.sub_county
-
-            # Resolve real team names for the alert
-            from teams.models import Team as _T
-            _origin_team = _T.objects.filter(source_discipline=sel_player.discipline).first()
-            _dest_team   = _T.objects.filter(source_discipline=to_disc).first()
-            origin_team_name = _origin_team.name if _origin_team else f'{from_ward} Ward'
-            dest_team_name   = _dest_team.name   if _dest_team   else f'{to_ward} Ward'
-
-            if from_sub_county != to_sub_county:
-                t_type = LigiTransferType.INTER_SUBCOUNTY
-                alert_colour = '#f8d7da'
-                alert_text = (
-                    f'⚠️ <strong>Inter-Sub-County Transfer</strong>  —  '
-                    f'<strong>{origin_team_name}</strong> ({from_sub_county}) → '
-                    f'<strong>{dest_team_name}</strong> ({to_sub_county}). '
-                    f'Requires Chief Sports Officer or Director of Sports approval.'
-                )
-            elif from_ward != to_ward:
-                t_type = LigiTransferType.INTER_WARD
-                alert_colour = '#fff3cd'
-                alert_text = (
-                    f'🔄 <strong>Inter-Ward Transfer</strong>  —  '
-                    f'<strong>{origin_team_name}</strong> ({from_ward}) → '
-                    f'<strong>{dest_team_name}</strong> ({to_ward}). '
-                    f'Requires WSCC approval, then Sub-County Sports Officer final approval.'
-                )
-            else:
-                t_type = LigiTransferType.WITHIN_WARD
-                alert_colour = '#d1e7dd'
-                alert_text = (
-                    f'✅ <strong>Within-Ward Transfer</strong>  —  '
-                    f'<strong>{origin_team_name}</strong> → <strong>{dest_team_name}</strong> '
-                    f'(both in {from_ward} Ward). '
-                    f'Ward Sports Council Chair approval only.'
-                )
-
-            transfer_type_info = {
-                'type': t_type,
-                'label': dict(LigiTransferType.choices)[t_type],
-                'alert_colour': alert_colour,
-                'alert_text': alert_text,
-                'player': sel_player,
-                'to_disc': to_disc,
-            }
-        except (CountyPlayer.DoesNotExist, CountyDiscipline.DoesNotExist):
+            found_player = CountyPlayer.objects.select_related(
+                'discipline', 'discipline__linked_team'
+            ).get(pk=player_pk_get)
+        except CountyPlayer.DoesNotExist:
             pass
 
-    # All possible destination disciplines (all ward-level, same sport)
-    # Annotate each with the linked team name so the template can show
-    # "Vitale FC (Kathonzweni Ward)" instead of just "Kathonzweni Ward"
-    from teams.models import Team as _TeamModel
-    _disc_team_map = {
-        t.source_discipline_id: t.name
-        for t in _TeamModel.objects.filter(
-            source_discipline__level='ward',
-            source_discipline__sport_type=discipline.sport_type,
-        ).only('name', 'source_discipline_id')
-    }
-    target_disciplines = CountyDiscipline.objects.filter(
-        level='ward',
-        sport_type=discipline.sport_type,
-    ).exclude(pk=discipline.pk).order_by('sub_county', 'ward')
+    # ── Transfer type: auto-compute from found player vs own discipline ────
+    transfer_type_info = None
+    if found_player:
+        from_ward       = found_player.discipline.ward
+        from_sc         = found_player.discipline.sub_county
+        to_ward         = discipline.ward
+        to_sc           = discipline.sub_county
+        origin_name     = (
+            found_player.discipline.linked_team.name
+            if hasattr(found_player.discipline, 'linked_team') and found_player.discipline.linked_team
+            else f'{from_ward} Ward'
+        )
 
-    # Attach team name to each discipline object for easy template access
-    for d in target_disciplines:
-        d.team_name = _disc_team_map.get(d.pk) or f'{d.ward} Ward'
+        if from_sc != to_sc:
+            t_type       = LigiTransferType.INTER_SUBCOUNTY
+            alert_colour = '#f8d7da'
+            alert_text   = (
+                f'⚠️ <strong>Inter-Sub-County Transfer</strong> — '
+                f'<strong>{origin_name}</strong> ({from_sc}) → '
+                f'<strong>{own_team_name}</strong> ({to_sc}). '
+                f'Requires Chief Sports Officer or Director of Sports approval.'
+            )
+        elif from_ward != to_ward:
+            t_type       = LigiTransferType.INTER_WARD
+            alert_colour = '#fff3cd'
+            alert_text   = (
+                f'🔄 <strong>Inter-Ward Transfer</strong> — '
+                f'<strong>{origin_name}</strong> ({from_ward}) → '
+                f'<strong>{own_team_name}</strong> ({to_ward}). '
+                f'Requires WSCC approval, then Sub-County Sports Officer final approval.'
+            )
+        else:
+            t_type       = LigiTransferType.WITHIN_WARD
+            alert_colour = '#d1e7dd'
+            alert_text   = (
+                f'✅ <strong>Within-Ward Transfer</strong> — '
+                f'<strong>{origin_name}</strong> → <strong>{own_team_name}</strong> '
+                f'(both in {from_ward} Ward). Ward Sports Council Chair approval only.'
+            )
 
+        transfer_type_info = {
+            'type': t_type,
+            'alert_colour': alert_colour,
+            'alert_text': alert_text,
+        }
+
+    # ── POST: submit request ───────────────────────────────────────────────
     if request.method == 'POST' and request.POST.get('action') == 'submit_transfer':
         player_pk_post = request.POST.get('player_pk', '').strip()
-        to_disc_pk_post = request.POST.get('to_discipline_pk', '').strip()
-        reason = request.POST.get('reason', '').strip()
+        reason         = request.POST.get('reason', '').strip()
 
         errors = {}
         player_obj = None
-        to_disc_obj = None
 
         if not player_pk_post:
-            errors['player'] = 'Select a player to transfer.'
+            errors['player'] = 'No player selected. Search for a player first.'
         else:
             try:
                 player_obj = CountyPlayer.objects.select_related('discipline').get(pk=player_pk_post)
+                if player_obj.discipline_id == discipline.pk:
+                    errors['player'] = 'This player is already on your team.'
             except CountyPlayer.DoesNotExist:
                 errors['player'] = 'Invalid player.'
 
-        if not to_disc_pk_post:
-            errors['to_discipline'] = 'Select the destination team/ward.'
-        else:
-            try:
-                to_disc_obj = CountyDiscipline.objects.get(pk=to_disc_pk_post)
-            except CountyDiscipline.DoesNotExist:
-                errors['to_discipline'] = 'Invalid destination.'
-
         if not reason:
-            errors['reason'] = 'Please provide a reason.'
+            errors['reason'] = 'Please provide a reason for this transfer request.'
 
         if player_obj and not errors:
-            active = LigiTransferRequest.objects.filter(
+            if LigiTransferRequest.objects.filter(
                 player=player_obj,
                 status__in=['source_tm_pending', 'pending', 'wscc_approved', 'senior_pending'],
-            ).exists()
-            if active:
+            ).exists():
                 errors['player'] = 'This player already has a pending transfer request.'
 
         if errors:
+            # Re-load found_player for re-render
+            if player_pk_post:
+                try:
+                    found_player = CountyPlayer.objects.select_related(
+                        'discipline', 'discipline__linked_team'
+                    ).get(pk=player_pk_post)
+                except CountyPlayer.DoesNotExist:
+                    pass
             return render(request, 'ligi/ward_tm_request_transfer.html', {
-                'my_players': my_players,
-                'target_disciplines': target_disciplines,
                 'discipline': discipline,
-                'errors': errors, 'post': request.POST,
-                'search_q': '', 'search_results': None,
-                'search_error': None, 'transfer_type_info': transfer_type_info,
+                'own_team_name': own_team_name,
+                'found_player': found_player,
+                'transfer_type_info': transfer_type_info,
+                'errors': errors,
+                'post': request.POST,
+                'search_q': search_q,
+                'search_results': search_results,
+                'search_error': search_error,
             })
 
-        # Determine transfer type
-        from_ward   = player_obj.discipline.ward
-        from_sc     = player_obj.discipline.sub_county
-        to_ward     = to_disc_obj.ward
-        to_sc       = to_disc_obj.sub_county
-
-        if from_sc != to_sc:
+        # Compute transfer type from player's discipline vs own
+        from_sc = player_obj.discipline.sub_county
+        from_ward = player_obj.discipline.ward
+        if from_sc != discipline.sub_county:
             t_type = LigiTransferType.INTER_SUBCOUNTY
-        elif from_ward != to_ward:
+        elif from_ward != discipline.ward:
             t_type = LigiTransferType.INTER_WARD
         else:
             t_type = LigiTransferType.WITHIN_WARD
 
-        # For inter-subcounty, initial status is PENDING but goes straight to senior
         transfer = LigiTransferRequest.objects.create(
             player=player_obj,
             from_discipline=player_obj.discipline,
-            to_discipline=to_disc_obj,
+            to_discipline=discipline,
             reason=reason,
             transfer_type=t_type,
-            status=LigiTransferStatus.SOURCE_TM_PENDING,  # source TM must release first
+            status=LigiTransferStatus.SOURCE_TM_PENDING,
             requested_by=user,
         )
 
-        # Notify the SOURCE team manager first — they must approve the release
         _notify_source_tm_of_request(transfer, user, _conf)
 
         type_labels = {
-            LigiTransferType.WITHIN_WARD: 'Within-Ward',
-            LigiTransferType.INTER_WARD: 'Inter-Ward',
+            LigiTransferType.WITHIN_WARD:     'Within-Ward',
+            LigiTransferType.INTER_WARD:      'Inter-Ward',
             LigiTransferType.INTER_SUBCOUNTY: 'Inter-Sub-County',
         }
         messages.success(
             request,
-            f'{type_labels[t_type]} transfer request for {player_obj.first_name} {player_obj.last_name} submitted. '
+            f'{type_labels[t_type]} transfer request for '
+            f'{player_obj.first_name} {player_obj.last_name} submitted. '
             f'The source team manager has been notified and must approve the release first.'
         )
         return redirect('ward_tm_transfers')
 
     return render(request, 'ligi/ward_tm_request_transfer.html', {
-        'my_players': my_players,
-        'target_disciplines': target_disciplines,
         'discipline': discipline,
-        'errors': {}, 'post': {},
-        'search_q': search_q,
-        'search_results': None,
-        'search_error': search_error,
+        'own_team_name': own_team_name,
         'found_player': found_player,
         'transfer_type_info': transfer_type_info,
+        'errors': {},
+        'post': {},
+        'search_q': search_q,
+        'search_results': search_results,
+        'search_error': search_error,
     })
-
 
 def _notify_source_tm_of_request(transfer, requested_by, _conf):
     """
