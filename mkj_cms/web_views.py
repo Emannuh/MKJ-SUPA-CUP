@@ -19488,9 +19488,10 @@ def wscc_ward_match_sheet_view(request, fixture_pk):
 
             fixture.save()
 
-            # Update pool standings if this is a pool match
+            # Recalculate pool standings from scratch (idempotent — safe to call on edit)
             if fixture.pool_id:
-                _update_pool_standings(fixture)
+                from matches.stats_engine import recalculate_pool_standings
+                recalculate_pool_standings(fixture.pool)
 
             messages.success(
                 request,
@@ -19535,53 +19536,6 @@ def wscc_ward_match_sheet_view(request, fixture_pk):
         'comp': fixture.competition,
     })
 
-
-def _update_pool_standings(fixture):
-    """Update PoolTeam standings after a completed fixture."""
-    from competitions.models import PoolTeam
-    from matches.models import get_sport_family
-
-    if not fixture.pool_id:
-        return
-    sport = fixture.competition.sport_type
-    family = get_sport_family(sport)
-
-    home_score = fixture.home_score or 0
-    away_score = fixture.away_score or 0
-
-    try:
-        home_pt = PoolTeam.objects.get(pool=fixture.pool, team=fixture.home_team)
-        away_pt = PoolTeam.objects.get(pool=fixture.pool, team=fixture.away_team)
-    except PoolTeam.DoesNotExist:
-        return
-
-    # Update played count
-    home_pt.played += 1
-    away_pt.played += 1
-    home_pt.goals_for += home_score
-    home_pt.goals_against += away_score
-    away_pt.goals_for += away_score
-    away_pt.goals_against += home_score
-
-    if home_score > away_score:
-        home_pt.won += 1
-        away_pt.lost += 1
-        if family in ('basketball_5x5', 'basketball_3x3'):
-            home_pt.bonus_points += 2
-            away_pt.bonus_points += 1
-    elif away_score > home_score:
-        away_pt.won += 1
-        home_pt.lost += 1
-        if family in ('basketball_5x5', 'basketball_3x3'):
-            away_pt.bonus_points += 2
-            home_pt.bonus_points += 1
-    else:
-        home_pt.drawn += 1
-        away_pt.drawn += 1
-        # No bonus_points for draws — handled by won/drawn fields in PoolTeam.points property
-
-    home_pt.save()
-    away_pt.save()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -19929,7 +19883,8 @@ def wscc_edit_fixture_view(request, fixture_pk):
                 fixture.status = FixtureStatus.COMPLETED
                 if fixture.pool_id:
                     fixture.save()
-                    _update_pool_standings(fixture)
+                    from matches.stats_engine import recalculate_pool_standings
+                    recalculate_pool_standings(fixture.pool)
                     messages.success(request, f'Result saved: {fixture.home_team.name} {fixture.home_score} - {fixture.away_score} {fixture.away_team.name}')
                     return redirect('wscc_ward_comp_manage', comp_pk=fixture.competition.pk)
             except ValueError:
