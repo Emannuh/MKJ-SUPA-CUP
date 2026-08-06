@@ -2,163 +2,131 @@
 {% block title %}Team Manager Dashboard · Ligi Mashinani{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="breadcrumb">
-        <span>Ligi Mashinani</span>
-        <span>Dashboard</span>
+
+<!-- ── Compact hero strip ─────────────────────────────────────────────── -->
+<div style="background:linear-gradient(135deg,#124491 0%,#1a5cb8 100%);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+  <div>
+    <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:.25rem">
+      Ligi Mashinani · Team Manager
     </div>
-    <h1><i class="bi bi-speedometer2"></i>
-        {% if team_name %}{{ team_name }}{% else %}Ligi Mashinani{% endif %}
-        · Team Manager
-    </h1>
-    <p>{{ sub_county|title }} Sub County · {{ ward|title }} Ward</p>
-</div>
-
-<!-- Summary Card -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
-    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1.2rem">
-        <i class="bi bi-info-circle"></i> Team Overview
-    </h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem">
-
-        {% if team_name %}
-        <div style="background:#e8f0fe;border-radius:8px;padding:1rem;text-align:center;grid-column:1/-1">
-            <div style="font-size:.75rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Your Team</div>
-            <div style="font-size:1.25rem;font-weight:800;color:#124491">{{ team_name }}</div>
-        </div>
-        {% endif %}
-
-        <div style="background:#f8f9fa;border-radius:8px;padding:1rem;text-align:center">
-            <div style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Ward</div>
-            <div style="font-size:1.05rem;font-weight:700;color:#124491">{{ ward|title }}</div>
-        </div>
-
-        <div style="background:#f8f9fa;border-radius:8px;padding:1rem;text-align:center">
-            <div style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Sub County</div>
-            <div style="font-size:1.05rem;font-weight:700;color:#124491">{{ sub_county|title }}</div>
-        </div>
-
-        <div style="background:#f8f9fa;border-radius:8px;padding:1rem;text-align:center">
-            <div style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Discipline</div>
-            <div style="font-size:1.05rem;font-weight:700;color:#124491">{{ discipline.get_sport_type_display }}</div>
-        </div>
-
-        <div style="background:#f8f9fa;border-radius:8px;padding:1rem;text-align:center">
-            <div style="font-size:.75rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Players Registered</div>
-            <div style="font-size:1.4rem;font-weight:700;color:#124491">{{ player_count }}</div>
-        </div>
-
+    <div style="font-size:1.35rem;font-weight:800;color:#fff;line-height:1.2">
+      {% if team_name %}{{ team_name }}{% else %}My Team{% endif %}
     </div>
-</div>
-
-<!-- Player Registration Info Card -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
-    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
-        <i class="bi bi-people"></i> Player Registration
-    </h2>
-    {% if discipline.has_main_venue %}
-    <div style="padding:.9rem 1rem;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;font-size:.87rem;color:#065f46;margin-bottom:.75rem">
-        <i class="bi bi-check-circle-fill"></i>
-        <strong>Main venue registered.</strong>
-        The Ward Sports Council Chair (WSCC) reviews all ward teams directly — keep your player list accurate and up to date.
+    <div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-top:.25rem">
+      {{ ward|title }} Ward &bull; {{ sub_county|title }} Sub County &bull; {{ discipline.get_sport_type_display }}
+    </div>
+  </div>
+  <!-- Stat pills -->
+  <div style="display:flex;gap:.65rem;flex-wrap:wrap;align-items:center">
+    <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:.5rem .9rem;text-align:center;min-width:72px">
+      <div style="font-size:1.4rem;font-weight:800;color:#fff;line-height:1">{{ player_count }}</div>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem">Players</div>
+    </div>
+    {% if has_main_venue %}
+    <div style="background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);border-radius:8px;padding:.5rem .9rem;text-align:center">
+      <div style="font-size:.75rem;font-weight:700;color:#6ee7b7"><i class="bi bi-check-circle-fill"></i> Venue</div>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em;margin-top:.1rem">Registered</div>
     </div>
     {% else %}
-    <div style="padding:.9rem 1rem;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:.87rem;color:#991b1b">
-        <i class="bi bi-exclamation-octagon-fill"></i>
-        <strong>Action required:</strong>
-        You must register a <strong>main match venue</strong> before adding players.
-        <a href="{% url 'ward_tm_venues' %}" style="color:#991b1b;font-weight:700;margin-left:.4rem">
-            Register Venue <i class="bi bi-arrow-right"></i>
-        </a>
+    <div style="background:rgba(220,38,38,.2);border:1px solid rgba(220,38,38,.4);border-radius:8px;padding:.5rem .9rem;text-align:center">
+      <div style="font-size:.75rem;font-weight:700;color:#fca5a5"><i class="bi bi-exclamation-triangle-fill"></i> Venue</div>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em;margin-top:.1rem">Required</div>
     </div>
     {% endif %}
+  </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="card" style="padding:1.5rem">
-    <h2 style="font-size:1.1rem;color:#333;margin-bottom:1rem">
-        <i class="bi bi-lightning"></i> Quick Actions
-    </h2>
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-        <a href="{% url 'ward_tm_venues' %}" class="btn {% if has_main_venue %}btn--secondary{% else %}btn--primary{% endif %}"
-           style="{% if not has_main_venue %}background:#dc2626;border-color:#dc2626;{% endif %}">
-            <i class="bi bi-geo-alt-fill"></i>
-            {% if has_main_venue %}Manage Venues{% else %}Register Venue (Required){% endif %}
-        </a>
-        <a href="{% url 'ward_tm_longlist' %}" class="btn btn--primary"
-           {% if not has_main_venue %}title="Register a venue first"{% endif %}>
-            <i class="bi bi-people"></i> Manage Player Longlist
-        </a>
-        <a href="{% url 'ward_tm_transfers' %}" class="btn btn--secondary">
-            <i class="bi bi-arrow-left-right"></i> Player Transfers
-        </a>
-    </div>
-</div>
+<!-- ── Alerts ─────────────────────────────────────────────────────────── -->
+{% if messages %}
+<div style="margin-bottom:1rem">{% for msg in messages %}
+  <div style="padding:.75rem 1rem;border-radius:8px;margin-bottom:.4rem;font-size:.88rem;
+    {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;{% elif 'success' in msg.tags %}background:#d1fae5;color:#065f46;{% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;{% else %}background:#cfe2ff;color:#084298;{% endif %}">
+    {{ msg }}
+  </div>
+{% endfor %}</div>
+{% endif %}
 
-<!-- Venue summary strip (only when venues registered) -->
-{% if venues %}
-<div class="card" style="padding:1.1rem 1.25rem;margin-top:1.5rem">
-    <h2 style="font-size:.9rem;font-weight:700;color:#333;margin-bottom:.75rem">
-        <i class="bi bi-geo-alt-fill" style="color:#10b981"></i> Registered Match Venues
-    </h2>
-    <div style="display:grid;gap:.5rem">
-        {% for v in venues %}
-        <div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .85rem;background:#f8f9fa;border-radius:6px;font-size:.86rem">
-            {% if v.venue_type == 'main' %}
-            <span style="background:#d1fae5;color:#065f46;font-size:.65rem;font-weight:800;padding:.12rem .4rem;border-radius:4px;white-space:nowrap">MAIN</span>
-            {% else %}
-            <span style="background:#e0e7ff;color:#4338ca;font-size:.65rem;font-weight:800;padding:.12rem .4rem;border-radius:4px;white-space:nowrap">ALT</span>
-            {% endif %}
-            <span style="font-weight:600;color:#111827">{{ v.name }}</span>
-            {% if v.surface %}<span style="color:#9ca3af">· {{ v.surface }}</span>{% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    <a href="{% url 'ward_tm_venues' %}" style="display:inline-block;margin-top:.65rem;font-size:.82rem;color:#124491;text-decoration:none">
-        <i class="bi bi-pencil"></i> Edit Venues
-    </a>
+{% if not has_main_venue %}
+<div style="padding:.85rem 1rem;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:.87rem;color:#991b1b;margin-bottom:1.25rem;display:flex;align-items:center;gap:.75rem">
+  <i class="bi bi-exclamation-octagon-fill" style="font-size:1.1rem;flex-shrink:0"></i>
+  <span><strong>Action required:</strong> Register a <strong>main match venue</strong> before adding players.
+    <a href="{% url 'ward_tm_venues' %}" style="color:#991b1b;font-weight:700;margin-left:.35rem">Register Venue <i class="bi bi-arrow-right"></i></a>
+  </span>
+</div>
+{% else %}
+<div style="padding:.75rem 1rem;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;font-size:.85rem;color:#065f46;margin-bottom:1.25rem;display:flex;align-items:center;gap:.65rem">
+  <i class="bi bi-check-circle-fill" style="flex-shrink:0"></i>
+  <span><strong>Main venue registered.</strong> The WSCC reviews all ward teams directly — keep your player list accurate and up to date.</span>
 </div>
 {% endif %}
 
+<!-- ── Quick actions ──────────────────────────────────────────────────── -->
+<div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.5rem">
+  <a href="{% url 'ward_tm_venues' %}" class="btn {% if has_main_venue %}btn--secondary{% else %}btn--primary{% endif %}"
+     style="{% if not has_main_venue %}background:#dc2626;border-color:#dc2626;{% endif %}">
+    <i class="bi bi-geo-alt-fill"></i>
+    {% if has_main_venue %}Manage Venues{% else %}Register Venue (Required){% endif %}
+  </a>
+  <a href="{% url 'ward_tm_longlist' %}" class="btn btn--primary">
+    <i class="bi bi-people"></i> Player Longlist
+  </a>
+  <a href="{% url 'ward_tm_transfers' %}" class="btn btn--secondary">
+    <i class="bi bi-arrow-left-right"></i> Transfers
+  </a>
+</div>
+
+<!-- ── Venues strip ───────────────────────────────────────────────────── -->
+{% if venues %}
+<div class="card" style="padding:1rem 1.25rem;margin-bottom:1.25rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem">
+    <h2 style="font-size:.88rem;font-weight:700;color:#374151;margin:0"><i class="bi bi-geo-alt-fill" style="color:#10b981"></i> Match Venues</h2>
+    <a href="{% url 'ward_tm_venues' %}" style="font-size:.78rem;color:#124491;text-decoration:none"><i class="bi bi-pencil"></i> Edit</a>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+    {% for v in venues %}
+    <div style="display:inline-flex;align-items:center;gap:.45rem;padding:.35rem .7rem;background:#f8f9fa;border:1px solid #e5e7eb;border-radius:6px;font-size:.82rem">
+      {% if v.venue_type == 'main' %}
+      <span style="background:#d1fae5;color:#065f46;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:3px">MAIN</span>
+      {% else %}
+      <span style="background:#e0e7ff;color:#4338ca;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:3px">ALT</span>
+      {% endif %}
+      <span style="font-weight:600;color:#111827">{{ v.name }}</span>
+      {% if v.surface %}<span style="color:#9ca3af">· {{ v.surface }}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Sub County Qualification ───────────────────────────────────────── -->
 {% if qualified_to_subcounty %}
-<!-- Sub County Qualification Panel -->
-<div class="card" style="padding:1.5rem;margin-top:1.5rem;border-top:4px solid #E8B91E;background:#fffdf5">
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
-        <span style="font-size:2rem">🏆</span>
-        <div>
-            <h2 style="font-size:1.1rem;color:#856404;margin:0">Your Ward Has Qualified!</h2>
-            <p style="font-size:.85rem;color:#888;margin:0">
-                {{ ward|title }} Ward · {{ discipline.get_sport_type_display }} has qualified for the
-                <strong>{{ sub_county }} Sub County MKJ SUPA CUP Finals</strong>.
-            </p>
-        </div>
+<div class="card" style="padding:1.25rem 1.5rem;border-left:4px solid #E8B91E;background:#fffdf5">
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem">
+    <span style="font-size:1.6rem;line-height:1">🏆</span>
+    <div>
+      <div style="font-size:.95rem;font-weight:700;color:#856404">Your Ward Has Qualified!</div>
+      <div style="font-size:.82rem;color:#888;margin-top:.1rem">
+        {{ ward|title }} Ward · {{ discipline.get_sport_type_display }} → <strong>{{ sub_county }} Sub County MKJ SUPA CUP Finals</strong>
+      </div>
     </div>
-
-    {% if eligible_count > 0 %}
-    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.85rem 1rem;margin-bottom:1rem;font-size:.88rem">
-        <i class="bi bi-info-circle"></i>
-        <strong>{{ eligible_count }} player{{ eligible_count|pluralize }}</strong> in your longlist
-        are aged 18-23 and eligible for the sub county squad.
-        The WSCC will select the final team from this pool.
-    </div>
-    {% else %}
-    <div style="background:#f8d7da;border:1px solid #f5c2c7;border-radius:6px;padding:.85rem 1rem;margin-bottom:1rem;font-size:.88rem">
-        <i class="bi bi-exclamation-triangle"></i>
-        <strong>No eligible players found.</strong>
-        None of your registered players fall in the 18-23 age bracket required for sub county competition.
-        Contact your WSCC.
-    </div>
-    {% endif %}
-
-    <div style="font-size:.85rem;color:#555">
-        <strong>Next steps:</strong>
-        <ol style="margin:.4rem 0 0 1.2rem;padding:0;line-height:1.8">
-            <li>The Ward Sports Council Chair reviews eligible players from your longlist</li>
-            <li>WSCC selects the sub county squad (ages 18-23 only)</li>
-            <li>Selected squad is submitted to the Sub County Sports Officer</li>
-            <li>Your team represents <strong>{{ ward|title }} Ward</strong> at the {{ sub_county }} sub county finals</li>
-        </ol>
-    </div>
+  </div>
+  {% if eligible_count > 0 %}
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.75rem 1rem;margin-bottom:.75rem;font-size:.85rem">
+    <i class="bi bi-info-circle"></i>
+    <strong>{{ eligible_count }} player{{ eligible_count|pluralize }}</strong> aged 18-23 are eligible for the sub county squad. The WSCC will select the final team.
+  </div>
+  {% else %}
+  <div style="background:#f8d7da;border:1px solid #f5c2c7;border-radius:6px;padding:.75rem 1rem;margin-bottom:.75rem;font-size:.85rem">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>No eligible players found.</strong> None of your players are in the 18-23 bracket. Contact your WSCC.
+  </div>
+  {% endif %}
+  <ol style="font-size:.82rem;color:#555;margin:.4rem 0 0 1.1rem;padding:0;line-height:1.9">
+    <li>WSCC reviews eligible players from your longlist</li>
+    <li>WSCC selects the sub county squad (ages 18-23 only)</li>
+    <li>Squad submitted to the Sub County Sports Officer</li>
+    <li>Your team represents <strong>{{ ward|title }} Ward</strong> at the {{ sub_county }} finals</li>
+  </ol>
 </div>
 {% endif %}
 
