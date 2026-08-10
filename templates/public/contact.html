@@ -118,6 +118,10 @@
 
                 <form method="post" action="{% url 'contact' %}">
                     {% csrf_token %}
+                    <!-- Honeypot: hidden from real users, bots fill it in -->
+                    <div style="display:none" aria-hidden="true">
+                        <input type="text" name="website" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="contact-form__row">
                         <div class="form-group">
                             <label>First Name</label>
@@ -147,6 +151,10 @@
                         <label>Message</label>
                         <textarea name="message" class="form-control" rows="5" required placeholder="Tell us how we can help..."></textarea>
                     </div>
+                    {% if turnstile_site_key %}
+                    <!-- Cloudflare Turnstile CAPTCHA -->
+                    <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-theme="light" style="margin-bottom:1rem"></div>
+                    {% endif %}
                     <button type="submit" class="btn btn--primary" style="width:100%;justify-content:center;padding:.8rem 1.5rem;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                         Send Message
@@ -179,6 +187,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 <script>
 (function(){
     /* Scroll reveals */

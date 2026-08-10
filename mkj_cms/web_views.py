@@ -1661,6 +1661,42 @@ def contact_view(request):
     """Public contact page with form. Sends message to admin@mkjsupacup.com and logs to EmailLog."""
     contact_sent = False
     if request.method == 'POST':
+        # ── Honeypot: bots fill hidden fields, humans don't ───────────────
+        if request.POST.get('website', '').strip():
+            # Silent discard — return success so bots don't know they were blocked
+            contact_sent = True
+            return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+
+        # ── Rate limit: max 3 contact submissions per IP per hour ─────────
+        from django.core.cache import cache
+        client_ip = (
+            request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            or request.META.get('REMOTE_ADDR', '')
+        )
+        rate_key  = f'contact_rate_{client_ip}'
+        hit_count = cache.get(rate_key, 0)
+        if hit_count >= 3:
+            contact_sent = True  # silent discard
+            return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+        cache.set(rate_key, hit_count + 1, timeout=3600)
+
+        # ── Turnstile CAPTCHA verification ────────────────────────────────
+        turnstile_token  = request.POST.get('cf-turnstile-response', '').strip()
+        turnstile_secret = django_settings.TURNSTILE_SECRET_KEY
+        if turnstile_secret:
+            import requests as _req
+            try:
+                ts_resp = _req.post(
+                    'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+                    data={'secret': turnstile_secret, 'response': turnstile_token},
+                    timeout=5,
+                )
+                if not ts_resp.json().get('success'):
+                    contact_sent = True  # silent discard — bots don't know they're blocked
+                    return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+            except Exception:
+                pass  # Cloudflare unreachable — let genuine users through
+
         first_name = request.POST.get('first_name', '').strip()
         last_name  = request.POST.get('last_name',  '').strip()
         sender_email = request.POST.get('email',   '').strip()
@@ -1823,6 +1859,7 @@ as soon as possible, usually within <strong>1–2 business days</strong>.</p>
     return render(request, 'public/contact.html', {
         'active_page': 'contact',
         'contact_sent': contact_sent,
+        'turnstile_site_key': django_settings.TURNSTILE_SITE_KEY,
     })
 
 

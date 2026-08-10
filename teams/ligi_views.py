@@ -109,15 +109,6 @@ def ligi_register_view(request):
     if errors:
         return JsonResponse({"success": False, "errors": errors}, status=422)
 
-    # ── Duplicate checks ──────────────────────────────────────────────────
-    if email and LigiMashinaniRegistration.objects.filter(manager_email__iexact=email).exists():
-        return JsonResponse({
-            "success": False,
-            "errors": {
-                "manager_email": "A registration with this email already exists. Please log in or contact support."
-            },
-        }, status=422)
-
     # ── Create the registration ───────────────────────────────────────────
     try:
         reg = LigiMashinaniRegistration.objects.create(
