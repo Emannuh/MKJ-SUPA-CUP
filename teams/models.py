@@ -521,22 +521,23 @@ class CountyPlayer(models.Model):
     def _generate_registration_code(self):
         """
         Auto-generate a unique ward-level registration code.
-        Format: LM-{WARD3}-{SPORT}-{N}
-        e.g. LM-KAT-VM-3  or  LM-KTH-FM-14
+        Format: {W2}{S}{G}{N}
+        W2 = first 2 chars of ward, S = sport letter, G = M/W gender, N = sequence
+        e.g. KAVM3  (Kathonzweni Volleyball Men #3)   KAWF14  (Kathonzweni Women Football #14)
         Only generated for ward-level (level='ward') CountyPlayer records.
         """
         discipline = self.discipline
-        ward_abbrev = (discipline.ward or 'WRD')[:3].upper()
+        ward_abbrev = (discipline.ward or 'WR')[:2].upper()
         sport_map = {
-            'football_men':        'FM',  'football_women':        'FW',
-            'volleyball_men':      'VM',  'volleyball_women':      'VW',
-            'basketball_men':      'BM',  'basketball_women':      'BW',
-            'basketball_3x3_men':  'B3M', 'basketball_3x3_women':  'B3W',
-            'handball_men':        'HM',  'handball_women':        'HW',
-            'beach_volleyball':    'BV',  'beach_handball':        'BH',
+            'football_men':       ('F', 'M'), 'football_women':       ('F', 'W'),
+            'volleyball_men':     ('V', 'M'), 'volleyball_women':     ('V', 'W'),
+            'basketball_men':     ('B', 'M'), 'basketball_women':     ('B', 'W'),
+            'basketball_3x3_men': ('B', 'M'), 'basketball_3x3_women': ('B', 'W'),
+            'handball_men':       ('H', 'M'), 'handball_women':       ('H', 'W'),
+            'beach_volleyball':   ('E', 'M'), 'beach_handball':       ('A', 'M'),
         }
-        sport_abbrev = sport_map.get(discipline.sport_type, 'XX')
-        prefix = f"LM-{ward_abbrev}-{sport_abbrev}-"
+        sport_char, gender_char = sport_map.get(discipline.sport_type, ('X', 'M'))
+        prefix = f"{ward_abbrev}{sport_char}{gender_char}"
         existing_codes = CountyPlayer.objects.filter(
             registration_code__startswith=prefix
         ).values_list('registration_code', flat=True)
