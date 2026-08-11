@@ -1682,7 +1682,7 @@ def contact_view(request):
 
         # ── Turnstile CAPTCHA verification ────────────────────────────────
         turnstile_token  = request.POST.get('cf-turnstile-response', '').strip()
-        turnstile_secret = django_settings.TURNSTILE_SECRET_KEY
+        turnstile_secret = getattr(django_settings, 'TURNSTILE_SECRET_KEY', '')
         if turnstile_secret:
             import requests as _req
             try:
@@ -1859,7 +1859,7 @@ as soon as possible, usually within <strong>1–2 business days</strong>.</p>
     return render(request, 'public/contact.html', {
         'active_page': 'contact',
         'contact_sent': contact_sent,
-        'turnstile_site_key': django_settings.TURNSTILE_SITE_KEY,
+        'turnstile_site_key': getattr(django_settings, 'TURNSTILE_SITE_KEY', ''),
     })
 
 

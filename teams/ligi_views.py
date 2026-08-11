@@ -126,6 +126,15 @@ def ligi_register_view(request):
             team_name, ward, sub_county, discipline, reg.pk,
         )
     except Exception as exc:
+        # Catch DB-level duplicate email constraint and return a clean 422
+        exc_str = str(exc).lower()
+        if 'unique' in exc_str and 'manager_email' in exc_str:
+            return JsonResponse({
+                "success": False,
+                "errors": {
+                    "manager_email": "A registration with this email already exists. Please log in or contact support."
+                },
+            }, status=422)
         logger.exception("Failed to save Ligi Mashinani registration: %s", exc)
         return JsonResponse({
             "success": False,
