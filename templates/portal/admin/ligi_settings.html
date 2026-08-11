@@ -1,462 +1,508 @@
 ﻿{% extends 'base.html' %}
-{% block title %}Ligi Mashinani · Window Control{% endblock %}
+{% block title %}Ligi Mashinani Window Control{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Hero ──────────────────────────────────────────────────────── */
+.lms-hero {
+    background: linear-gradient(135deg, #0a2f5c 0%, #124491 55%, #1a5db8 100%);
+    border-radius: 16px; padding: 2rem 2.5rem; color: #fff;
+    margin-bottom: 1.75rem; position: relative; overflow: hidden;
+}
+.lms-hero::after {
+    content:''; position:absolute; top:-60px; right:-60px;
+    width:280px; height:280px;
+    background: radial-gradient(circle, rgba(255,255,255,.07) 0%, transparent 70%);
+    border-radius:50%;
+}
+.lms-hero h1 { font-size:1.45rem; font-weight:800; margin:0 0 .3rem; position:relative; }
+.lms-hero p  { opacity:.75; font-size:.9rem; margin:0; position:relative; }
+
+/* ── Grid ──────────────────────────────────────────────────────── */
+.lms-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1.25rem; margin-bottom:1.75rem; }
+
+/* ── Window Card ───────────────────────────────────────────────── */
+.win-card {
+    background:#fff; border-radius:14px;
+    box-shadow:0 2px 12px rgba(0,0,0,.07);
+    overflow:hidden; transition:box-shadow .2s;
+}
+.win-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.1); }
+.win-card__head {
+    padding:1.1rem 1.4rem;
+    display:flex; align-items:center; gap:.85rem;
+    border-bottom:1px solid #f0f0f0;
+}
+.win-card__icon {
+    width:42px; height:42px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.15rem; flex-shrink:0;
+}
+.win-card__icon--team   { background:#dbeafe; color:#1d4ed8; }
+.win-card__icon--player { background:#d1fae5; color:#065f46; }
+.win-card__icon--transfer { background:#ede9fe; color:#6d28d9; }
+.win-card__title { font-size:.95rem; font-weight:700; color:#1e293b; margin:0; }
+.win-card__sub   { font-size:.75rem; color:#94a3b8; margin:.1rem 0 0; }
+
+/* Status pill */
+.status-pill {
+    display:inline-flex; align-items:center; gap:.3rem;
+    padding:.25rem .75rem; border-radius:20px;
+    font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+    white-space:nowrap;
+}
+.status-pill::before { content:''; width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.status-pill--open   { background:#d1fae5; color:#065f46; } .status-pill--open::before   { background:#10b981; }
+.status-pill--closed { background:#fee2e2; color:#b91c1c; } .status-pill--closed::before { background:#ef4444; }
+
+.win-card__body { padding:1.25rem 1.4rem; }
+.win-card__footer {
+    padding:.85rem 1.4rem; background:#f8faff;
+    border-top:1px solid #f0f0f0;
+    display:flex; align-items:center; gap:.65rem; flex-wrap:wrap;
+}
+
+/* Toggle button */
+.btn-toggle {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.45rem 1.1rem; border:none; border-radius:8px;
+    font-size:.82rem; font-weight:600; cursor:pointer;
+    transition:all .2s;
+}
+.btn-toggle--open   { background:#d1fae5; color:#065f46; }
+.btn-toggle--open:hover   { background:#065f46; color:#fff; }
+.btn-toggle--closed { background:#fee2e2; color:#b91c1c; }
+.btn-toggle--closed:hover { background:#b91c1c; color:#fff; }
+
+/* Scheduled badge */
+.sched-badge {
+    display:inline-flex; align-items:center; gap:.3rem;
+    background:#fef3c7; color:#b45309;
+    padding:.18rem .6rem; border-radius:6px;
+    font-size:.7rem; font-weight:600;
+}
+
+/* Section card */
+.sec-card {
+    background:#fff; border-radius:14px;
+    box-shadow:0 2px 12px rgba(0,0,0,.07);
+    overflow:hidden; margin-bottom:1.5rem;
+}
+.sec-card__head {
+    padding:.9rem 1.4rem; border-bottom:1px solid #f0f0f0;
+    display:flex; align-items:center; justify-content:space-between;
+}
+.sec-card__head h2 { font-size:.92rem; font-weight:700; color:#374151; margin:0; }
+.sec-card__body { padding:1.25rem 1.4rem; }
+
+/* Form inputs */
+.lms-input {
+    width:100%; padding:.5rem .85rem;
+    border:1px solid #e5e7eb; border-radius:8px;
+    font-size:.85rem; background:#f9fafb;
+    transition:border-color .2s;
+}
+.lms-input:focus { border-color:#124491; background:#fff; outline:none; box-shadow:0 0 0 3px rgba(18,68,145,.1); }
+.lms-label { font-size:.73rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.5px; margin-bottom:.3rem; display:block; }
+
+.lms-btn {
+    display:inline-flex; align-items:center; gap:.4rem;
+    padding:.5rem 1.15rem; border:none; border-radius:8px;
+    font-size:.82rem; font-weight:600; cursor:pointer; transition:all .2s;
+}
+.lms-btn--primary  { background:#124491; color:#fff; } .lms-btn--primary:hover  { background:#0a2f5c; }
+.lms-btn--danger   { background:#fee2e2; color:#b91c1c; } .lms-btn--danger:hover   { background:#b91c1c; color:#fff; }
+.lms-btn--neutral  { background:#f3f4f6; color:#374151; border:1px solid #e5e7eb; } .lms-btn--neutral:hover { background:#e5e7eb; }
+
+/* Pending request badge */
+.req-badge { background:#fef3c7; color:#b45309; font-size:.7rem; font-weight:700; padding:.15rem .55rem; border-radius:10px; }
+
+/* Log table */
+.log-row { display:flex; gap:1rem; padding:.55rem 0; border-bottom:1px solid #f0f0f0; font-size:.8rem; }
+.log-row:last-child { border-bottom:none; }
+.log-ts { color:#9ca3af; white-space:nowrap; flex-shrink:0; }
+.log-desc { color:#374151; flex:1; }
+.log-user { color:#6b7280; white-space:nowrap; }
+
+/* Pending request card */
+.preq-card { border:1px solid #fcd34d; border-radius:10px; padding:1rem; background:#fffbeb; margin-bottom:1rem; }
+.preq-card:last-child { margin-bottom:0; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div class="breadcrumb">
-    <a href="{% url 'dashboard' %}">Dashboard</a>
-    <span>Ligi Mashinani</span>
-    <span>Window Control</span>
-  </div>
-  <h1><i class="bi bi-toggles"></i> Ligi Mashinani · Window Control</h1>
-  <p style="color:#666;font-size:.9rem">
-    Control which registration and transfer windows are open for Ligi Mashinani.
-    Changes take effect immediately, or schedule future open/close times.
-  </p>
+
+<!-- Hero -->
+<div class="lms-hero">
+    <h1><i class="bi bi-toggles me-2" style="opacity:.8"></i>Ligi Mashinani Window Control</h1>
+    <p>Manage team registration, player registration and transfer windows · 2026/2027 Season</p>
+    {% if settings_obj.last_changed_by %}
+    <div style="margin-top:.75rem;font-size:.78rem;opacity:.65;position:relative">
+        Last changed by <strong>{{ settings_obj.last_changed_by.get_full_name }}</strong>
+        {% if settings_obj.last_changed_at %}&nbsp;·&nbsp;{{ settings_obj.last_changed_at|date:"d M Y H:i" }}{% endif %}
+    </div>
+    {% endif %}
 </div>
 
 {% if messages %}
-<div style="margin-bottom:1.2rem">
-  {% for msg in messages %}
-  <div style="padding:.8rem 1.1rem;border-radius:6px;margin-bottom:.5rem;font-size:.9rem;
-    {% if 'error' in msg.tags %}background:#f8d7da;color:#842029;border:1px solid #f5c2c7;
-    {% elif 'success' in msg.tags %}background:#d1e7dd;color:#0a3622;border:1px solid #badbcc;
-    {% elif 'warning' in msg.tags %}background:#fff3cd;color:#856404;border:1px solid #ffecb5;
-    {% else %}background:#cfe2ff;color:#084298;border:1px solid #b6d4fe;{% endif %}">
+<div style="margin-bottom:1.25rem">
+{% for msg in messages %}
+<div style="padding:.75rem 1rem;border-radius:8px;margin-bottom:.4rem;font-size:.88rem;
+    {% if 'error' in msg.tags %}background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;
+    {% elif 'success' in msg.tags %}background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;
+    {% elif 'warning' in msg.tags %}background:#fef3c7;color:#b45309;border:1px solid #fcd34d;
+    {% else %}background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;{% endif %}">
     {{ msg }}
-  </div>
-  {% endfor %}
+</div>
+{% endfor %}
 </div>
 {% endif %}
 
-<!-- ── THREE WINDOW CARDS ─────────────────────────────────────── -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem;margin-bottom:2rem">
+<!-- ══ THREE WINDOW CARDS ══════════════════════════════════════════════════ -->
+<div class="lms-grid">
 
-  <!-- 1. Team Registration -->
-  <div class="card" style="padding:1.5rem;border-top:4px solid {% if settings_obj.team_registration_open %}#198754{% else %}#dc3545{% endif %}">
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
-      <span style="font-size:1.8rem">📋</span>
-      <div>
-        <h2 style="font-size:1.05rem;margin:0;color:#333">Team Registration</h2>
-        <p style="font-size:.8rem;color:#888;margin:0">Public homepage form for new ward teams</p>
-      </div>
+    <!-- Team Registration -->
+    <div class="win-card">
+        <div class="win-card__head">
+            <div class="win-card__icon win-card__icon--team"><i class="bi bi-person-lines-fill"></i></div>
+            <div style="flex:1">
+                <p class="win-card__title">Team Registration</p>
+                <p class="win-card__sub">Public homepage registration form</p>
+            </div>
+            {% if settings_obj.team_registration_open %}
+            <span class="status-pill status-pill--open">Open</span>
+            {% else %}
+            <span class="status-pill status-pill--closed">Closed</span>
+            {% endif %}
+        </div>
+        <div class="win-card__body">
+            <p style="font-size:.82rem;color:#6b7280;margin:0 0 .75rem">
+                Controls whether ward teams can submit new Ligi Mashinani registration requests via the public site.
+            </p>
+            {% if settings_obj.team_reg_open_at or settings_obj.team_reg_close_at %}
+            <div style="margin-bottom:.6rem">
+                {% if settings_obj.team_reg_open_at %}<span class="sched-badge"><i class="bi bi-clock"></i> Opens {{ settings_obj.team_reg_open_at|date:"d M Y H:i" }}</span>{% endif %}
+                {% if settings_obj.team_reg_close_at %}<span class="sched-badge" style="margin-left:.4rem"><i class="bi bi-clock"></i> Closes {{ settings_obj.team_reg_close_at|date:"d M Y H:i" }}</span>{% endif %}
+            </div>
+            {% endif %}
+            <p style="font-size:.76rem;color:#9ca3af;margin:0">
+                <i class="bi bi-chat-left-text"></i>&nbsp;
+                <em>Closed message:</em> {{ settings_obj.team_registration_closed_message|truncatechars:80|default:"Not set" }}
+            </p>
+        </div>
+        <div class="win-card__footer">
+            <form method="post" style="margin:0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_team_reg">
+                {% if settings_obj.team_registration_open %}
+                <button type="submit" class="btn-toggle btn-toggle--open">
+                    <i class="bi bi-lock"></i> Close Window
+                </button>
+                {% else %}
+                <button type="submit" class="btn-toggle btn-toggle--closed">
+                    <i class="bi bi-unlock"></i> Open Window
+                </button>
+                {% endif %}
+            </form>
+        </div>
     </div>
 
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.2rem">
-      {% if settings_obj.team_registration_open %}
-        <span style="background:#d1e7dd;color:#0a3622;padding:.35rem .9rem;border-radius:20px;font-size:.85rem;font-weight:700">
-          🟢 OPEN
-        </span>
-      {% else %}
-        <span style="background:#f8d7da;color:#842029;padding:.35rem .9rem;border-radius:20px;font-size:.85rem;font-weight:700">
-          🔴 CLOSED
-        </span>
-      {% endif %}
+    <!-- Player Registration -->
+    <div class="win-card">
+        <div class="win-card__head">
+            <div class="win-card__icon win-card__icon--player"><i class="bi bi-person-check-fill"></i></div>
+            <div style="flex:1">
+                <p class="win-card__title">Player Registration</p>
+                <p class="win-card__sub">Ward TM adds players to longlist</p>
+            </div>
+            {% if settings_obj.player_registration_open %}
+            <span class="status-pill status-pill--open">Open</span>
+            {% else %}
+            <span class="status-pill status-pill--closed">Closed</span>
+            {% endif %}
+        </div>
+        <div class="win-card__body">
+            <p style="font-size:.82rem;color:#6b7280;margin:0 0 .75rem">
+                Controls whether Ward Team Managers can add players to their Ligi Mashinani longlists.
+            </p>
+            {% if settings_obj.player_reg_open_at or settings_obj.player_reg_close_at %}
+            <div style="margin-bottom:.6rem">
+                {% if settings_obj.player_reg_open_at %}<span class="sched-badge"><i class="bi bi-clock"></i> Opens {{ settings_obj.player_reg_open_at|date:"d M Y H:i" }}</span>{% endif %}
+                {% if settings_obj.player_reg_close_at %}<span class="sched-badge" style="margin-left:.4rem"><i class="bi bi-clock"></i> Closes {{ settings_obj.player_reg_close_at|date:"d M Y H:i" }}</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if pending_requests %}
+            <div style="margin-bottom:.6rem">
+                <span class="req-badge"><i class="bi bi-hourglass-split"></i> {{ pending_requests|length }} pending SCSO request{{ pending_requests|length|pluralize }}</span>
+            </div>
+            {% endif %}
+            <p style="font-size:.76rem;color:#9ca3af;margin:0">
+                <i class="bi bi-chat-left-text"></i>&nbsp;
+                <em>Closed message:</em> {{ settings_obj.player_registration_closed_message|truncatechars:80|default:"Not set" }}
+            </p>
+        </div>
+        <div class="win-card__footer">
+            <form method="post" style="margin:0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_player_reg">
+                {% if settings_obj.player_registration_open %}
+                <button type="submit" class="btn-toggle btn-toggle--open">
+                    <i class="bi bi-lock"></i> Close Window
+                </button>
+                {% else %}
+                <button type="submit" class="btn-toggle btn-toggle--closed">
+                    <i class="bi bi-unlock"></i> Open Window
+                </button>
+                {% endif %}
+            </form>
+        </div>
     </div>
 
-    <form method="post" style="margin-bottom:.75rem">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="toggle_team_reg">
-      <button type="submit"
-        style="width:100%;padding:.65rem;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:.9rem;
-          {% if settings_obj.team_registration_open %}background:#dc3545;color:#fff;{% else %}background:#198754;color:#fff;{% endif %}">
-        {% if settings_obj.team_registration_open %}🔒 Close Registration{% else %}🔓 Open Registration{% endif %}
-      </button>
-    </form>
-
-    <details style="margin-top:.5rem">
-      <summary style="font-size:.82rem;color:#666;cursor:pointer">Edit closed message</summary>
-      <form method="post" style="margin-top:.75rem">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_messages">
-        <textarea name="team_registration_closed_message"
-          style="width:100%;padding:.5rem;border:1px solid #dee2e6;border-radius:4px;font-size:.82rem;resize:vertical"
-          rows="3">{{ settings_obj.team_registration_closed_message }}</textarea>
-        <input type="hidden" name="player_registration_closed_message" value="{{ settings_obj.player_registration_closed_message }}">
-        <input type="hidden" name="transfer_window_closed_message" value="{{ settings_obj.transfer_window_closed_message }}">
-        <button type="submit" style="margin-top:.4rem;padding:.35rem .75rem;background:#124491;color:#fff;border:none;border-radius:4px;font-size:.8rem;cursor:pointer">
-          Save Message
-        </button>
-      </form>
-    </details>
-  </div>
-
-  <!-- 2. Player Registration -->
-  <div class="card" style="padding:1.5rem;border-top:4px solid {% if settings_obj.player_registration_open %}#198754{% else %}#dc3545{% endif %}">
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
-      <span style="font-size:1.8rem">👤</span>
-      <div>
-        <h2 style="font-size:1.05rem;margin:0;color:#333">Player Registration</h2>
-        <p style="font-size:.8rem;color:#888;margin:0">Ward TMs adding players to respective teams</p>
-      </div>
+    <!-- Transfer Window -->
+    <div class="win-card">
+        <div class="win-card__head">
+            <div class="win-card__icon win-card__icon--transfer"><i class="bi bi-arrow-left-right"></i></div>
+            <div style="flex:1">
+                <p class="win-card__title">Transfer Window</p>
+                <p class="win-card__sub">Player transfers between ward teams</p>
+            </div>
+            {% if settings_obj.transfer_window_open %}
+            <span class="status-pill status-pill--open">Open</span>
+            {% else %}
+            <span class="status-pill status-pill--closed">Closed</span>
+            {% endif %}
+        </div>
+        <div class="win-card__body">
+            <p style="font-size:.82rem;color:#6b7280;margin:0 0 .75rem">
+                Controls whether inter-ward player transfer requests can be submitted by Ward Team Managers.
+            </p>
+            <p style="font-size:.76rem;color:#9ca3af;margin:0">
+                <i class="bi bi-chat-left-text"></i>&nbsp;
+                <em>Closed message:</em> {{ settings_obj.transfer_window_closed_message|truncatechars:80|default:"Not set" }}
+            </p>
+        </div>
+        <div class="win-card__footer">
+            <form method="post" style="margin:0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_transfer">
+                {% if settings_obj.transfer_window_open %}
+                <button type="submit" class="btn-toggle btn-toggle--open">
+                    <i class="bi bi-lock"></i> Close Window
+                </button>
+                {% else %}
+                <button type="submit" class="btn-toggle btn-toggle--closed">
+                    <i class="bi bi-unlock"></i> Open Window
+                </button>
+                {% endif %}
+            </form>
+        </div>
     </div>
-
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.2rem">
-      {% if settings_obj.player_registration_open %}
-        <span style="background:#d1e7dd;color:#0a3622;padding:.35rem .9rem;border-radius:20px;font-size:.85rem;font-weight:700">
-          🟢 OPEN
-        </span>
-      {% else %}
-        <span style="background:#f8d7da;color:#842029;padding:.35rem .9rem;border-radius:20px;font-size:.85rem;font-weight:700">
-          🔴 CLOSED
-        </span>
-      {% endif %}
-    </div>
-
-    <form method="post" style="margin-bottom:.75rem">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="toggle_player_reg">
-      <button type="submit"
-        style="width:100%;padding:.65rem;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:.9rem;
-          {% if settings_obj.player_registration_open %}background:#dc3545;color:#fff;{% else %}background:#198754;color:#fff;{% endif %}">
-        {% if settings_obj.player_registration_open %}🔒 Close Player Reg{% else %}🔓 Open Player Reg{% endif %}
-      </button>
-    </form>
-
-    <details style="margin-top:.5rem">
-      <summary style="font-size:.82rem;color:#666;cursor:pointer">Edit closed message</summary>
-      <form method="post" style="margin-top:.75rem">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_messages">
-        <input type="hidden" name="team_registration_closed_message" value="{{ settings_obj.team_registration_closed_message }}">
-        <textarea name="player_registration_closed_message"
-          style="width:100%;padding:.5rem;border:1px solid #dee2e6;border-radius:4px;font-size:.82rem;resize:vertical"
-          rows="3">{{ settings_obj.player_registration_closed_message }}</textarea>
-        <input type="hidden" name="transfer_window_closed_message" value="{{ settings_obj.transfer_window_closed_message }}">
-        <button type="submit" style="margin-top:.4rem;padding:.35rem .75rem;background:#124491;color:#fff;border:none;border-radius:4px;font-size:.8rem;cursor:pointer">
-          Save Message
-        </button>
-      </form>
-    </details>
-  </div>
-
-  <!-- 3. Transfer Window -->
-  <div class="card" style="padding:1.5rem;border-top:4px solid {% if settings_obj.transfer_window_open %}#198754{% else %}#6c757d{% endif %}">
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
-      <span style="font-size:1.8rem">🔄</span>
-      <div>
-        <h2 style="font-size:1.05rem;margin:0;color:#333">Transfer Window</h2>
-        <p style="font-size:.8rem;color:#888;margin:0">Player transfers between ward teams</p>
-      </div>
-    </div>
-
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.2rem">
-      {% if settings_obj.transfer_window_open %}
-        <span style="background:#d1e7dd;color:#0a3622;padding:.35rem .9rem;border-radius:20px;font-size:.85rem;font-weight:700">
-          🟢 OPEN
-        </span>
-      {% else %}
-        <span style="background:#e2e3e5;color:#41464b;padding:.35rem .9rem;border-radius:20px;font-size:.85rem;font-weight:700">
-          ⚫ CLOSED
-        </span>
-      {% endif %}
-    </div>
-
-    <form method="post" style="margin-bottom:.75rem">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="toggle_transfer">
-      <button type="submit"
-        style="width:100%;padding:.65rem;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:.9rem;
-          {% if settings_obj.transfer_window_open %}background:#dc3545;color:#fff;{% else %}background:#198754;color:#fff;{% endif %}">
-        {% if settings_obj.transfer_window_open %}🔒 Close Transfer Window{% else %}🔓 Open Transfer Window{% endif %}
-      </button>
-    </form>
-
-    <details style="margin-top:.5rem">
-      <summary style="font-size:.82rem;color:#666;cursor:pointer">Edit closed message</summary>
-      <form method="post" style="margin-top:.75rem">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_messages">
-        <input type="hidden" name="team_registration_closed_message" value="{{ settings_obj.team_registration_closed_message }}">
-        <input type="hidden" name="player_registration_closed_message" value="{{ settings_obj.player_registration_closed_message }}">
-        <textarea name="transfer_window_closed_message"
-          style="width:100%;padding:.5rem;border:1px solid #dee2e6;border-radius:4px;font-size:.82rem;resize:vertical"
-          rows="3">{{ settings_obj.transfer_window_closed_message }}</textarea>
-        <button type="submit" style="margin-top:.4rem;padding:.35rem .75rem;background:#124491;color:#fff;border:none;border-radius:4px;font-size:.8rem;cursor:pointer">
-          Save Message
-        </button>
-      </form>
-    </details>
-  </div>
 
 </div>
 
-<!-- ── TIMELINES & DEADLINE ───────────────────────────────────── -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem;border-top:4px solid #6366f1">
+<!-- ══ SCHEDULE + DEADLINE ROW ════════════════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem">
 
-  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.1rem">
-    <span style="font-size:1.8rem">📅</span>
-    <div>
-      <h2 style="font-size:1.05rem;margin:0;color:#333">Timelines &amp; Deadline</h2>
-      <p style="font-size:.8rem;color:#888;margin:0">
-        Schedule auto open/close times and set the public countdown deadline. All times are Nairobi (EAT).
-      </p>
-    </div>
-  </div>
-
-  <!-- Pending actions banner -->
-  {% if settings_obj.team_reg_open_at or settings_obj.team_reg_close_at or settings_obj.player_reg_open_at or settings_obj.player_reg_close_at %}
-  <div style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:8px;padding:.7rem 1rem;margin-bottom:1.1rem;font-size:.83rem;color:#4c1d95">
-    <strong>⏰ Pending scheduled actions:</strong>
-    <ul style="margin:.35rem 0 0 1.1rem;padding:0;line-height:1.7">
-      {% if settings_obj.team_reg_open_at %}<li>Team Reg <strong>OPENS</strong> - {{ settings_obj.team_reg_open_at|date:"d M Y" }} at {{ settings_obj.team_reg_open_at|time:"H:i" }}</li>{% endif %}
-      {% if settings_obj.team_reg_close_at %}<li>Team Reg <strong>CLOSES</strong> - {{ settings_obj.team_reg_close_at|date:"d M Y" }} at {{ settings_obj.team_reg_close_at|time:"H:i" }}</li>{% endif %}
-      {% if settings_obj.player_reg_open_at %}<li>Player Reg <strong>OPENS</strong> - {{ settings_obj.player_reg_open_at|date:"d M Y" }} at {{ settings_obj.player_reg_open_at|time:"H:i" }}</li>{% endif %}
-      {% if settings_obj.player_reg_close_at %}<li>Player Reg <strong>CLOSES</strong> - {{ settings_obj.player_reg_close_at|date:"d M Y" }} at {{ settings_obj.player_reg_close_at|time:"H:i" }}</li>{% endif %}
-    </ul>
-  </div>
-  {% endif %}
-
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="set_schedule">
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.2rem">
-
-      <!-- Team Registration -->
-      <div style="background:#f8f9fa;border-radius:8px;padding:.85rem">
-        <p style="font-size:.75rem;font-weight:700;color:#124491;margin:0 0 .7rem;letter-spacing:.3px;text-transform:uppercase">📋 Team Registration</p>
-        <label style="font-size:.75rem;color:#555;display:block;margin-bottom:.25rem">Opens at</label>
-        <input type="datetime-local" name="team_reg_open_at"
-          value="{% if settings_obj.team_reg_open_at %}{{ settings_obj.team_reg_open_at|date:'Y-m-d' }}T{{ settings_obj.team_reg_open_at|time:'H:i' }}{% endif %}"
-          style="width:100%;padding:.5rem .65rem;border:1px solid #dee2e6;border-radius:5px;font-size:.85rem;margin-bottom:.6rem">
-        <label style="font-size:.75rem;color:#555;display:block;margin-bottom:.25rem">Closes at</label>
-        <input type="datetime-local" name="team_reg_close_at"
-          value="{% if settings_obj.team_reg_close_at %}{{ settings_obj.team_reg_close_at|date:'Y-m-d' }}T{{ settings_obj.team_reg_close_at|time:'H:i' }}{% endif %}"
-          style="width:100%;padding:.5rem .65rem;border:1px solid #dee2e6;border-radius:5px;font-size:.85rem">
-      </div>
-
-      <!-- Player Registration -->
-      <div style="background:#f8f9fa;border-radius:8px;padding:.85rem">
-        <p style="font-size:.75rem;font-weight:700;color:#124491;margin:0 0 .7rem;letter-spacing:.3px;text-transform:uppercase">👤 Player Registration</p>
-        <label style="font-size:.75rem;color:#555;display:block;margin-bottom:.25rem">Opens at</label>
-        <input type="datetime-local" name="player_reg_open_at"
-          value="{% if settings_obj.player_reg_open_at %}{{ settings_obj.player_reg_open_at|date:'Y-m-d' }}T{{ settings_obj.player_reg_open_at|time:'H:i' }}{% endif %}"
-          style="width:100%;padding:.5rem .65rem;border:1px solid #dee2e6;border-radius:5px;font-size:.85rem;margin-bottom:.6rem">
-        <label style="font-size:.75rem;color:#555;display:block;margin-bottom:.25rem">Closes at</label>
-        <input type="datetime-local" name="player_reg_close_at"
-          value="{% if settings_obj.player_reg_close_at %}{{ settings_obj.player_reg_close_at|date:'Y-m-d' }}T{{ settings_obj.player_reg_close_at|time:'H:i' }}{% endif %}"
-          style="width:100%;padding:.5rem .65rem;border:1px solid #dee2e6;border-radius:5px;font-size:.85rem">
-      </div>
-
-      <!-- Homepage Countdown Deadline -->
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:.85rem">
-        <p style="font-size:.75rem;font-weight:700;color:#92400e;margin:0 0 .35rem;letter-spacing:.3px;text-transform:uppercase">⏳ Homepage Countdown</p>
-        <p style="font-size:.72rem;color:#78350f;margin:0 0 .7rem">Shown on the public floating card</p>
-        {% if settings_obj.registration_deadline %}
-        <div style="font-size:.8rem;color:#92400e;font-weight:600;margin-bottom:.6rem">
-          Currently: {{ settings_obj.registration_deadline|date:"d M Y" }} {{ settings_obj.registration_deadline|time:"H:i" }}
+    <!-- Scheduled Windows -->
+    <div class="sec-card" style="margin-bottom:0">
+        <div class="sec-card__head">
+            <h2><i class="bi bi-calendar-event" style="color:#124491;opacity:.7"></i>&nbsp; Scheduled Windows</h2>
         </div>
-        {% endif %}
-        <label style="font-size:.75rem;color:#555;display:block;margin-bottom:.25rem">Deadline date &amp; time</label>
-        <input type="datetime-local" name="registration_deadline" form="deadline-form"
-          value="{% if settings_obj.registration_deadline %}{{ settings_obj.registration_deadline|date:'Y-m-d' }}T{{ settings_obj.registration_deadline|time:'H:i' }}{% endif %}"
-          style="width:100%;padding:.5rem .65rem;border:1px solid #fde68a;border-radius:5px;font-size:.85rem">
-      </div>
-
+        <div class="sec-card__body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_schedule">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1rem">
+                    <div>
+                        <label class="lms-label">Team Reg — Opens at</label>
+                        <input type="datetime-local" name="team_reg_open_at" class="lms-input"
+                            value="{% if settings_obj.team_reg_open_at %}{{ settings_obj.team_reg_open_at|date:'Y-m-d' }}T{{ settings_obj.team_reg_open_at|date:'H:i' }}{% endif %}">
+                    </div>
+                    <div>
+                        <label class="lms-label">Team Reg — Closes at</label>
+                        <input type="datetime-local" name="team_reg_close_at" class="lms-input"
+                            value="{% if settings_obj.team_reg_close_at %}{{ settings_obj.team_reg_close_at|date:'Y-m-d' }}T{{ settings_obj.team_reg_close_at|date:'H:i' }}{% endif %}">
+                    </div>
+                    <div>
+                        <label class="lms-label">Player Reg — Opens at</label>
+                        <input type="datetime-local" name="player_reg_open_at" class="lms-input"
+                            value="{% if settings_obj.player_reg_open_at %}{{ settings_obj.player_reg_open_at|date:'Y-m-d' }}T{{ settings_obj.player_reg_open_at|date:'H:i' }}{% endif %}">
+                    </div>
+                    <div>
+                        <label class="lms-label">Player Reg — Closes at</label>
+                        <input type="datetime-local" name="player_reg_close_at" class="lms-input"
+                            value="{% if settings_obj.player_reg_close_at %}{{ settings_obj.player_reg_close_at|date:'Y-m-d' }}T{{ settings_obj.player_reg_close_at|date:'H:i' }}{% endif %}">
+                    </div>
+                </div>
+                <div style="display:flex;gap:.6rem">
+                    <button type="submit" class="lms-btn lms-btn--primary"><i class="bi bi-clock"></i> Save Schedule</button>
+                    <button type="submit" form="clear-schedule-form" class="lms-btn lms-btn--neutral"><i class="bi bi-x-circle"></i> Clear All</button>
+                </div>
+            </form>
+            <form method="post" id="clear-schedule-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="clear_schedule">
+            </form>
+        </div>
     </div>
 
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
-      <button type="submit"
-        style="padding:.6rem 1.4rem;background:#6366f1;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.88rem">
-        📅 Save Schedule
-      </button>
-      {% if settings_obj.team_reg_open_at or settings_obj.team_reg_close_at or settings_obj.player_reg_open_at or settings_obj.player_reg_close_at %}
-      <button type="submit" name="action" value="clear_schedule"
-        style="padding:.6rem 1rem;background:#fff;color:#6c757d;border:1px solid #dee2e6;border-radius:6px;font-weight:600;cursor:pointer;font-size:.82rem">
-        ✕ Clear Schedule
-      </button>
-      {% endif %}
+    <!-- Registration Deadline Countdown -->
+    <div class="sec-card" style="margin-bottom:0">
+        <div class="sec-card__head">
+            <h2><i class="bi bi-hourglass-split" style="color:#b45309;opacity:.7"></i>&nbsp; Registration Deadline</h2>
+        </div>
+        <div class="sec-card__body">
+            {% if settings_obj.registration_deadline %}
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:center">
+                <div style="font-size:.75rem;color:#b45309;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Current Deadline</div>
+                <div style="font-size:1.3rem;font-weight:800;color:#92400e;margin:.3rem 0">
+                    {{ settings_obj.registration_deadline|date:"d M Y — H:i" }}
+                </div>
+                <div style="font-size:.75rem;color:#b45309">Nairobi Time (EAT)</div>
+            </div>
+            {% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_deadline">
+                <label class="lms-label">Set Deadline Date &amp; Time</label>
+                <input type="datetime-local" name="registration_deadline" class="lms-input" style="margin-bottom:.85rem"
+                    value="{% if settings_obj.registration_deadline %}{{ settings_obj.registration_deadline|date:'Y-m-d' }}T{{ settings_obj.registration_deadline|date:'H:i' }}{% endif %}">
+                <div style="display:flex;gap:.6rem">
+                    <button type="submit" class="lms-btn lms-btn--primary"><i class="bi bi-stopwatch"></i> Set Deadline</button>
+                    {% if settings_obj.registration_deadline %}
+                    <button type="submit" form="clear-deadline-form" class="lms-btn lms-btn--danger"><i class="bi bi-x-circle"></i> Clear</button>
+                    {% endif %}
+                </div>
+            </form>
+            <form method="post" id="clear-deadline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="clear_deadline">
+            </form>
+        </div>
     </div>
-  </form>
-
-  <!-- Deadline saved separately -->
-  <form id="deadline-form" method="post" style="margin-top:.85rem;padding-top:.85rem;border-top:1px solid #f0f0f0;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="set_deadline">
-    <button type="submit"
-      style="padding:.55rem 1.2rem;background:#fbbf24;color:#1a1a1a;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:.85rem">
-      ⏱ Save Deadline
-    </button>
-    {% if settings_obj.registration_deadline %}
-    <button type="submit" name="action" value="clear_deadline"
-      style="padding:.55rem .9rem;background:#fff;color:#6c757d;border:1px solid #dee2e6;border-radius:6px;font-weight:600;cursor:pointer;font-size:.82rem">
-      ✕ Clear Countdown
-    </button>
-    {% endif %}
-    <span style="font-size:.75rem;color:#aaa">The deadline input is in the Homepage Countdown box above.</span>
-  </form>
 
 </div>
 
-<!-- ── CURRENT STATUS SUMMARY ─────────────────────────────────── -->
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem">
-  <h2 style="font-size:1rem;color:#333;margin-bottom:1rem"><i class="bi bi-info-circle"></i> Current Status Summary</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:.88rem">
-    <thead>
-      <tr style="background:#f0f4ff">
-        <th style="padding:.6rem 1rem;text-align:left;border-bottom:2px solid #dee2e6">Window</th>
-        <th style="padding:.6rem 1rem;text-align:left;border-bottom:2px solid #dee2e6">Status</th>
-        <th style="padding:.6rem 1rem;text-align:left;border-bottom:2px solid #dee2e6">Closed Message</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style="border-bottom:1px solid #dee2e6">
-        <td style="padding:.65rem 1rem;font-weight:500">📋 Team Registration</td>
-        <td style="padding:.65rem 1rem">
-          {% if settings_obj.team_registration_open %}
-            <span style="color:#198754;font-weight:600">🟢 Open</span>
-          {% else %}
-            <span style="color:#dc3545;font-weight:600">🔴 Closed</span>
-          {% endif %}
-        </td>
-        <td style="padding:.65rem 1rem;color:#666;font-size:.82rem">{{ settings_obj.team_registration_closed_message }}
-          {% if settings_obj.team_reg_open_at or settings_obj.team_reg_close_at %}
-          <div style="margin-top:.3rem;font-size:.75rem;color:#6366f1">
-            {% if settings_obj.team_reg_open_at %}⏰ Opens {{ settings_obj.team_reg_open_at|date:"d M H:i" }}{% endif %}
-            {% if settings_obj.team_reg_close_at %} &nbsp;·&nbsp; ⏰ Closes {{ settings_obj.team_reg_close_at|date:"d M H:i" }}{% endif %}
-          </div>
-          {% endif %}
-        </td>
-      </tr>
-      <tr style="border-bottom:1px solid #dee2e6">
-        <td style="padding:.65rem 1rem;font-weight:500">👤 Player Registration</td>
-        <td style="padding:.65rem 1rem">
-          {% if settings_obj.player_registration_open %}
-            <span style="color:#198754;font-weight:600">🟢 Open</span>
-          {% else %}
-            <span style="color:#dc3545;font-weight:600">🔴 Closed</span>
-          {% endif %}
-        </td>
-        <td style="padding:.65rem 1rem;color:#666;font-size:.82rem">{{ settings_obj.player_registration_closed_message }}
-          {% if settings_obj.player_reg_open_at or settings_obj.player_reg_close_at %}
-          <div style="margin-top:.3rem;font-size:.75rem;color:#6366f1">
-            {% if settings_obj.player_reg_open_at %}⏰ Opens {{ settings_obj.player_reg_open_at|date:"d M H:i" }}{% endif %}
-            {% if settings_obj.player_reg_close_at %} &nbsp;·&nbsp; ⏰ Closes {{ settings_obj.player_reg_close_at|date:"d M H:i" }}{% endif %}
-          </div>
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:.65rem 1rem;font-weight:500">🔄 Transfer Window</td>
-        <td style="padding:.65rem 1rem">
-          {% if settings_obj.transfer_window_open %}
-            <span style="color:#198754;font-weight:600">🟢 Open</span>
-          {% else %}
-            <span style="color:#6c757d;font-weight:600">⚫ Closed</span>
-          {% endif %}
-        </td>
-        <td style="padding:.65rem 1rem;color:#666;font-size:.82rem">{{ settings_obj.transfer_window_closed_message }}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  {% if settings_obj.last_changed_by %}
-  <p style="font-size:.8rem;color:#888;margin-top:1rem;margin-bottom:0">
-    <i class="bi bi-clock-history"></i>
-    Last changed by <strong>{{ settings_obj.last_changed_by.get_full_name }}</strong>
-    ({{ settings_obj.last_changed_by.get_role_display }})
-    {% if settings_obj.last_changed_at %}
-      on {{ settings_obj.last_changed_at|date:"d M Y" }} at {{ settings_obj.last_changed_at|time:"H:i" }}
-    {% endif %}
-  </p>
-  {% endif %}
-</div>
-
-<!-- ── PENDING SCSO PLAYER REGISTRATION REQUESTS ──────────────── -->
-{% if pending_requests %}
-<div class="card" style="padding:1.5rem;margin-bottom:1.5rem;border-top:4px solid #fbbf24">
-  <h2 style="font-size:1rem;color:#333;margin-bottom:.3rem">
-    <i class="bi bi-hourglass-split" style="color:#e67e22"></i>
-    Pending Player Registration Requests
-    <span style="background:#dc3545;color:#fff;font-size:.75rem;padding:.15rem .5rem;border-radius:10px;margin-left:.4rem">
-      {{ pending_requests|length }}
-    </span>
-  </h2>
-  <p style="font-size:.82rem;color:#888;margin-bottom:1rem">
-    Sub County Sports Officers have requested changes to the player registration window. Review and approve or reject each request.
-  </p>
-  {% for req in pending_requests %}
-  <div style="border:1px solid #dee2e6;border-radius:8px;padding:1rem 1.2rem;margin-bottom:.9rem;background:#fffdf5">
-    <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
-      <div style="flex:1;min-width:240px">
-        <div style="font-weight:700;font-size:.95rem;margin-bottom:.3rem">
-          {% if req.action == 'open' %}
-            <span style="color:#198754"><i class="bi bi-unlock"></i> Request to OPEN Player Registration</span>
-          {% else %}
-            <span style="color:#dc3545"><i class="bi bi-lock"></i> Request to CLOSE Player Registration</span>
-          {% endif %}
-        </div>
-        <div style="font-size:.84rem;color:#555;margin-bottom:.3rem">
-          <strong>Sub County:</strong> {{ req.sub_county }} &nbsp;|&nbsp;
-          <strong>Requested by:</strong> {{ req.requested_by.get_full_name }} ({{ req.requested_by.email }}) &nbsp;|&nbsp;
-          <strong>On:</strong> {{ req.created_at|date:"d M Y H:i" }}
-        </div>
-        <div style="font-size:.84rem;color:#333;background:#f8f9fa;padding:.5rem .75rem;border-radius:4px;border-left:3px solid #fbbf24">
-          <strong>Reason:</strong> {{ req.reason }}
-        </div>
-      </div>
-      <div style="min-width:260px">
-        <!-- Approve form -->
-        <form method="post" style="margin-bottom:.5rem">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="approve_player_reg_request">
-          <input type="hidden" name="request_pk" value="{{ req.pk }}">
-          <input type="text" name="review_note" placeholder="Optional approval note..."
-            style="width:100%;padding:.45rem .7rem;border:1px solid #dee2e6;border-radius:4px;font-size:.82rem;margin-bottom:.35rem">
-          <button type="submit"
-            style="width:100%;padding:.5rem;background:#198754;color:#fff;border:none;border-radius:5px;font-weight:600;cursor:pointer;font-size:.85rem">
-            <i class="bi bi-check-circle"></i> Approve - Apply Change
-          </button>
-        </form>
-        <!-- Reject form -->
+<!-- ══ CLOSED MESSAGES ════════════════════════════════════════════════════ -->
+<div class="sec-card">
+    <div class="sec-card__head">
+        <h2><i class="bi bi-chat-left-text" style="color:#6d28d9;opacity:.7"></i>&nbsp; Closed Window Messages</h2>
+        <span style="font-size:.75rem;color:#9ca3af">Shown to users when a window is closed</span>
+    </div>
+    <div class="sec-card__body">
         <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="reject_player_reg_request">
-          <input type="hidden" name="request_pk" value="{{ req.pk }}">
-          <input type="text" name="review_note" placeholder="Rejection reason (required)..."
-            style="width:100%;padding:.45rem .7rem;border:1px solid #dee2e6;border-radius:4px;font-size:.82rem;margin-bottom:.35rem" required>
-          <button type="submit"
-            style="width:100%;padding:.5rem;background:#f8d7da;color:#842029;border:1px solid #f5c2c7;border-radius:5px;font-weight:600;cursor:pointer;font-size:.85rem">
-            <i class="bi bi-x-circle"></i> Reject
-          </button>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_messages">
+            <div style="display:grid;gap:1rem;margin-bottom:1rem">
+                <div>
+                    <label class="lms-label">Team Registration Closed</label>
+                    <input type="text" name="team_registration_closed_message" class="lms-input"
+                        value="{{ settings_obj.team_registration_closed_message|default:'' }}"
+                        placeholder="e.g. Team registration is currently closed. Check back soon.">
+                </div>
+                <div>
+                    <label class="lms-label">Player Registration Closed</label>
+                    <input type="text" name="player_registration_closed_message" class="lms-input"
+                        value="{{ settings_obj.player_registration_closed_message|default:'' }}"
+                        placeholder="e.g. Player registration is currently closed.">
+                </div>
+                <div>
+                    <label class="lms-label">Transfer Window Closed</label>
+                    <input type="text" name="transfer_window_closed_message" class="lms-input"
+                        value="{{ settings_obj.transfer_window_closed_message|default:'' }}"
+                        placeholder="e.g. The transfer window is currently closed.">
+                </div>
+            </div>
+            <button type="submit" class="lms-btn lms-btn--primary"><i class="bi bi-floppy"></i> Save Messages</button>
         </form>
-      </div>
     </div>
-  </div>
-  {% endfor %}
+</div>
+
+<!-- ══ PENDING SCSO REQUESTS ══════════════════════════════════════════════ -->
+{% if pending_requests %}
+<div class="sec-card">
+    <div class="sec-card__head">
+        <h2><i class="bi bi-hourglass-split" style="color:#b45309;opacity:.7"></i>&nbsp; Pending SCSO Requests
+            <span style="background:#fef3c7;color:#b45309;font-size:.7rem;font-weight:700;padding:.15rem .55rem;border-radius:10px;margin-left:.5rem">{{ pending_requests|length }}</span>
+        </h2>
+    </div>
+    <div class="sec-card__body">
+        {% for req in pending_requests %}
+        <div class="preq-card">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.85rem">
+                <div>
+                    <div style="font-weight:700;font-size:.9rem;color:#1e293b">
+                        {{ req.requested_by.get_full_name }}
+                        <span style="font-size:.75rem;color:#9ca3af;font-weight:400">&nbsp;·&nbsp;{{ req.requested_by.sub_county }}</span>
+                    </div>
+                    <div style="font-size:.78rem;color:#6b7280;margin-top:.2rem">
+                        Requesting to
+                        <strong style="color:{% if req.action == 'open' %}#065f46{% else %}#b91c1c{% endif %}">
+                            {{ req.action|upper }}
+                        </strong>
+                        player registration &nbsp;·&nbsp; {{ req.created_at|date:"d M Y H:i" }}
+                    </div>
+                    {% if req.reason %}
+                    <div style="font-size:.78rem;color:#374151;margin-top:.35rem;background:#fff;padding:.4rem .7rem;border-radius:6px;border:1px solid #fcd34d">
+                        <i class="bi bi-chat-left-quote" style="opacity:.5"></i>&nbsp;{{ req.reason }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end">
+                <form method="post" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="approve_player_reg_request">
+                    <input type="hidden" name="request_pk" value="{{ req.pk }}">
+                    <div>
+                        <label class="lms-label">Approval note (optional)</label>
+                        <input type="text" name="review_note" class="lms-input" style="min-width:200px" placeholder="Optional note to SCSO">
+                    </div>
+                    <button type="submit" class="lms-btn lms-btn--primary" style="background:#065f46">
+                        <i class="bi bi-check-circle"></i> Approve
+                    </button>
+                </form>
+                <form method="post" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reject_player_reg_request">
+                    <input type="hidden" name="request_pk" value="{{ req.pk }}">
+                    <div>
+                        <label class="lms-label">Rejection reason <span style="color:#dc3545">*</span></label>
+                        <input type="text" name="review_note" class="lms-input" style="min-width:220px" placeholder="Reason is required" required>
+                    </div>
+                    <button type="submit" class="lms-btn lms-btn--danger">
+                        <i class="bi bi-x-circle"></i> Reject
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endif %}
 
-<!-- ── RECENT CHANGE LOG ───────────────────────────────────────── -->
+<!-- ══ ACTIVITY LOG ═══════════════════════════════════════════════════════ -->
 {% if recent_logs %}
-<div class="card" style="padding:1.5rem">
-  <h2 style="font-size:1rem;color:#333;margin-bottom:1rem"><i class="bi bi-clock-history"></i> Recent Changes</h2>
-  <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:.85rem">
-      <thead>
-        <tr style="background:#f8f9fa">
-          <th style="padding:.55rem 1rem;text-align:left;border-bottom:1px solid #dee2e6">When</th>
-          <th style="padding:.55rem 1rem;text-align:left;border-bottom:1px solid #dee2e6">By</th>
-          <th style="padding:.55rem 1rem;text-align:left;border-bottom:1px solid #dee2e6">Action</th>
-        </tr>
-      </thead>
-      <tbody>
+<div class="sec-card">
+    <div class="sec-card__head">
+        <h2><i class="bi bi-journal-text" style="color:#4b5563;opacity:.7"></i>&nbsp; Recent Changes</h2>
+    </div>
+    <div class="sec-card__body" style="padding:1rem 1.4rem">
         {% for log in recent_logs %}
-        <tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:.55rem 1rem;color:#888;white-space:nowrap">
-            {{ log.timestamp|date:"d M Y H:i" }}
-          </td>
-          <td style="padding:.55rem 1rem;font-weight:500">
-            {{ log.user.get_full_name|default:log.user.email }}
-          </td>
-          <td style="padding:.55rem 1rem;color:#555">{{ log.description }}</td>
-        </tr>
+        <div class="log-row">
+            <span class="log-ts">{{ log.timestamp|date:"d M Y H:i" }}</span>
+            <span class="log-desc">{{ log.description }}</span>
+            {% if log.user %}<span class="log-user">{{ log.user.get_full_name|default:log.user.email }}</span>{% endif %}
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    </div>
 </div>
 {% endif %}
+
+<div style="margin-top:1rem">
+    <a href="{% url 'dashboard' %}" style="font-size:.85rem;color:#6b7280;text-decoration:none">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
 
 {% endblock %}
