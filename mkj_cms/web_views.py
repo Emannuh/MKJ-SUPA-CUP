@@ -1684,6 +1684,13 @@ def contact_view(request):
         turnstile_token  = request.POST.get('cf-turnstile-response', '').strip()
         turnstile_secret = getattr(django_settings, 'TURNSTILE_SECRET_KEY', '')
         if turnstile_secret:
+            # Block submissions with no token outright (bots skip the widget entirely)
+            if not turnstile_token:
+                contact_sent = True  # silent discard
+                return render(request, 'public/contact.html', {
+                    'contact_sent': contact_sent,
+                    'turnstile_site_key': getattr(django_settings, 'TURNSTILE_SITE_KEY', ''),
+                })
             import requests as _req
             try:
                 ts_resp = _req.post(
@@ -1693,7 +1700,10 @@ def contact_view(request):
                 )
                 if not ts_resp.json().get('success'):
                     contact_sent = True  # silent discard — bots don't know they're blocked
-                    return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+                    return render(request, 'public/contact.html', {
+                        'contact_sent': contact_sent,
+                        'turnstile_site_key': getattr(django_settings, 'TURNSTILE_SITE_KEY', ''),
+                    })
             except Exception:
                 pass  # Cloudflare unreachable — let genuine users through
 
@@ -2201,8 +2211,8 @@ def dashboard_view(request):
         ).first()
 
         if ligi_reg:
-            # Ligi Mashinani TM — send to ligi dashboard always
-            return redirect('ward_tm_longlist')
+            # Ligi Mashinani TM — send to dashboard always
+            return redirect('ward_tm_dashboard')
 
         # Legacy ward TM check (assigned_discipline set on account)
         is_ward_tm = bool(user.ward and user.sub_county and user.assigned_discipline)
@@ -13338,7 +13348,6 @@ def ward_tm_dashboard_view(request):
     }
     return render(request, 'ligi/ward_tm_dashboard.html', context)
 
-
 # ── LIGI MASHINANI: Ward Team Manager  -  Longlist CRUD ─────────────────────────
 
 def _get_ward_tm_context(user, request=None):
@@ -18409,7 +18418,8 @@ def wscc_transfer_action_view(request, transfer_pk):
                 transfer.completed_at = timezone.now()
                 transfer.save()
             _notify_ward_tm_transfer_decision(transfer, 'approved', notes, rejected_by=None)
-            messages.success(request, f'✅ Within-ward transfer approved. Player moved to {transfer.to_discipline.ward} Ward.')
+            to_team = _resolve_real_team_name(transfer.to_discipline)
+            messages.success(request, f'✅ Within-ward transfer approved. Player moved to {to_team} ({transfer.to_discipline.ward} Ward).')
 
         else:
             # inter_ward: forward to SCSO
@@ -18539,8 +18549,8 @@ def scso_transfer_action_view(request, transfer_pk):
                     action='ADMIN_ACTION',
                     description=(
                         f'Transfer approved: {player.first_name} {player.last_name} '
-                        f'moved from {old_discipline.ward} to {transfer.to_discipline.ward} '
-                        f'({transfer.from_discipline.sub_county})'
+                        f'moved from {_resolve_real_team_name(old_discipline)} ({old_discipline.ward}) '
+                        f'to {_resolve_real_team_name(transfer.to_discipline)} ({transfer.to_discipline.ward})'
                     ),
                     obj=transfer,
                 )
@@ -18548,10 +18558,11 @@ def scso_transfer_action_view(request, transfer_pk):
                 pass
 
         _notify_ward_tm_transfer_decision(transfer, 'approved', notes, rejected_by=None)
+        to_team_name = _resolve_real_team_name(transfer.to_discipline)
         messages.success(
             request,
             f'Transfer approved. {transfer.player.first_name} {transfer.player.last_name} '
-            f'has been moved to {transfer.to_discipline.ward} Ward.'
+            f'has been moved to {to_team_name} ({transfer.to_discipline.ward} Ward).'
         )
 
     elif action == 'reject':
