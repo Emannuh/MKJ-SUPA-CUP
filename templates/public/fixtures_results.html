@@ -27,8 +27,26 @@
 .disc-gender{ background:#e8f0fe; color:#124491; font-size:.7rem; font-weight:700; padding:.2rem .55rem; border-radius:6px; text-transform:uppercase; letter-spacing:.5px; }
 
 /* ── Competition card ────────────────────────────────── */
-.comp-card  { background:#fff; border-radius:14px; box-shadow:0 2px 14px rgba(0,0,0,.07); margin-bottom:1.5rem; overflow:hidden; }
-.comp-banner{ background:linear-gradient(135deg,#0a2f5c,#124491); padding:1rem 1.4rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }
+.comp-card  {
+    background:#fff; border-radius:14px;
+    box-shadow:0 2px 14px rgba(0,0,0,.07);
+    margin-bottom:1.5rem;
+    overflow:hidden;
+    display:block !important;
+    width:100%;
+}
+.comp-banner{
+    display:flex !important;
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:.5rem;
+    background:linear-gradient(135deg,#0a2f5c,#124491);
+    padding:1rem 1.4rem;
+    width:100%;
+    box-sizing:border-box;
+}
 .comp-name  { font-size:1rem; font-weight:700; color:#fff; margin:0; }
 .status-tag { font-size:.68rem; font-weight:700; padding:.2rem .65rem; border-radius:20px; text-transform:uppercase; letter-spacing:.4px; }
 .status-upcoming    { background:#fef3c7; color:#b45309; }
@@ -40,11 +58,26 @@
 @keyframes pulse-live { 0%,100%{opacity:1} 50%{opacity:.6} }
 
 /* ── Tabs ────────────────────────────────────────────── */
-.comp-tabs  { display:flex; gap:0; border-bottom:2px solid #f0f0f0; padding:0 1.4rem; overflow-x:auto; }
-.comp-tab   { padding:.6rem 1rem; font-size:.82rem; font-weight:600; color:#9ca3af; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; background:none; border-top:none; border-left:none; border-right:none; }
+.comp-tabs  {
+    display:flex !important;
+    flex-direction:row;
+    gap:0;
+    border-bottom:2px solid #f0f0f0;
+    padding:0 1.4rem;
+    overflow-x:auto;
+    width:100%;
+    box-sizing:border-box;
+    background:#fff;
+}
+.comp-tab   { padding:.6rem 1rem; font-size:.82rem; font-weight:600; color:#9ca3af; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; background:none; border-top:none; border-left:none; border-right:none; flex-shrink:0; }
 .comp-tab.active { color:#124491; border-bottom-color:#124491; }
-.comp-tab-panel { display:none; padding:1.25rem 1.4rem; }
-.comp-tab-panel.active { display:block; }
+.comp-tab-panel {
+    display:none;
+    padding:1.25rem 1.4rem;
+    width:100%;
+    box-sizing:border-box;
+}
+.comp-tab-panel.active { display:block !important; }
 
 /* ── Standings table ─────────────────────────────────── */
 .standings-table { width:100%; border-collapse:collapse; font-size:.83rem; }

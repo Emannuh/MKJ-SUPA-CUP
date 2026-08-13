@@ -1155,7 +1155,7 @@ def public_fixtures_results_view(request):
 
             comps = Competition.objects.filter(
                 sport_type=sport_key
-            ).exclude(status='cancelled').order_by('-start_date')
+            ).exclude(status='cancelled').exclude(level='ward').order_by('-start_date')
 
             if not comps.exists():
                 disciplines_data.append({
