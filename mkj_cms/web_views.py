@@ -1663,11 +1663,18 @@ def contact_view(request):
     if request.method == 'POST':
         # ── Honeypot: bots fill hidden fields, humans don't ───────────────
         if request.POST.get('website', '').strip():
-            # Silent discard — return success so bots don't know they were blocked
             contact_sent = True
             return render(request, 'public/contact.html', {'contact_sent': contact_sent})
 
-        # ── Rate limit: max 3 contact submissions per IP per hour ─────────
+        # ── Bot name pattern block ─────────────────────────────────────────
+        # This specific spam campaign appends "neimeGM" to all names
+        first_raw = request.POST.get('first_name', '')
+        last_raw  = request.POST.get('last_name', '')
+        if 'neimeGM' in first_raw or 'neimeGM' in last_raw:
+            contact_sent = True
+            return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+
+        # ── Rate limit: max 2 contact submissions per IP per hour ─────────
         from django.core.cache import cache
         client_ip = (
             request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
@@ -1675,7 +1682,7 @@ def contact_view(request):
         )
         rate_key  = f'contact_rate_{client_ip}'
         hit_count = cache.get(rate_key, 0)
-        if hit_count >= 3:
+        if hit_count >= 2:
             contact_sent = True  # silent discard
             return render(request, 'public/contact.html', {'contact_sent': contact_sent})
         cache.set(rate_key, hit_count + 1, timeout=3600)

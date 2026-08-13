@@ -18,16 +18,33 @@ python manage.py simplify_registration_codes || echo "Code simplification skippe
 
 echo "=== Syncing ward team names from Ligi registrations ==="
 python manage.py shell -c "
-from teams.models import LigiMashinaniRegistration, Team
+from teams.models import LigiMashinaniRegistration, Team, CountyDiscipline
 updated = 0
-for reg in LigiMashinaniRegistration.objects.filter(status='approved', county_discipline__isnull=False).select_related('county_discipline'):
-    cd = reg.county_discipline
-    team = Team.objects.filter(source_discipline=cd).first()
-    if team and team.name != reg.team_name:
-        team.name = reg.team_name
-        team.save(update_fields=['name'])
-        updated += 1
-print(f'Synced {updated} ward team names.')
+for reg in LigiMashinaniRegistration.objects.filter(status='approved'):
+    # Try FK first
+    if reg.county_discipline_id:
+        team = Team.objects.filter(source_discipline_id=reg.county_discipline_id).first()
+        if team and team.name != reg.team_name:
+            print(f'  FK match: {team.name!r} -> {reg.team_name!r}')
+            team.name = reg.team_name
+            team.save(update_fields=['name'])
+            updated += 1
+            continue
+    # Fallback: case-insensitive ward + sub_county + discipline
+    cds = CountyDiscipline.objects.filter(
+        ward__iexact=reg.ward.strip(),
+        sub_county__iexact=reg.sub_county.strip(),
+        sport_type=reg.discipline,
+        level='ward',
+    )
+    for cd in cds:
+        team = Team.objects.filter(source_discipline=cd).first()
+        if team and team.name != reg.team_name:
+            print(f'  Ward match: {team.name!r} -> {reg.team_name!r} (ward={reg.ward}, disc={reg.discipline})')
+            team.name = reg.team_name
+            team.save(update_fields=['name'])
+            updated += 1
+print(f'Done. Synced {updated} ward team names.')
 " || echo "Team name sync skipped"
 
 echo "=== Clearing cache ==="
