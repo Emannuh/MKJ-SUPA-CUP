@@ -173,6 +173,13 @@ class CountyDiscipline(models.Model):
         return self.ward_venues.filter(venue_type="main", is_active=True).exists()
 
     def generated_team_name(self):
+        # Prefer the actual team name from the Ligi Mashinani registration
+        try:
+            reg = self.ligi_registration
+            if reg and reg.team_name:
+                return reg.team_name
+        except Exception:
+            pass
         base_name = f"{self.sub_county or self.registration.county} {self.get_sport_type_display()}"
         base_name = re.sub(r"\s+", " ", base_name).strip()
         candidate = base_name[:200]

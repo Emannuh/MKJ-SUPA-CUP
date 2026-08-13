@@ -16,6 +16,20 @@ python manage.py cleanup_stale_ward_teams || echo "Cleanup skipped"
 echo "=== Simplifying player registration codes ==="
 python manage.py simplify_registration_codes || echo "Code simplification skipped"
 
+echo "=== Syncing ward team names from Ligi registrations ==="
+python manage.py shell -c "
+from teams.models import LigiMashinaniRegistration, Team
+updated = 0
+for reg in LigiMashinaniRegistration.objects.filter(status='approved', county_discipline__isnull=False).select_related('county_discipline'):
+    cd = reg.county_discipline
+    team = Team.objects.filter(source_discipline=cd).first()
+    if team and team.name != reg.team_name:
+        team.name = reg.team_name
+        team.save(update_fields=['name'])
+        updated += 1
+print(f'Synced {updated} ward team names.')
+" || echo "Team name sync skipped"
+
 echo "=== Clearing cache ==="
 python manage.py shell -c "from django.core.cache import cache; cache.clear(); print('Cache cleared.')" || echo "Cache clear skipped (no Redis yet)"
 
