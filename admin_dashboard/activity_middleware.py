@@ -1,190 +1,262 @@
 # admin_dashboard/activity_middleware.py
-from django.utils.deprecation import MiddlewareMixin
-from django.contrib.contenttypes.models import ContentType
-from .models import ActivityLog
+"""
+Activity logging middleware for MKJ SUPA CUP.
+
+Logs:
+  - All POST actions (data changes) with action type + description
+  - Portal page visits (GET) for authenticated users — what they accessed
+  - Login / Logout are handled directly in web_login_view / web_logout_view
+
+Design choices:
+  - GET logging uses a throttle: only logs each unique path once per 5 minutes
+    per user session to avoid spamming the log with every click.
+  - POST logging fires on every successful (2xx/3xx) write request.
+  - Never raises — all exceptions are silently swallowed so logging can
+    never break a request.
+"""
+
 import json
+import re
+from django.utils.deprecation import MiddlewareMixin
+from .models import ActivityLog
+
+
+# ── Page-visit labels (GET) ───────────────────────────────────────────────────
+# Order matters: first match wins. Use the most-specific patterns first.
+PAGE_VISIT_PATTERNS = [
+    # Ligi Mashinani — TM portal
+    (r'^/ligi/longlist/add-player',              'Opened: Add Player form'),
+    (r'^/ligi/longlist/\d+/edit',                'Opened: Edit Player form'),
+    (r'^/ligi/longlist',                          'Viewed: Player Longlist'),
+    (r'^/ligi/dashboard',                         'Viewed: Team Manager Dashboard'),
+    (r'^/ligi/fixtures/\d+/squad',               'Viewed: Squad Selection'),
+    (r'^/ligi/fixtures',                          'Viewed: Ward Fixtures'),
+    (r'^/ligi/transfers/request',                'Opened: Transfer Request form'),
+    (r'^/ligi/transfers',                         'Viewed: Transfers'),
+    (r'^/ligi/venues',                            'Viewed: Venues'),
+    (r'^/ligi/wscc/longlists/\d+',               'Viewed: Longlist Detail'),
+    (r'^/ligi/wscc/longlists',                    'Viewed: Ward Longlists'),
+    (r'^/ligi/wscc/dashboard',                    'Viewed: WSCC Dashboard'),
+    (r'^/ligi/wscc/teams/\d+/players',           'Viewed: Team Players (WSCC)'),
+    (r'^/ligi/wscc/teams',                        'Viewed: Ward Teams (WSCC)'),
+    (r'^/ligi/wscc/ward-competition/.*manage',   'Viewed: Ward Competition Management'),
+    (r'^/ligi/wscc/ward-competition',             'Viewed: Ward Competition Setup'),
+    (r'^/ligi/wscc/transfers',                    'Viewed: Transfers (WSCC)'),
+    (r'^/ligi/player-register',                   'Viewed: Ligi Player Register'),
+    (r'^/ligi/wscc/ward-players/export',          'Downloaded: Ward Players Export'),
+    # Sub-county portal
+    (r'^/portal/subcounty/verification/\d+',     'Viewed: Player Verification'),
+    (r'^/portal/subcounty/verification',          'Viewed: Verification Dashboard'),
+    (r'^/portal/subcounty/competitions/\d+/pools', 'Viewed: Competition Pools'),
+    (r'^/portal/subcounty/competitions/\d+',     'Viewed: Competition Management'),
+    (r'^/portal/subcounty/competitions',          'Viewed: Sub-County Competitions'),
+    (r'^/portal/subcounty/allstars',              'Viewed: All Stars'),
+    (r'^/portal/subcounty',                       'Viewed: Sub-County Officer Dashboard'),
+    # Admin
+    (r'^/portal/admin-dashboard/users/\d+/edit', 'Opened: Edit User form'),
+    (r'^/portal/admin-dashboard/users/\d+',      'Viewed: User Detail'),
+    (r'^/portal/admin-dashboard/users',           'Viewed: User Management'),
+    (r'^/portal/admin-dashboard/emails/\d+',     'Viewed: Email Detail'),
+    (r'^/portal/admin-dashboard/emails',          'Viewed: Email Dashboard'),
+    (r'^/portal/admin-dashboard/activity-logs/\d+', 'Viewed: Activity Log Detail'),
+    (r'^/portal/admin-dashboard/activity-logs',  'Viewed: Activity Logs'),
+    (r'^/portal/admin-dashboard/password-reset-requests', 'Viewed: Password Reset Requests'),
+    (r'^/portal/admin-dashboard',                'Viewed: Admin Dashboard'),
+    (r'^/portal/ligi-registrations/\d+',         'Viewed: Ligi Registration Detail'),
+    (r'^/portal/ligi-registrations',              'Viewed: Ligi Registrations'),
+    # Portal core
+    (r'^/portal/director-sports',                'Viewed: Director of Sports Dashboard'),
+    (r'^/portal/chief-sports-officer',           'Viewed: Chief Sports Officer Dashboard'),
+    (r'^/portal/squads/\d+/review',              'Viewed: Squad Review'),
+    (r'^/portal/squads/review',                  'Viewed: Squad Review List'),
+    (r'^/portal/reports/\d+/review',             'Viewed: Match Report Review'),
+    (r'^/portal/reports/\d+',                    'Viewed: Match Report Detail'),
+    (r'^/portal/teams/\d+',                      'Viewed: Team Detail'),
+    (r'^/portal/teams',                           'Viewed: Teams'),
+    (r'^/portal/competitions/\d+',               'Viewed: Competition Detail'),
+    (r'^/portal/competitions',                    'Viewed: Competitions'),
+    (r'^/portal/cm/competitions',                'Viewed: Competition Management'),
+    (r'^/portal/coordinator/competitions',       'Viewed: Coordinator Competition'),
+    (r'^/portal/',                                'Viewed: Portal Dashboard'),
+    # Downloads / exports
+    (r'/pdf/',                                    'Downloaded: PDF Report'),
+    (r'/export/',                                 'Downloaded: Export'),
+    (r'/download/',                               'Downloaded: File'),
+]
+
+# ── POST action map (unchanged from before, extended with Ligi routes) ────────
+POST_ACTION_MAP = {
+    # Ligi Mashinani
+    '/ligi/longlist/add-player/':           ('PLAYER_CREATE',   '{name} added a new player to longlist'),
+    '/ligi/longlist/':                       ('PLAYER_UPDATE',   '{name} updated a player on longlist'),
+    '/ligi/longlist/submit/':               ('ADMIN_ACTION',    '{name} submitted longlist for WSCC review'),
+    '/ligi/wscc/longlists/':                ('ADMIN_ACTION',    '{name} reviewed a ward longlist'),
+    '/ligi/wscc/registrations/':            ('ADMIN_ACTION',    '{name} processed a ward team registration'),
+    '/ligi/wscc/teams/':                    ('ADMIN_ACTION',    '{name} managed a ward team'),
+    '/ligi/wscc/mark-ligi-complete/':       ('ADMIN_ACTION',    '{name} marked Ligi Mashinani as complete'),
+    '/ligi/wscc/ward-competition/':         ('ADMIN_ACTION',    '{name} managed ward competition'),
+    '/ligi/wscc/ward-players/export/':      ('ADMIN_ACTION',    '{name} exported ward players'),
+    '/ligi/transfers/request/':             ('PLAYER_TRANSFER', '{name} submitted a transfer request'),
+    '/ligi/transfers/':                     ('PLAYER_TRANSFER', '{name} actioned a transfer'),
+    '/ligi/venues/':                        ('ADMIN_ACTION',    '{name} managed ward venues'),
+    '/ligi/substitution/':                  ('ADMIN_ACTION',    '{name} submitted a substitution'),
+    # Sub-county
+    '/portal/subcounty/verification/':      ('ADMIN_ACTION',    '{name} performed player verification'),
+    '/portal/subcounty/competitions/':      ('ADMIN_ACTION',    '{name} managed sub-county competition'),
+    '/portal/subcounty/qualify-ward-champion/': ('ADMIN_ACTION', '{name} marked a ward champion'),
+    # Admin
+    '/portal/admin-dashboard/generate-fixtures/': ('FIXTURE_GENERATE', '{name} generated fixtures'),
+    '/portal/admin-dashboard/reschedule-fixtures/': ('MATCH_RESCHEDULE', '{name} rescheduled fixtures'),
+    '/portal/admin-dashboard/users/create/': ('USER_CREATE',   '{name} created a new user'),
+    '/portal/admin-dashboard/users/':       ('USER_UPDATE',    '{name} updated a user account'),
+    '/portal/admin-dashboard/suspensions/': ('SUSPENSION_CREATE', '{name} managed a suspension'),
+    '/portal/admin-dashboard/assign-zones/': ('ZONE_ASSIGN',   '{name} assigned a team to a zone'),
+    '/portal/admin-dashboard/transfers/':   ('PLAYER_TRANSFER', '{name} processed a transfer'),
+    '/portal/admin-dashboard/password-reset-requests/': ('ADMIN_ACTION', '{name} actioned a password reset request'),
+    # Portal
+    '/portal/teams/':                       ('TEAM_UPDATE',    '{name} updated team information'),
+    '/portal/squads/':                      ('SQUAD_APPROVE',  '{name} reviewed a squad submission'),
+    '/portal/reports/':                     ('MATCH_REPORT_APPROVE', '{name} reviewed a match report'),
+    '/add-player/':                         ('PLAYER_CREATE',  '{name} added a player'),
+    '/edit/':                               ('PLAYER_UPDATE',  '{name} edited a player'),
+    '/delete/':                             ('PLAYER_DELETE',  '{name} deleted a player'),
+    '/squad/':                              ('MATCHDAY_SQUAD_SUBMIT', '{name} submitted a match squad'),
+    '/report/':                             ('MATCH_REPORT',   '{name} submitted a match report'),
+    '/approve/':                            ('ADMIN_ACTION',   '{name} approved an item'),
+    '/reject/':                             ('ADMIN_ACTION',   '{name} rejected an item'),
+    '/return/':                             ('ADMIN_ACTION',   '{name} returned an item for corrections'),
+    # Password / profile
+    '/portal/force-change-password/':       ('PASSWORD_CHANGE', '{name} changed their password (forced)'),
+    '/portal/profile/':                     ('USER_UPDATE',    '{name} updated their profile'),
+    # Ligi register (public)
+    '/ligi/register/':                      ('TEAM_CREATE',    'New Ligi registration submitted'),
+}
+
+_THROTTLE_KEY = '_activity_throttle'
+_THROTTLE_SECS = 300  # 5 minutes per path per session
 
 
 class ActivityLoggingMiddleware(MiddlewareMixin):
     """
-    Middleware to automatically log user activities across the MKJ SUPA CUP CMS.
-    Captures POST requests that change data and logs them as ActivityLog entries.
-    Login/logout are handled by accounts.signals instead.
+    Log authenticated portal activity: page visits (GET) and data changes (POST).
+    Never raises — silently swallows all errors.
     """
 
-    # Map URL fragments to action types
-    LOGGED_PATHS = {
-        # Team Management
-        '/portal/teams/': 'TEAM_UPDATE',
-        '/add-player/': 'PLAYER_CREATE',
-        '/edit/': 'PLAYER_UPDATE',
-        '/delete/': 'PLAYER_DELETE',
-
-        # Approval workflows
-        '/portal/teams/pending/': 'TEAM_APPROVE',
-        '/portal/referees/pending/': 'REFEREE_APPROVE',
-
-        # Squad & Match
-        '/squad/': 'MATCHDAY_SQUAD_SUBMIT',
-        '/report/': 'MATCH_REPORT',
-        '/review/': 'MATCH_REPORT_APPROVE',
-
-        # Referee
-        '/portal/appointments/': 'REFEREE_ACTION',
-        '/portal/referee/availability/': 'REFEREE_ACTION',
-
-        # Treasurer
-        '/portal/treasurer/teams/': 'PAYMENT_ACTION',
-
-        # Admin Dashboard
-        '/portal/admin-dashboard/generate-fixtures/': 'FIXTURE_GENERATE',
-        '/portal/admin-dashboard/reschedule-fixtures/': 'MATCH_RESCHEDULE',
-        '/portal/admin-dashboard/approve-registrations/': 'TEAM_APPROVE',
-        '/portal/admin-dashboard/approve-reports/': 'MATCH_REPORT_APPROVE',
-        '/portal/admin-dashboard/suspensions/': 'SUSPENSION_CREATE',
-        '/portal/admin-dashboard/assign-zones/': 'ZONE_ASSIGN',
-        '/portal/admin-dashboard/users/create/': 'USER_CREATE',
-        '/portal/admin-dashboard/users/toggle/': 'USER_UPDATE',
-        '/portal/admin-dashboard/users/reset-password/': 'PASSWORD_CHANGE',
-        '/portal/admin-dashboard/users/edit-roles/': 'USER_ROLE_CHANGE',
-        '/portal/admin-dashboard/users/delete/': 'USER_DELETE',
-        '/portal/admin-dashboard/transfers/': 'PLAYER_TRANSFER',
-        '/portal/admin-dashboard/toggle-registration/': 'REGISTRATION_TOGGLE',
-        '/portal/admin-dashboard/activity-logs/': 'ADMIN_ACTION',
-
-        # Profile & password
-        '/portal/profile/change-password/': 'PASSWORD_CHANGE',
-        '/portal/force-change-password/': 'PASSWORD_CHANGE',
-
-        # Public registration
-        '/register/team/': 'TEAM_CREATE',
-        '/register/referee/': 'REFEREE_REGISTER',
-
-        # Squad review (referee)
-        '/portal/squads/': 'SQUAD_APPROVE',
-    }
-    
     def process_response(self, request, response):
-        """Log activity after successful POST requests"""
-
-        # Only log for authenticated users
-        if not request.user.is_authenticated:
-            return response
-
-        # Only log POST requests (actions that change data)
-        if request.method != 'POST':
-            return response
-
-        # Only log successful responses (200-399)
-        if not (200 <= response.status_code < 400):
-            return response
-
-        # Skip login/logout - handled by signals
-        if any(seg in request.path for seg in ('/login/', '/logout/')):
-            return response
-
-        # Get the action type based on path
-        action = self._get_action_type(request.path)
-        if not action:
-            return response
-        
-        # Get description
-        description = self._generate_description(request, action)
-        
-        # Get IP address
-        ip_address = self._get_client_ip(request)
-        
-        # Get user agent
-        user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
-        
-        # Create activity log
         try:
-            ActivityLog.objects.create(
-                user=request.user,
-                action=action,
-                description=description,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                changes_json=self._get_changes_json(request)
-            )
-        except Exception as e:
-            # Don't break the request if logging fails
-            print(f"Activity logging error: {e}")
-        
+            self._log(request, response)
+        except Exception:
+            pass
         return response
-    
-    def _get_action_type(self, path):
-        """Determine action type from request path (most-specific match wins)."""
-        best_match = None
-        best_len = 0
-        for pattern, action in self.LOGGED_PATHS.items():
-            if pattern in path and len(pattern) > best_len:
-                best_match = action
-                best_len = len(pattern)
-        return best_match
 
-    def _generate_description(self, request, action):
-        """Generate human-readable description of the action"""
-        user = request.user
-        name = user.get_full_name() or user.email
+    def _log(self, request, response):
+        if not request.user.is_authenticated:
+            return
+
+        # Skip static/media/health/API routes
         path = request.path
+        if any(path.startswith(p) for p in ('/static/', '/media/', '/health/', '/api/', '/admin/')):
+            return
+        # Skip AJAX ping / favicon
+        if path in ('/favicon.ico',):
+            return
 
-        descriptions = {
-            'FIXTURE_GENERATE': f'{name} generated fixtures',
-            'FIXTURE_REGENERATE': f'{name} regenerated fixtures',
-            'SQUAD_APPROVE': f'{name} approved matchday squad',
-            'MATCHDAY_SQUAD_SUBMIT': f'{name} submitted matchday squad',
-            'MATCH_REPORT': f'{name} submitted/updated match report',
-            'MATCH_REPORT_APPROVE': f'{name} reviewed a match report',
-            'TEAM_CREATE': f'{name} registered a new team',
-            'TEAM_UPDATE': f'{name} updated team information',
-            'TEAM_APPROVE': f'{name} approved/rejected a team',
-            'PLAYER_CREATE': f'{name} added a new player',
-            'PLAYER_UPDATE': f'{name} updated player information',
-            'PLAYER_DELETE': f'{name} deleted a player',
-            'PLAYER_TRANSFER': f'{name} processed player transfer',
-            'MATCH_RESCHEDULE': f'{name} rescheduled a match',
-            'REFEREE_REGISTER': f'{name} registered as referee',
-            'REFEREE_APPROVE': f'{name} approved/rejected a referee',
-            'REFEREE_ACTION': f'{name} performed referee action',
-            'PAYMENT_ACTION': f'{name} processed payment/treasurer action',
-            'ZONE_ASSIGN': f'{name} assigned team to competition/zone',
-            'SQUAD_APPROVE': f'{name} reviewed a squad submission',
-            'USER_CREATE': f'{name} created a new user account',
-            'USER_UPDATE': f'{name} updated a user account',
-            'USER_DELETE': f'{name} deleted a user account',
-            'USER_ROLE_CHANGE': f'{name} changed a user role',
-            'PASSWORD_CHANGE': f'{name} changed/reset a password',
-            'SUSPENSION_CREATE': f'{name} managed a suspension',
-            'REGISTRATION_TOGGLE': f'{name} toggled registration window',
-        }
+        status = response.status_code
+        method = request.method
 
-        return descriptions.get(action, f'{name} performed {action} at {path}')
-    
-    def _get_client_ip(self, request):
-        """Get client IP address"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip[:45]  # Max length of IP field
-    
-    def _get_changes_json(self, request):
-        """Extract relevant data from POST request"""
+        if method == 'POST' and 200 <= status < 400:
+            self._log_post(request, path)
+        elif method == 'GET' and status == 200:
+            self._log_get(request, path)
+
+    # ── POST ─────────────────────────────────────────────────────────────────
+
+    def _log_post(self, request, path):
+        # Skip login/logout — handled elsewhere
+        if any(s in path for s in ('/login/', '/logout/', '/magic-login/')):
+            return
+
+        action, tmpl = self._match_post(path)
+        if not action:
+            return
+
+        name = request.user.get_full_name() or request.user.email
+        description = tmpl.format(name=name)
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action=action,
+            description=description,
+            ip_address=self._get_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            changes_json=self._safe_post_data(request),
+        )
+
+    def _match_post(self, path):
+        best_action, best_tmpl, best_len = None, None, 0
+        for pattern, (action, tmpl) in POST_ACTION_MAP.items():
+            if pattern in path and len(pattern) > best_len:
+                best_action, best_tmpl, best_len = action, tmpl, len(pattern)
+        return best_action, best_tmpl
+
+    # ── GET (page visit) ─────────────────────────────────────────────────────
+
+    def _log_get(self, request, path):
+        # Only log portal/ligi pages
+        if not (path.startswith('/portal/') or path.startswith('/ligi/')):
+            return
+
+        label = self._match_page(path)
+        if not label:
+            return
+
+        # Throttle: skip if this path was already logged in the last 5 min
+        throttle = request.session.get(_THROTTLE_KEY, {})
+        from django.utils import timezone as _tz
+        import time
+        now = time.time()
+        last = throttle.get(path, 0)
+        if now - last < _THROTTLE_SECS:
+            return
+        throttle[path] = now
+        # Prune old entries to keep session small
+        throttle = {k: v for k, v in throttle.items() if now - v < _THROTTLE_SECS}
         try:
-            # Get POST data (excluding sensitive fields)
-            sensitive_fields = ['password', 'csrfmiddlewaretoken', 'password1', 'password2']
-            data = {
-                key: value for key, value in request.POST.items()
-                if key not in sensitive_fields and not key.startswith('_')
-            }
-            
-            # Limit size
-            data_str = json.dumps(data, default=str)
-            if len(data_str) > 5000:
-                return json.dumps({'note': 'Data too large to store'})
-            
-            return data_str
+            request.session[_THROTTLE_KEY] = throttle
+            request.session.modified = True
+        except Exception:
+            pass
+
+        name = request.user.get_full_name() or request.user.email
+        ActivityLog.objects.create(
+            user=request.user,
+            action='ADMIN_ACTION',
+            description=f'{name} — {label}',
+            ip_address=self._get_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            extra_data={'page_visit': True, 'path': path},
+        )
+
+    def _match_page(self, path):
+        for pattern, label in PAGE_VISIT_PATTERNS:
+            if re.search(pattern, path):
+                return label
+        return None
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _get_ip(self, request):
+        xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+        return ip[:45]
+
+    def _safe_post_data(self, request):
+        SKIP = {'password', 'password1', 'password2', 'csrfmiddlewaretoken',
+                'new_password', 'confirm_password', 'token'}
+        try:
+            data = {k: v for k, v in request.POST.items()
+                    if k not in SKIP and not k.startswith('_')}
+            s = json.dumps(data, default=str)
+            return s[:5000] if len(s) > 5000 else s
         except Exception:
             return '{}'

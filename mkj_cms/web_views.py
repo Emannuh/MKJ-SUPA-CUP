@@ -1900,6 +1900,24 @@ def web_login_view(request):
                     'email': email,
                 })
 
+            if not user.is_active:
+                # Log the blocked attempt
+                try:
+                    from admin_dashboard.activity_logger import log_activity, get_client_ip
+                    log_activity(
+                        user=user,
+                        action='LOGIN',
+                        description=f'Blocked login attempt by deactivated account {user.email}',
+                        ip_address=get_client_ip(request),
+                        extra_data={'blocked_reason': 'account_deactivated'},
+                    )
+                except Exception:
+                    pass
+                return render(request, 'accounts/login.html', {
+                    'error': 'Your account has been deactivated. Please contact the administrator.',
+                    'email': email,
+                })
+
             # ── Single-session enforcement ─────────────────────────────────
             # If this user already has an active session on another tab/device,
             # invalidate it before creating the new one.
@@ -1916,6 +1934,19 @@ def web_login_view(request):
             # Store the new session key on the user
             user.current_session_key = request.session.session_key
             user.save(update_fields=['current_session_key'])
+
+            # Log the successful login
+            try:
+                from admin_dashboard.activity_logger import log_activity, get_client_ip
+                log_activity(
+                    user=user,
+                    action='LOGIN',
+                    description=f'{user.get_full_name()} ({user.email}) logged in — role: {user.get_role_display()}',
+                    ip_address=get_client_ip(request),
+                    extra_data={'role': user.role},
+                )
+            except Exception:
+                pass
 
             if getattr(user, 'must_change_password', False):
                 messages.warning(request, 'You must change your password before continuing.')
@@ -1968,8 +1999,19 @@ def force_change_password_view(request):
 
 def web_logout_view(request):
     """Logout and redirect to home page."""
-    # Clear the single-session key so the account is free to log in fresh
+    # Log the logout before session is cleared
     if request.user.is_authenticated:
+        try:
+            from admin_dashboard.activity_logger import log_activity, get_client_ip
+            log_activity(
+                user=request.user,
+                action='LOGOUT',
+                description=f'{request.user.get_full_name()} ({request.user.email}) logged out',
+                ip_address=get_client_ip(request),
+                extra_data={'role': request.user.role},
+            )
+        except Exception:
+            pass
         try:
             request.user.current_session_key = ''
             request.user.save(update_fields=['current_session_key'])
