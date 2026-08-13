@@ -69,6 +69,7 @@ from news_media.portal_views import (
 from .web_views import (
     # Public website
     home_view, about_view, public_competitions_view,
+    privacy_policy_view, terms_view,
     public_fixtures_results_view,
     public_ligi_fixtures_view,    public_competition_detail_view, public_results_view,
     public_statistics_view, public_competition_standings_view,
@@ -399,6 +400,8 @@ urlpatterns = [
     path("sitemap.xml",                   sitemap_xml_view,               name="sitemap_xml"),
     path("",                              home_view,                      name="home"),
     path("about/",                        about_view,                     name="about"),
+    path("privacy/",                      privacy_policy_view,            name="privacy_policy"),
+    path("terms/",                        terms_view,                     name="terms"),
     path("fixtures/",                     public_fixtures_results_view,   name="public_fixtures_results"),
     path("competitions/public/",          public_fixtures_results_view,   name="public_competitions"),
     path("ligi/fixtures/",                public_ligi_fixtures_view,      name="public_ligi_fixtures"),

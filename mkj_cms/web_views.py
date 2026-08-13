@@ -916,6 +916,18 @@ def about_view(request):
     })
 
 
+def privacy_policy_view(request):
+    """Public privacy policy and terms of use page."""
+    return render(request, 'public/privacy_policy.html', {
+        'active_page': 'privacy',
+    })
+
+
+def terms_view(request):
+    """Public terms of use page (alias to privacy policy)."""
+    return redirect('privacy_policy')
+
+
 def public_competitions_view(request):
     """Public competitions listing - grouped by sport, with exhibition marker."""
     all_comps = Competition.objects.all()
