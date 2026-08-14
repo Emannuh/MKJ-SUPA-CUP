@@ -1740,7 +1740,6 @@ def contact_view(request):
     so browser refresh can never re-submit and trigger duplicate emails.
     """
     from django.core.cache import cache
-    from admin_dashboard.models import EmailLog
 
     _site_key = getattr(django_settings, 'TURNSTILE_SITE_KEY', '')
 
@@ -1861,15 +1860,7 @@ def contact_view(request):
             )
             msg.attach_alternative(html_body, 'text/html')
             msg.send()
-
-            EmailLog.objects.create(
-                direction='OUT', status='sent',
-                from_email=django_settings.DEFAULT_FROM_EMAIL,
-                to_emails=admin_email,
-                subject=email_subject,
-                body_text=plain_body, body_html=html_body,
-                sent_at=timezone.now(),
-            )
+            # Note: EmailLog is written automatically by BrevoEmailBackend._log_to_db
 
             # Acknowledgement to the sender
             ack_html = _base_html(
@@ -1907,14 +1898,7 @@ as soon as possible, usually within <strong>1\u20132 business days</strong>.</p>
                 )
                 ack_msg.attach_alternative(ack_html, 'text/html')
                 ack_msg.send()
-                EmailLog.objects.create(
-                    direction='OUT', status='sent',
-                    from_email=django_settings.DEFAULT_FROM_EMAIL,
-                    to_emails=sender_email,
-                    subject='We received your message \u2014 MKJ SUPA CUP',
-                    body_text=ack_plain, body_html=ack_html,
-                    sent_at=timezone.now(),
-                )
+                # Note: EmailLog written automatically by BrevoEmailBackend._log_to_db
             except Exception:
                 pass  # ack failure must never block the main success path
 
@@ -1923,15 +1907,6 @@ as soon as possible, usually within <strong>1\u20132 business days</strong>.</p>
 
         except Exception as exc:
             logger.error('Contact form send failed: %s', exc, exc_info=True)
-            EmailLog.objects.create(
-                direction='OUT', status='failed',
-                from_email=django_settings.DEFAULT_FROM_EMAIL,
-                to_emails=admin_email,
-                subject=email_subject,
-                body_text=plain_body, body_html='',
-                sent_at=timezone.now(),
-                error_message=str(exc),
-            )
             messages.error(
                 request,
                 'Sorry, we could not send your message right now. '
