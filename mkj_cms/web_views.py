@@ -1734,24 +1734,38 @@ def public_competition_standings_view(request, pk):
 
 
 def contact_view(request):
-    """Public contact page with form. Sends message to admin@mkjsupacup.com and logs to EmailLog."""
-    contact_sent = False
-    if request.method == 'POST':
-        # ── Honeypot: bots fill hidden fields, humans don't ───────────────
-        if request.POST.get('website', '').strip():
-            contact_sent = True
-            return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+    """
+    Public contact page with form.
+    Uses Post/Redirect/Get pattern: successful POST redirects to ?sent=1
+    so browser refresh can never re-submit and trigger duplicate emails.
+    """
+    from django.core.cache import cache
+    from admin_dashboard.models import EmailLog
 
-        # ── Bot name pattern block ─────────────────────────────────────────
-        # This specific spam campaign appends "neimeGM" to all names
+    _site_key = getattr(django_settings, 'TURNSTILE_SITE_KEY', '')
+
+    # ── GET ?sent=1  →  show success state, no processing ────────────────
+    if request.method == 'GET' and request.GET.get('sent') == '1':
+        return render(request, 'public/contact.html', {
+            'active_page': 'contact',
+            'contact_sent': True,
+            'turnstile_site_key': _site_key,
+        })
+
+    # ── POST  →  validate then send, then redirect ────────────────────────
+    if request.method == 'POST':
+
+        # Honeypot
+        if request.POST.get('website', '').strip():
+            return redirect(request.path + '?sent=1')
+
+        # Bot name pattern
         first_raw = request.POST.get('first_name', '')
         last_raw  = request.POST.get('last_name', '')
         if 'neimeGM' in first_raw or 'neimeGM' in last_raw:
-            contact_sent = True
-            return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+            return redirect(request.path + '?sent=1')
 
-        # ── Rate limit: max 2 contact submissions per IP per hour ─────────
-        from django.core.cache import cache
+        # Rate limit: max 2 per IP per hour
         client_ip = (
             request.META.get('HTTP_X_REAL_IP', '').strip()
             or request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
@@ -1760,21 +1774,15 @@ def contact_view(request):
         rate_key  = f'contact_rate_{client_ip}'
         hit_count = cache.get(rate_key, 0)
         if hit_count >= 2:
-            contact_sent = True  # silent discard
-            return render(request, 'public/contact.html', {'contact_sent': contact_sent})
+            return redirect(request.path + '?sent=1')  # silent discard
         cache.set(rate_key, hit_count + 1, timeout=3600)
 
-        # ── Turnstile CAPTCHA verification ────────────────────────────────
+        # Turnstile CAPTCHA
         turnstile_token  = request.POST.get('cf-turnstile-response', '').strip()
         turnstile_secret = getattr(django_settings, 'TURNSTILE_SECRET_KEY', '')
         if turnstile_secret:
-            # Block submissions with no token outright (bots skip the widget entirely)
             if not turnstile_token:
-                contact_sent = True  # silent discard
-                return render(request, 'public/contact.html', {
-                    'contact_sent': contact_sent,
-                    'turnstile_site_key': getattr(django_settings, 'TURNSTILE_SITE_KEY', ''),
-                })
+                return redirect(request.path + '?sent=1')  # silent discard
             import requests as _req
             try:
                 ts_resp = _req.post(
@@ -1783,19 +1791,15 @@ def contact_view(request):
                     timeout=5,
                 )
                 if not ts_resp.json().get('success'):
-                    contact_sent = True  # silent discard — bots don't know they're blocked
-                    return render(request, 'public/contact.html', {
-                        'contact_sent': contact_sent,
-                        'turnstile_site_key': getattr(django_settings, 'TURNSTILE_SITE_KEY', ''),
-                    })
+                    return redirect(request.path + '?sent=1')  # silent discard
             except Exception:
                 pass  # Cloudflare unreachable — let genuine users through
 
-        first_name = request.POST.get('first_name', '').strip()
-        last_name  = request.POST.get('last_name',  '').strip()
-        sender_email = request.POST.get('email',   '').strip()
-        subject_key  = request.POST.get('subject', 'general').strip()
-        message      = request.POST.get('message', '').strip()
+        first_name   = request.POST.get('first_name', '').strip()
+        last_name    = request.POST.get('last_name',  '').strip()
+        sender_email = request.POST.get('email',      '').strip()
+        subject_key  = request.POST.get('subject',    'general').strip()
+        message      = request.POST.get('message',    '').strip()
 
         subject_labels = {
             'general':     'General Enquiry',
@@ -1805,11 +1809,10 @@ def contact_view(request):
             'partnership': 'Partnership / Sponsorship',
         }
         subject_label = subject_labels.get(subject_key, subject_key.title())
-        full_name = f'{first_name} {last_name}'.strip()
-        email_subject = f'[Contact Form] {subject_label} – {full_name}'
+        full_name     = f'{first_name} {last_name}'.strip()
+        email_subject = f'[Contact Form] {subject_label} \u2013 {full_name}'
         admin_email   = 'admin@mkjsupacup.com'
 
-        # ── Build plain-text body ───────────────────────────────────────────
         plain_body = (
             f"Name:    {full_name}\n"
             f"Email:   {sender_email}\n"
@@ -1818,7 +1821,6 @@ def contact_view(request):
             "---\nSent via the MKJ SUPA CUP contact form at mkjsupacup.com"
         )
 
-        # ── Build HTML body ─────────────────────────────────────────────────
         from accounts.notifications import _base_html
         html_body = _base_html(
             email_subject,
@@ -1840,17 +1842,14 @@ def contact_view(request):
     <td style="padding:.55rem .85rem">{subject_label}</td>
   </tr>
 </table>
-<div style="background:#f8f9fa;border-left:4px solid #124491;padding:1rem 1.25rem;border-radius:0 6px 6px 0;font-size:14px;color:#333;line-height:1.8;white-space:pre-wrap">{message}</div>
+<div style="background:#f8f9fa;border-left:4px solid #124491;padding:1rem 1.25rem;
+            border-radius:0 6px 6px 0;font-size:14px;color:#333;line-height:1.8;
+            white-space:pre-wrap">{message}</div>
 <p style="margin-top:1.25rem;font-size:13px;color:#888">
   Reply directly to this email to respond to {full_name}.
 </p>
 """
         )
-
-        # ── Send email ──────────────────────────────────────────────────────
-        from django.core.mail import EmailMultiAlternatives
-        from admin_dashboard.models import EmailLog
-        from django.utils import timezone
 
         try:
             msg = EmailMultiAlternatives(
@@ -1863,53 +1862,48 @@ def contact_view(request):
             msg.attach_alternative(html_body, 'text/html')
             msg.send()
 
-            # Log as outbound so it appears in the email dashboard
             EmailLog.objects.create(
-                direction='OUT',
-                status='sent',
+                direction='OUT', status='sent',
                 from_email=django_settings.DEFAULT_FROM_EMAIL,
                 to_emails=admin_email,
                 subject=email_subject,
-                body_text=plain_body,
-                body_html=html_body,
+                body_text=plain_body, body_html=html_body,
                 sent_at=timezone.now(),
             )
 
-            # ── Acknowledgement email back to the sender ──────────────
+            # Acknowledgement to the sender
             ack_html = _base_html(
-                'We received your message — MKJ SUPA CUP',
+                'We received your message \u2014 MKJ SUPA CUP',
                 f"""
 <p>Dear <strong>{full_name}</strong>,</p>
-<p>Thank you for reaching out to <strong>MKJ SUPA CUP</strong> — Governor Mutula Kilonzo
-Junior Supa Cup, Makueni County.</p>
+<p>Thank you for reaching out to <strong>MKJ SUPA CUP</strong> \u2014 Governor Mutula
+Kilonzo Junior Supa Cup, Makueni County.</p>
 <p>We have received your message and a member of our team will get back to you
-as soon as possible, usually within <strong>1–2 business days</strong>.</p>
-
+as soon as possible, usually within <strong>1\u20132 business days</strong>.</p>
 <div style="background:#f0f4ff;border-left:4px solid #124491;border-radius:4px;
             padding:1rem 1.25rem;margin:1.5rem 0;font-size:14px;color:#333">
   <p style="margin:0 0 .5rem;font-weight:700;color:#124491">Your message summary</p>
   <p style="margin:0 0 .25rem"><strong>Subject:</strong> {subject_label}</p>
-  <p style="margin:0;white-space:pre-wrap;word-break:break-word"><strong>Message:</strong><br>{message}</p>
+  <p style="margin:0;white-space:pre-wrap;word-break:break-word">
+    <strong>Message:</strong><br>{message}</p>
 </div>
-
 <p>If your enquiry is urgent, you can also reach us at
 <a href="mailto:admin@mkjsupacup.com" style="color:#124491">admin@mkjsupacup.com</a>.</p>
 <p style="margin-top:1.5rem;font-size:13px;color:#888">
-  Please do not reply to this email — it is an automated acknowledgement only.
+  Please do not reply to this email \u2014 it is an automated acknowledgement only.
   Your original message has been forwarded to the MKJ SUPA CUP team.
 </p>""",
             )
             ack_plain = (
                 f"Dear {full_name},\n\n"
-                f"Thank you for contacting MKJ SUPA CUP. We have received your "
-                f"message about \"{subject_label}\" and will respond within 1-2 "
-                f"business days.\n\n"
+                f"Thank you for contacting MKJ SUPA CUP. We received your message "
+                f"about \"{subject_label}\" and will respond within 1-2 business days.\n\n"
                 f"If urgent, email us at admin@mkjsupacup.com.\n\n"
                 f"MKJ SUPA CUP Team\nCounty Government of Makueni"
             )
             try:
                 ack_msg = EmailMultiAlternatives(
-                    subject='We received your message — MKJ SUPA CUP',
+                    subject='We received your message \u2014 MKJ SUPA CUP',
                     body=ack_plain,
                     from_email=django_settings.DEFAULT_FROM_EMAIL,
                     to=[sender_email],
@@ -1917,43 +1911,41 @@ as soon as possible, usually within <strong>1–2 business days</strong>.</p>
                 ack_msg.attach_alternative(ack_html, 'text/html')
                 ack_msg.send()
                 EmailLog.objects.create(
-                    direction='OUT',
-                    status='sent',
+                    direction='OUT', status='sent',
                     from_email=django_settings.DEFAULT_FROM_EMAIL,
                     to_emails=sender_email,
-                    subject='We received your message — MKJ SUPA CUP',
-                    body_text=ack_plain,
-                    body_html=ack_html,
+                    subject='We received your message \u2014 MKJ SUPA CUP',
+                    body_text=ack_plain, body_html=ack_html,
                     sent_at=timezone.now(),
                 )
             except Exception:
-                pass  # acknowledgement failure must never block the main success path
+                pass  # ack failure must never block the main success path
 
-            contact_sent = True
-            messages.success(request, 'Thank you for your message! We will get back to you soon.')
+            # PRG: redirect so browser refresh cannot replay the POST
+            return redirect(request.path + '?sent=1')
 
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).error('Contact form send failed: %s', exc, exc_info=True)
-
-            # Log the failure too
+            logger.error('Contact form send failed: %s', exc, exc_info=True)
             EmailLog.objects.create(
-                direction='OUT',
-                status='failed',
+                direction='OUT', status='failed',
                 from_email=django_settings.DEFAULT_FROM_EMAIL,
                 to_emails=admin_email,
                 subject=email_subject,
-                body_text=plain_body,
-                body_html='',
+                body_text=plain_body, body_html='',
                 sent_at=timezone.now(),
                 error_message=str(exc),
             )
-            messages.error(request, 'Sorry, we could not send your message right now. Please email us directly at admin@mkjsupacup.com.')
+            messages.error(
+                request,
+                'Sorry, we could not send your message right now. '
+                'Please email us directly at admin@mkjsupacup.com.'
+            )
 
+    # ── GET (blank form) ──────────────────────────────────────────────────
     return render(request, 'public/contact.html', {
         'active_page': 'contact',
-        'contact_sent': contact_sent,
-        'turnstile_site_key': getattr(django_settings, 'TURNSTILE_SITE_KEY', ''),
+        'contact_sent': False,
+        'turnstile_site_key': _site_key,
     })
 
 
