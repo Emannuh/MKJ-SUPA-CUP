@@ -20,7 +20,15 @@ echo "=== Syncing ward team names from Ligi registrations ==="
 python manage.py shell -c "
 from teams.models import LigiMashinaniRegistration, Team, CountyDiscipline
 updated = 0
+skipped_conflict = 0
 for reg in LigiMashinaniRegistration.objects.filter(status='approved'):
+    # Skip if target name is already taken by a DIFFERENT team
+    if Team.objects.filter(name=reg.team_name).exclude(
+        source_discipline_id=reg.county_discipline_id
+    ).exists():
+        print(f'  SKIP conflict: {reg.team_name!r} already used by another team')
+        skipped_conflict += 1
+        continue
     # Try FK first
     if reg.county_discipline_id:
         team = Team.objects.filter(source_discipline_id=reg.county_discipline_id).first()
@@ -44,7 +52,7 @@ for reg in LigiMashinaniRegistration.objects.filter(status='approved'):
             team.name = reg.team_name
             team.save(update_fields=['name'])
             updated += 1
-print(f'Done. Synced {updated} ward team names.')
+print(f'Done. Synced {updated} ward team names. Skipped {skipped_conflict} conflicts.')
 " || echo "Team name sync skipped"
 
 echo "=== Clearing cache ==="
