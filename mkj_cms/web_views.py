@@ -1887,18 +1887,14 @@ as soon as possible, usually within <strong>1\u20132 business days</strong>.</p>
   <p style="margin:0;white-space:pre-wrap;word-break:break-word">
     <strong>Message:</strong><br>{message}</p>
 </div>
-<p>If your enquiry is urgent, you can also reach us at
-<a href="mailto:admin@mkjsupacup.com" style="color:#124491">admin@mkjsupacup.com</a>.</p>
-<p style="margin-top:1.5rem;font-size:13px;color:#888">
-  Please do not reply to this email \u2014 it is an automated acknowledgement only.
-  Your original message has been forwarded to the MKJ SUPA CUP team.
-</p>""",
+<p>You can reply directly to this email and it will reach our team, or write to us at
+<a href="mailto:admin@mkjsupacup.com" style="color:#124491">admin@mkjsupacup.com</a>.</p>""",
             )
             ack_plain = (
                 f"Dear {full_name},\n\n"
                 f"Thank you for contacting MKJ SUPA CUP. We received your message "
                 f"about \"{subject_label}\" and will respond within 1-2 business days.\n\n"
-                f"If urgent, email us at admin@mkjsupacup.com.\n\n"
+                f"You can reply directly to this email and it will reach our team.\n\n"
                 f"MKJ SUPA CUP Team\nCounty Government of Makueni"
             )
             try:
@@ -1907,6 +1903,7 @@ as soon as possible, usually within <strong>1\u20132 business days</strong>.</p>
                     body=ack_plain,
                     from_email=django_settings.DEFAULT_FROM_EMAIL,
                     to=[sender_email],
+                    reply_to=[admin_email],
                 )
                 ack_msg.attach_alternative(ack_html, 'text/html')
                 ack_msg.send()
