@@ -1689,7 +1689,8 @@ def contact_view(request):
         # ── Rate limit: max 2 contact submissions per IP per hour ─────────
         from django.core.cache import cache
         client_ip = (
-            request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            request.META.get('HTTP_X_REAL_IP', '').strip()
+            or request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
             or request.META.get('REMOTE_ADDR', '')
         )
         rate_key  = f'contact_rate_{client_ip}'

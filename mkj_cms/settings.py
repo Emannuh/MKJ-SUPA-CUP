@@ -517,3 +517,13 @@ LOGGING = {
         },
     },
 }
+
+# ── PROXY TRUST (Railway load balancer) ───────────────────────────────────
+# Railway terminates TLS and forwards real client IPs in X-Forwarded-For.
+# Trust the immediate proxy so Django resolves IPs correctly.
+USE_X_FORWARDED_HOST = True
+IPWARE_META_PRECEDENCE_ORDER = (
+    'HTTP_X_FORWARDED_FOR',
+    'HTTP_X_REAL_IP',
+    'REMOTE_ADDR',
+)
