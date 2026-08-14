@@ -195,7 +195,7 @@
                                 <tr class="pool-head-row"><td colspan="9">{{ ps.pool.name }}</td></tr>
                                 {% for pt in ps.teams %}
                                 <tr>
-                                    <td>{{ pt.team.name }}</td>
+                                    <td>{{ pt.display_name }}</td>
                                     <td>{{ pt.played }}</td>
                                     <td>{{ pt.won }}</td>
                                     <td>{{ pt.drawn }}</td>
@@ -218,24 +218,24 @@
                 <!-- Group Fixtures -->
                 <div class="comp-tab-panel" id="fixtures-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
                     {% if cd.group_fixtures %}
-                    {% for f in cd.group_fixtures %}
+                    {% for fd in cd.group_fixtures %}
                     <div class="fixture-row">
                         <div class="fixture-home">
-                            {{ f.home_team.name|default:"TBD" }}
-                            <div class="fixture-meta">{% if f.pool %}{{ f.pool.name }}{% endif %}</div>
+                            {{ fd.home_name }}
+                            <div class="fixture-meta">{% if fd.fixture.pool %}{{ fd.fixture.pool.name }}{% endif %}</div>
                         </div>
                         <div class="fixture-score">
-                            {% if f.status == 'completed' %}
-                            {{ f.home_score }} – {{ f.away_score }}
-                            {% elif f.status == 'live' %}
-                            {{ f.home_score|default:"0" }} – {{ f.away_score|default:"0" }}
+                            {% if fd.fixture.status == 'completed' %}
+                            {{ fd.fixture.home_score }} – {{ fd.fixture.away_score }}
+                            {% elif fd.fixture.status == 'live' %}
+                            {{ fd.fixture.home_score|default:"0" }} – {{ fd.fixture.away_score|default:"0" }}
                             <span class="fixture-live-badge">Live</span>
                             {% else %}
                             <span class="fixture-score--vs">vs</span>
                             {% endif %}
-                            <div class="fixture-meta">{{ f.match_date|date:"d M" }} {% if f.kickoff_time %}{{ f.kickoff_time|time:"H:i" }}{% endif %}</div>
+                            <div class="fixture-meta">{{ fd.fixture.match_date|date:"d M" }} {% if fd.fixture.kickoff_time %}{{ fd.fixture.kickoff_time|time:"H:i" }}{% endif %}</div>
                         </div>
-                        <div class="fixture-away">{{ f.away_team.name|default:"TBD" }}</div>
+                        <div class="fixture-away">{{ fd.away_name }}</div>
                     </div>
                     {% endfor %}
                     {% else %}
@@ -246,17 +246,17 @@
                 <!-- Knockout -->
                 {% if cd.knockout_rounds %}
                 <div class="comp-tab-panel" id="knockout-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
-                    {% for round_name, fixtures in cd.knockout_rounds.items %}
+                    {% for round_name, round_fixtures in cd.knockout_rounds.items %}
                     <p style="font-size:.78rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;margin:.75rem 0 .3rem">{{ round_name }}</p>
-                    {% for f in fixtures %}
+                    {% for fd in round_fixtures %}
                     <div class="fixture-row">
-                        <div class="fixture-home">{{ f.home_team.name|default:"TBD" }}</div>
+                        <div class="fixture-home">{{ fd.home_name }}</div>
                         <div class="fixture-score">
-                            {% if f.status == 'completed' %}{{ f.home_score }} – {{ f.away_score }}
+                            {% if fd.fixture.status == 'completed' %}{{ fd.fixture.home_score }} – {{ fd.fixture.away_score }}
                             {% else %}<span class="fixture-score--vs">vs</span>{% endif %}
-                            <div class="fixture-meta">{{ f.match_date|date:"d M" }}</div>
+                            <div class="fixture-meta">{{ fd.fixture.match_date|date:"d M" }}</div>
                         </div>
-                        <div class="fixture-away">{{ f.away_team.name|default:"TBD" }}</div>
+                        <div class="fixture-away">{{ fd.away_name }}</div>
                     </div>
                     {% endfor %}
                     {% endfor %}
@@ -266,14 +266,14 @@
                 <!-- Results -->
                 <div class="comp-tab-panel" id="results-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
                     {% if cd.results %}
-                    {% for f in cd.results %}
+                    {% for fd in cd.results %}
                     <div class="fixture-row">
-                        <div class="fixture-home">{{ f.home_team.name }}</div>
+                        <div class="fixture-home">{{ fd.home_name }}</div>
                         <div class="fixture-score">
-                            {{ f.home_score }} – {{ f.away_score }}
-                            <div class="fixture-meta">{{ f.match_date|date:"d M Y" }}</div>
+                            {{ fd.fixture.home_score }} – {{ fd.fixture.away_score }}
+                            <div class="fixture-meta">{{ fd.fixture.match_date|date:"d M Y" }}</div>
                         </div>
-                        <div class="fixture-away">{{ f.away_team.name }}</div>
+                        <div class="fixture-away">{{ fd.away_name }}</div>
                     </div>
                     {% endfor %}
                     {% else %}
@@ -284,14 +284,14 @@
                 <!-- Upcoming -->
                 <div class="comp-tab-panel" id="upcoming-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
                     {% if cd.upcoming %}
-                    {% for f in cd.upcoming %}
+                    {% for fd in cd.upcoming %}
                     <div class="fixture-row">
-                        <div class="fixture-home">{{ f.home_team.name }}</div>
+                        <div class="fixture-home">{{ fd.home_name }}</div>
                         <div class="fixture-score">
                             <span class="fixture-score--vs">vs</span>
-                            <div class="fixture-meta">{{ f.match_date|date:"d M Y" }} {% if f.kickoff_time %}{{ f.kickoff_time|time:"H:i" }}{% endif %}</div>
+                            <div class="fixture-meta">{{ fd.fixture.match_date|date:"d M Y" }} {% if fd.fixture.kickoff_time %}{{ fd.fixture.kickoff_time|time:"H:i" }}{% endif %}</div>
                         </div>
-                        <div class="fixture-away">{{ f.away_team.name }}</div>
+                        <div class="fixture-away">{{ fd.away_name }}</div>
                     </div>
                     {% endfor %}
                     {% else %}

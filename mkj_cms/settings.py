@@ -527,3 +527,10 @@ IPWARE_META_PRECEDENCE_ORDER = (
     'HTTP_X_REAL_IP',
     'REMOTE_ADDR',
 )
+
+# ── CLOUDFLARE TURNSTILE CAPTCHA ──────────────────────────────────────────
+# Set these in Railway environment variables dashboard:
+#   TURNSTILE_SITE_KEY   - public key rendered in the widget
+#   TURNSTILE_SECRET_KEY - private key used for server-side verification
+TURNSTILE_SITE_KEY   = env("TURNSTILE_SITE_KEY",   default="")
+TURNSTILE_SECRET_KEY = env("TURNSTILE_SECRET_KEY", default="")

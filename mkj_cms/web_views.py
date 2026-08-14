@@ -1116,6 +1116,21 @@ def public_fixtures_results_view(request):
     """
     from competitions.models import Pool, PoolTeam
     from matches.models import get_sport_family
+    from teams.models import LigiMashinaniRegistration
+
+    # Build a team_pk → real registered name lookup from approved Ligi registrations
+    _reg_name_map = {}
+    for reg in LigiMashinaniRegistration.objects.filter(status='approved').select_related('county_discipline'):
+        if reg.county_discipline_id:
+            team = Team.objects.filter(source_discipline_id=reg.county_discipline_id).first()
+            if team:
+                _reg_name_map[team.pk] = reg.team_name
+
+    def _real_team_name(team_obj):
+        """Return the Ligi-registered team name when available, else Team.name."""
+        if team_obj is None:
+            return "TBD"
+        return _reg_name_map.get(team_obj.pk, team_obj.name)
 
     gender_filter = request.GET.get('gender', '').strip().lower()
     sport_filter = request.GET.get('sport', '').strip()
@@ -1191,49 +1206,98 @@ def public_fixtures_results_view(request):
                 pool_standings = []
                 for pool in pools:
                     sorted_teams = sort_pool_standings(pool.pool_teams.all(), comp.sport_type)
-                    pool_standings.append({'pool': pool, 'teams': sorted_teams})
+                    pool_standings.append({
+                        'pool': pool,
+                        'teams': [
+                            {
+                                'pt': pt,
+                                'display_name': _real_team_name(pt.team),
+                                'played': pt.played,
+                                'won': pt.won,
+                                'drawn': pt.drawn,
+                                'lost': pt.lost,
+                                'goals_for': pt.goals_for,
+                                'goals_against': pt.goals_against,
+                                'goal_difference': pt.goal_difference,
+                                'points': pt.points,
+                            }
+                            for pt in sorted_teams
+                        ],
+                    })
 
-                # Group stage fixtures
-                group_fixtures = Fixture.objects.filter(
-                    competition=comp, is_knockout=False
-                ).select_related(
-                    'home_team', 'away_team', 'venue', 'pool'
-                ).order_by('match_date', 'kickoff_time')
+                # Group stage fixtures — annotate with real registered names
+                group_fixtures = [
+                    {
+                        'fixture': f,
+                        'home_name': _real_team_name(f.home_team),
+                        'away_name': _real_team_name(f.away_team),
+                    }
+                    for f in Fixture.objects.filter(
+                        competition=comp, is_knockout=False
+                    ).select_related(
+                        'home_team', 'away_team', 'venue', 'pool'
+                    ).order_by('match_date', 'kickoff_time')
+                ]
 
-                # Knockout fixtures
-                knockout_fixtures = Fixture.objects.filter(
+                # Knockout fixtures — annotate with real names
+                knockout_fixtures_qs = Fixture.objects.filter(
                     competition=comp, is_knockout=True
                 ).select_related(
                     'home_team', 'away_team', 'venue', 'winner'
                 ).order_by('knockout_round', 'bracket_position')
 
                 knockout_rounds = {}
-                for f in knockout_fixtures:
+                for f in knockout_fixtures_qs:
                     round_name = f.get_knockout_round_display() if f.knockout_round else 'Unknown'
-                    knockout_rounds.setdefault(round_name, []).append(f)
+                    knockout_rounds.setdefault(round_name, []).append({
+                        'fixture': f,
+                        'home_name': _real_team_name(f.home_team),
+                        'away_name': _real_team_name(f.away_team),
+                    })
 
-                # Recent results (completed)
-                results = Fixture.objects.filter(
-                    competition=comp, status='completed'
-                ).select_related(
-                    'home_team', 'away_team', 'venue'
-                ).order_by('-match_date')[:10]
+                # Recent results (completed) — annotated
+                results = [
+                    {
+                        'fixture': f,
+                        'home_name': _real_team_name(f.home_team),
+                        'away_name': _real_team_name(f.away_team),
+                    }
+                    for f in Fixture.objects.filter(
+                        competition=comp, status='completed'
+                    ).select_related(
+                        'home_team', 'away_team', 'venue'
+                    ).order_by('-match_date')[:10]
+                ]
 
-                # Upcoming fixtures
-                upcoming = Fixture.objects.filter(
-                    competition=comp, match_date__gte=timezone.now().date()
-                ).exclude(
-                    status__in=['completed', 'cancelled']
-                ).select_related(
-                    'home_team', 'away_team', 'venue'
-                ).order_by('match_date')[:10]
+                # Upcoming fixtures — annotated
+                upcoming = [
+                    {
+                        'fixture': f,
+                        'home_name': _real_team_name(f.home_team),
+                        'away_name': _real_team_name(f.away_team),
+                    }
+                    for f in Fixture.objects.filter(
+                        competition=comp, match_date__gte=timezone.now().date()
+                    ).exclude(
+                        status__in=['completed', 'cancelled']
+                    ).select_related(
+                        'home_team', 'away_team', 'venue'
+                    ).order_by('match_date')[:10]
+                ]
 
-                # Live matches
-                live = Fixture.objects.filter(
-                    competition=comp, status='live'
-                ).select_related(
-                    'home_team', 'away_team', 'venue'
-                )
+                # Live matches — annotated
+                live = [
+                    {
+                        'fixture': f,
+                        'home_name': _real_team_name(f.home_team),
+                        'away_name': _real_team_name(f.away_team),
+                    }
+                    for f in Fixture.objects.filter(
+                        competition=comp, status='live'
+                    ).select_related(
+                        'home_team', 'away_team', 'venue'
+                    )
+                ]
 
                 comp_list.append({
                     'competition': comp,
