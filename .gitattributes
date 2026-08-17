@@ -1,0 +1,8 @@
+# Tell GitHub Linguist to exclude templates and static files from language stats
+# so Python shows as the dominant language
+
+templates/**/*.html linguist-documentation=true
+frontend/**/*.html linguist-documentation=true
+static/**/*.css  linguist-vendored=true
+static/**/*.js   linguist-vendored=true
+staticfiles/**   linguist-vendored=true
