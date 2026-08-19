@@ -1,0 +1,84 @@
+services:
+
+  # ── PostgreSQL database ────────────────────────────────────────────────────
+  # Uses a pre-built image from Docker Hub. No Dockerfile needed.
+  # Railway comparison: this is the Postgres service you add in Railway dashboard.
+  # Railway auto-sets DATABASE_URL pointing to it. Here we do the same manually.
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: mkj_db
+      POSTGRES_USER: mkj_user
+      POSTGRES_PASSWORD: mkj_localdev_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mkj_user -d mkj_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  # Railway comparison: the Redis service you add in Railway dashboard.
+  # Railway auto-sets REDIS_URL. Here we set it manually in .env.docker.
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Django web app ─────────────────────────────────────────────────────────
+  # "build: ." means use the Dockerfile in the current directory.
+  # Railway comparison: Railway builds this from your code using Nixpacks.
+  # Here YOU build it using your own Dockerfile.
+  web:
+    build: .
+    # Override Dockerfile's CMD for development. runserver has auto-reload.
+    # Railway uses gunicorn (production). We use runserver locally.
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      # Bind mount: syncs your local code into the container live.
+      # Edit a file -> container sees it instantly -> Django auto-reloads.
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      # YOUR_MACHINE:CONTAINER — localhost:8000 hits port 8000 in the container
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Celery worker ──────────────────────────────────────────────────────────
+  # TEMPORARILY DISABLED — celery package was missing from requirements.txt
+  # and mkj_cms/celery.py entry point doesn't exist yet.
+  # We'll enable this properly in the next step.
+  #
+  # celery:
+  #   build: .
+  #   command: celery -A mkj_cms worker --loglevel=info
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - .env.docker
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+# Named volumes — Docker manages these on your machine.
+# Data persists even after containers stop or are removed.
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:

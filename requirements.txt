@@ -31,6 +31,7 @@ argon2-cffi>=21.3
 
 # Production
 gunicorn>=22.0
+celery>=5.3
 psycopg2-binary>=2.9
 django-redis>=5.4
 sentry-sdk[django]>=2.0

@@ -1,0 +1,95 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .dockerignore — Tell Docker what NOT to copy into the image
+#
+# RAILWAY COMPARISON:
+#   When you git push to Railway, git skips everything in .gitignore.
+#   Docker doesn't know about .gitignore — it needs its own ignore file.
+#   Without this, Docker would copy your entire venv (hundreds of MBs),
+#   node_modules, .git history, and local databases into the image.
+#   That makes images massive and builds slow.
+#
+# Rule of thumb: if you wouldn't deploy it, don't include it in the image.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Python virtual environment ────────────────────────────────────────────────
+# The Dockerfile installs packages fresh inside the image via pip.
+# Your local venv is irrelevant inside the container.
+venv/
+.venv/
+env/
+
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Local databases ───────────────────────────────────────────────────────────
+# The container uses Postgres (from the db service in docker-compose.yml).
+# These SQLite files are just your local dev data — don't include them.
+*.sqlite3
+*.db
+db.sqlite3-journal
+*.bak
+
+# ── Environment variable files ────────────────────────────────────────────────
+# NEVER bake secrets into an image. The container reads env vars at runtime.
+# On Railway: secrets come from the Variables dashboard.
+# In Docker: secrets come from .env.docker via docker-compose.
+.env
+.env.local
+.env.docker
+.env.production.example
+
+# ── Frontend build dependencies ───────────────────────────────────────────────
+# Hundreds of MB of JS packages. Not needed in the Django container.
+node_modules/
+frontend/node_modules/
+
+# ── Static files that get generated ──────────────────────────────────────────
+# collectstatic regenerates these at startup (see railway_start.sh).
+# No point baking them in — they'd just be overwritten.
+staticfiles/
+
+# ── Media uploads ─────────────────────────────────────────────────────────────
+# User-uploaded files. In production these go to Cloudinary/S3.
+# Locally they're served from the Docker volume, not the image.
+media/
+
+# ── Git history ───────────────────────────────────────────────────────────────
+# Your full git history doesn't need to be inside the container.
+.git/
+.gitattributes
+.gitignore
+
+# ── IDE and editor files ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.lnk
+
+# ── Kiro AI workspace ─────────────────────────────────────────────────────────
+.kiro/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docs and scripts that aren't needed to run the app ───────────────────────
+*.md
+*.sh
+activate_comps.py
+activate.sh
+push.sh
+do_replacements.ps1
+start.bat
+test_integration.py
+check_semis.py
+list_comps.py
+recalc_*.txt
+seed_*.txt
+
+# ── Docker files themselves ───────────────────────────────────────────────────
+# No need to copy the Dockerfile into the image it's building.
+Dockerfile
+docker-compose.yml

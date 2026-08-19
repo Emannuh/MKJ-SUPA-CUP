@@ -88,7 +88,7 @@ def add_players(request):
     if request.user.is_authenticated and team.manager != request.user:
         if team.status != 'approved':
             messages.error(request, 'Your team is pending approval. You cannot add players yet.')
-            return redirect('frontend:home')
+            return redirect('home')
     
     if request.method == 'POST':
         form = PlayerRegistrationForm(request.POST, request.FILES)
@@ -389,7 +389,7 @@ def update_team_kits(request, team_id=None):
             return redirect('dashboard')
     else:
         messages.error(request, "You don't have permission to edit team kits.")
-        return redirect('frontend:home')
+        return redirect('home')
     
     # Check if team is approved
     if team.status != 'approved' and not request.user.is_staff:

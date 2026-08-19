@@ -2810,3 +2810,232 @@ class TeamDeletionRequest(models.Model):
             f"Delete {self.registration.team_name} ({self.registration.ward} Ward) "
             f"– {self.get_status_display()}"
         )
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PLAYER PARTICIPATION HISTORY
+#  Tracks which players participated in each Ligi Mashinani edition and
+#  each MKJ SUPA CUP season, across all levels (ward → sub-county → county).
+# ══════════════════════════════════════════════════════════════════════════════
+
+class EditionType(models.TextChoices):
+    LIGI_MASHINANI = 'ligi_mashinani', 'Ligi Mashinani'
+    MKJ_SUPA_CUP   = 'mkj_supa_cup',  'MKJ SUPA CUP'
+
+
+class LigiEdition(models.Model):
+    """
+    A named edition / season of the tournament pipeline.
+    e.g. "Ligi Mashinani 2026" or "MKJ SUPA CUP 2026".
+    Editions are created by admin and used to tag all participation records.
+    """
+    edition_type = models.CharField(
+        max_length=20, choices=EditionType.choices,
+        default=EditionType.LIGI_MASHINANI,
+    )
+    year = models.CharField(
+        max_length=9,
+        help_text="Season year or range, e.g. '2026' or '2025/26'",
+    )
+    label = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Optional display label override, e.g. 'Inaugural Edition'",
+    )
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Mark the currently running edition as active",
+    )
+    competition = models.ForeignKey(
+        'competitions.Competition',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='editions',
+        help_text="The Competition record that anchors this edition (optional)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['edition_type', 'year']
+        ordering = ['-year', 'edition_type']
+        verbose_name = 'Ligi / SUPA CUP Edition'
+        verbose_name_plural = 'Ligi / SUPA CUP Editions'
+
+    def __str__(self):
+        label = self.label or f'{self.get_edition_type_display()} {self.year}'
+        return label
+
+    @classmethod
+    def active_ligi(cls):
+        """Return the active Ligi Mashinani edition, or None."""
+        return cls.objects.filter(
+            edition_type=EditionType.LIGI_MASHINANI, is_active=True
+        ).first()
+
+    @classmethod
+    def active_supacup(cls):
+        """Return the active MKJ SUPA CUP edition, or None."""
+        return cls.objects.filter(
+            edition_type=EditionType.MKJ_SUPA_CUP, is_active=True
+        ).first()
+
+
+class ParticipationLevel(models.TextChoices):
+    WARD       = 'ward',       'Ward (Ligi Mashinani)'
+    SUBCOUNTY  = 'subcounty',  'Sub-County Finals'
+    COUNTY     = 'county',     'County (MKJ SUPA CUP)'
+
+
+class PlayerParticipationRecord(models.Model):
+    """
+    One record per player per edition per level.
+    Links a CountyPlayer (ward/subcounty) or national_id to a specific
+    Ligi Mashinani edition or MKJ SUPA CUP season at a given level.
+
+    This is the single source of truth for "who played when and where".
+    """
+    # ── Player identity ───────────────────────────────────────────────────
+    # We store both the FK (if available) and national_id for resilience.
+    # Ward/subcounty players are CountyPlayer; county-level are Player.
+    county_player = models.ForeignKey(
+        'CountyPlayer',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='participation_history',
+        help_text="Ward / sub-county level player (CountyPlayer)",
+    )
+    player = models.ForeignKey(
+        'Player',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='participation_history',
+        help_text="County level player (Player) — for MKJ SUPA CUP records",
+    )
+    national_id = models.CharField(
+        max_length=20,
+        db_index=True,
+        help_text="National ID — used to link records across seasons/levels",
+    )
+    player_name = models.CharField(
+        max_length=200,
+        help_text="Player name at time of participation (snapshot)",
+    )
+
+    # ── Edition & level ───────────────────────────────────────────────────
+    edition = models.ForeignKey(
+        LigiEdition,
+        on_delete=models.CASCADE,
+        related_name='participation_records',
+    )
+    level = models.CharField(
+        max_length=15, choices=ParticipationLevel.choices,
+        default=ParticipationLevel.WARD,
+    )
+
+    # ── Team & discipline context ─────────────────────────────────────────
+    sport_type = models.CharField(max_length=30, choices=SportType.choices)
+    team_name  = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text="Team name at time of participation (snapshot)",
+    )
+    sub_county = models.CharField(max_length=100, blank=True, default='')
+    ward       = models.CharField(max_length=100, blank=True, default='')
+
+    # ── Optional FK links for richer queries ─────────────────────────────
+    discipline = models.ForeignKey(
+        'CountyDiscipline',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='participation_records',
+    )
+    competition = models.ForeignKey(
+        'competitions.Competition',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='participation_records',
+    )
+
+    # ── Stats snapshot (filled from SquadPlayer / PlayerStatistics) ──────
+    appearances = models.PositiveIntegerField(default=0)
+    goals       = models.PositiveIntegerField(default=0)
+    assists     = models.PositiveIntegerField(default=0)
+    yellow_cards = models.PositiveIntegerField(default=0)
+    red_cards   = models.PositiveIntegerField(default=0)
+
+    # ── Metadata ─────────────────────────────────────────────────────────
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+    notes       = models.TextField(blank=True, default='')
+
+    class Meta:
+        unique_together = ['national_id', 'edition', 'level', 'sport_type']
+        ordering = ['-edition__year', 'level', 'player_name']
+        verbose_name = 'Player Participation Record'
+        verbose_name_plural = 'Player Participation Records'
+        indexes = [
+            models.Index(fields=['national_id']),
+            models.Index(fields=['edition', 'level']),
+            models.Index(fields=['sub_county', 'ward']),
+        ]
+
+    def __str__(self):
+        return (
+            f'{self.player_name} ({self.national_id}) — '
+            f'{self.edition} — {self.get_level_display()} — '
+            f'{self.get_sport_type_display()}'
+        )
+
+    @property
+    def full_player_name(self):
+        if self.county_player:
+            return f'{self.county_player.first_name} {self.county_player.last_name}'.strip()
+        if self.player:
+            return f'{self.player.first_name} {self.player.last_name}'.strip()
+        return self.player_name
+
+    @classmethod
+    def get_player_history(cls, national_id):
+        """Return all participation records for a national ID across all editions."""
+        return cls.objects.filter(national_id=national_id).select_related(
+            'edition', 'discipline', 'competition'
+        ).order_by('-edition__year', 'level')
+
+    @classmethod
+    def record_ward_participation(cls, county_player, edition=None):
+        """
+        Create or update a ward-level participation record for a CountyPlayer.
+        Called when a ward longlist is approved / player is confirmed in Ligi.
+        """
+        if edition is None:
+            edition = LigiEdition.active_ligi()
+        if edition is None:
+            return None
+
+        discipline = county_player.discipline
+        team_name = (
+            county_player.ligi_mashinani_team
+            or getattr(discipline, 'ward', '')
+            or ''
+        )
+        # Try to get the registered team name from LigiMashinaniRegistration
+        try:
+            reg = discipline.ligi_registration
+            if reg and reg.team_name:
+                team_name = reg.team_name
+        except Exception:
+            pass
+
+        record, _ = cls.objects.update_or_create(
+            national_id=county_player.national_id_number,
+            edition=edition,
+            level=ParticipationLevel.WARD,
+            sport_type=discipline.sport_type,
+            defaults={
+                'county_player': county_player,
+                'player_name': f'{county_player.first_name} {county_player.last_name}'.strip(),
+                'team_name': team_name,
+                'sub_county': discipline.sub_county or '',
+                'ward': discipline.ward or '',
+                'discipline': discipline,
+                'competition': edition.competition,
+            },
+        )
+        return record
